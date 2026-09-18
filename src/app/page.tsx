@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Zap, Filter } from "lucide-react";
 import MatchList from "@/components/matches/MatchList";
 import { MatchSkeleton } from "@/components/ui/Skeleton";
@@ -14,12 +14,10 @@ export default function HomePage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showLiveOnly, setShowLiveOnly] = useState(false);
-  const [currentDate, setCurrentDate] = useState("");
 
-  useEffect(() => {
-    // Set localized date
+  const currentDate = useMemo(() => {
     const options: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long" };
-    setCurrentDate(new Date().toLocaleDateString(language === 'es' ? "es-AR" : "en-US", options));
+    return new Date().toLocaleDateString(language === "es" ? "es-AR" : "en-US", options);
   }, [language]);
 
   useEffect(() => {
@@ -38,7 +36,7 @@ export default function HomePage() {
     };
 
     fetchMatches();
-  }, []); // Note: leaving fetch out of dependencies so it doesn't refetch on language change
+  }, [matches.length]);
 
   const liveMatches = matches.filter((m) => LIVE_STATUSES.includes(m.status.short));
   const filteredMatches = showLiveOnly ? liveMatches : matches;

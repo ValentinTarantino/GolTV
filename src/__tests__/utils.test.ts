@@ -4,11 +4,9 @@ import {
   isUpcoming,
   isViewable,
   formatTime,
-  formatDate,
   getStatusLabel,
   getCountdown,
 } from "@/lib/utils";
-import type { MatchStatusShort } from "@/lib/types";
 
 describe("isLive", () => {
   it("returns true for live statuses", () => {

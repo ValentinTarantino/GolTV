@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { dictionaries, Language, Dictionary } from "@/i18n/dictionaries";
 
 interface LanguageContextType {
@@ -11,16 +11,15 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("es");
+function getInitialLanguage(): Language {
+  if (typeof window === "undefined") return "es";
+  const saved = localStorage.getItem("goltv-language") as Language;
+  if (saved && (saved === "es" || saved === "en")) return saved;
+  return "es";
+}
 
-  useEffect(() => {
-    // Try to load from localStorage on mount
-    const saved = localStorage.getItem("goltv-language") as Language;
-    if (saved && (saved === "es" || saved === "en")) {
-      setLanguageState(saved);
-    }
-  }, []);
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [language, setLanguageState] = useState<Language>(getInitialLanguage);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);

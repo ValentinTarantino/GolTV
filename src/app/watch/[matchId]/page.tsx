@@ -8,7 +8,7 @@ import VideoPlayer from "@/components/player/VideoPlayer";
 import ChannelSelector from "@/components/player/ChannelSelector";
 import LiveBadge from "@/components/matches/LiveBadge";
 import { PlayerSkeleton } from "@/components/ui/Skeleton";
-import { isLive, isFinished, isUpcoming, isViewable } from "@/lib/utils";
+import { isLive, isUpcoming, isViewable } from "@/lib/utils";
 import type { Match, Channel } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
 

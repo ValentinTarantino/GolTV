@@ -1,5 +1,5 @@
-import { API_FOOTBALL_BASE, SUPPORTED_LEAGUES, getChannelsForCountry, getBroadcastChannels } from "./constants";
-import type { Match, Standing, MatchStatusShort } from "./types";
+import { API_FOOTBALL_BASE, SUPPORTED_LEAGUES, getBroadcastChannels } from "./constants";
+import type { Match, MatchStatusShort } from "./types";
 
 const API_KEY = process.env.API_FOOTBALL_KEY || "";
 
@@ -36,20 +36,6 @@ interface APIFixture {
     home: number | null;
     away: number | null;
   };
-}
-
-interface APIStandingEntry {
-  rank: number;
-  team: { id: number; name: string; logo: string };
-  points: number;
-  all: {
-    played: number;
-    win: number;
-    draw: number;
-    lose: number;
-    goals: { for: number; against: number };
-  };
-  goalsDiff: number;
 }
 
 interface APIResponse<T> {
@@ -91,10 +77,6 @@ function mapStatus(apiStatus: string): MatchStatusShort {
 
 function fixtureToMatch(fixture: APIFixture): Match {
   const status = mapStatus(fixture.fixture.status.short);
-  const isUpcoming = status === "NS" || status === "TBD";
-  const nowInSeconds = Date.now() / 1000;
-  const isViewable = isUpcoming && nowInSeconds >= fixture.fixture.timestamp;
-  const shouldShowChannels = !isUpcoming || isViewable;
   
   const knownLeague = SUPPORTED_LEAGUES.find((l) => l.id === fixture.league.id);
 
