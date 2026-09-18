@@ -20,7 +20,7 @@ export default function Countdown({ timestamp }: CountdownProps) {
 
   return (
     <span
-      className="inline-flex items-center gap-1 font-mono text-sm font-semibold text-[var(--accent-secondary)] tabular-nums"
+      className="inline-flex items-center gap-1 font-mono text-sm font-semibold text-accent-secondary tabular-nums"
       id="match-countdown"
     >
       <svg width="12" height="12" viewBox="0 0 12 12" className="opacity-70">

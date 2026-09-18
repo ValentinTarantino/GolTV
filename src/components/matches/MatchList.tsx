@@ -57,12 +57,12 @@ export default function MatchList({ matches }: MatchListProps) {
       {groups.map((group, groupIndex) => (
         <section
           key={group.leagueId}
-          className={`border-4 border-white bg-[var(--bg-card)] p-4 sm:p-6 shadow-[6px_6px_0px_0px_var(--accent-secondary)] animate-fade-in stagger-${Math.min(groupIndex + 1, 6)}`}
+          className={`border-4 border-white bg-bg-card p-4 sm:p-6 shadow-[6px_6px_0px_0px_var(--color-accent-secondary)] animate-fade-in stagger-${Math.min(groupIndex + 1, 6)}`}
           style={{ opacity: 0 }}
         >
           {/* League Header */}
           <div
-            className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--accent-primary)] border-4 border-black p-4 brutal-shadow-white"
+            className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-accent-primary border-4 border-black p-4 shadow-brutal-white"
             id={`league-header-${group.leagueId}`}
           >
             <div className="flex items-center gap-4">
@@ -79,7 +79,6 @@ export default function MatchList({ matches }: MatchListProps) {
                 <h2 className="text-xl sm:text-2xl font-black text-black uppercase tracking-tight">
                   {group.leagueName}
                 </h2>
-                <span className="text-sm font-bold text-black/80 uppercase tracking-widest">{group.leagueCountry}</span>
               </div>
             </div>
           </div>

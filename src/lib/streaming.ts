@@ -1,14 +1,15 @@
 import type { Channel } from "./types";
 
-const STREAM_API_BASE = "https://all-sport-live-stream.p.rapidapi.com";
+const STREAM_API_BASE = "https://football-live-stream-api.p.rapidapi.com";
 const RAPID_API_KEY = process.env.RAPIDAPI_KEY || "";
 
-interface SportMatch {
+interface StreamMatch {
   id: string;
+  league: string;
   home_name: string;
   away_name: string;
-  league: string;
   status: string;
+  score: string;
 }
 
 let lastFailureTime = 0;
@@ -17,7 +18,7 @@ const COOLDOWN_MS = 5 * 60 * 1000;
 export async function getStreamsForMatch(
   homeTeam: string,
   awayTeam: string,
-  matchId?: number
+  matchId?: string
 ): Promise<Channel[]> {
   if (!RAPID_API_KEY) {
     return [];
@@ -29,10 +30,10 @@ export async function getStreamsForMatch(
 
   try {
     if (matchId) {
-      const res = await fetch(`${STREAM_API_BASE}/esid?id=${matchId}`, {
+      const res = await fetch(`${STREAM_API_BASE}/link/${matchId}`, {
         headers: {
           "X-RapidAPI-Key": RAPID_API_KEY,
-          "X-RapidAPI-Host": "all-sport-live-stream.p.rapidapi.com",
+          "X-RapidAPI-Host": "football-live-stream-api.p.rapidapi.com",
         },
         next: { revalidate: 600 },
       });
@@ -46,7 +47,7 @@ export async function getStreamsForMatch(
       }
 
       const data = await res.json();
-      if (data && data.url) {
+      if (data && data.url && data.url.length > 0) {
         return [{
           id: "stream-0",
           name: `${homeTeam} vs ${awayTeam}`,
@@ -56,10 +57,10 @@ export async function getStreamsForMatch(
       return [];
     }
 
-    const res = await fetch(`${STREAM_API_BASE}/esid`, {
+    const res = await fetch(`${STREAM_API_BASE}/all-match`, {
       headers: {
         "X-RapidAPI-Key": RAPID_API_KEY,
-        "X-RapidAPI-Host": "all-sport-live-stream.p.rapidapi.com",
+        "X-RapidAPI-Host": "football-live-stream-api.p.rapidapi.com",
       },
       next: { revalidate: 600 },
     });
@@ -73,7 +74,7 @@ export async function getStreamsForMatch(
     }
 
     const data = await res.json();
-    const matches: SportMatch[] = Array.isArray(data) ? data : data.result || data.matches || [];
+    const matches: StreamMatch[] = data.result || [];
 
     const match = matches.find(
       (m) =>
@@ -82,17 +83,17 @@ export async function getStreamsForMatch(
     );
 
     if (match) {
-      const linkRes = await fetch(`${STREAM_API_BASE}/esid?id=${match.id}`, {
+      const linkRes = await fetch(`${STREAM_API_BASE}/link/${match.id}`, {
         headers: {
           "X-RapidAPI-Key": RAPID_API_KEY,
-          "X-RapidAPI-Host": "all-sport-live-stream.p.rapidapi.com",
+          "X-RapidAPI-Host": "football-live-stream-api.p.rapidapi.com",
         },
         next: { revalidate: 600 },
       });
 
       if (linkRes.ok) {
         const linkData = await linkRes.json();
-        if (linkData && linkData.url) {
+        if (linkData && linkData.url && linkData.url.length > 0) {
           return [{
             id: "stream-0",
             name: `${homeTeam} vs ${awayTeam}`,

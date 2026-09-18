@@ -24,8 +24,7 @@ export async function GET(
   if (LIVE_STATUSES.includes(match.status.short)) {
     const streams = await getStreamsForMatch(
       match.homeTeam.name,
-      match.awayTeam.name,
-      match.id
+      match.awayTeam.name
     );
 
     if (streams.length > 0) {

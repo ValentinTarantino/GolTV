@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import Hls from "hls.js";
 import { Play, Pause, Maximize, Volume2, VolumeX, Loader2, AlertCircle } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface VideoPlayerProps {
   url: string;
@@ -11,6 +12,7 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({ url, title, headers }: VideoPlayerProps) {
+  const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -151,7 +153,7 @@ export default function VideoPlayer({ url, title, headers }: VideoPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="player-container group cursor-pointer"
+      className="relative w-full aspect-video bg-black overflow-hidden border-4 border-white shadow-brutal group cursor-pointer"
       onMouseMove={() => setShowControls(true)}
       onClick={togglePlay}
       id="video-player"
@@ -167,8 +169,8 @@ export default function VideoPlayer({ url, title, headers }: VideoPlayerProps) {
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 size={40} className="animate-spin text-[var(--accent-primary)]" />
-            <span className="text-sm text-[var(--text-secondary)]">Cargando stream...</span>
+            <Loader2 size={40} className="animate-spin text-accent-primary" />
+            <span className="text-sm text-text-secondary">{t.player.loadingStream}</span>
           </div>
         </div>
       )}
@@ -177,12 +179,12 @@ export default function VideoPlayer({ url, title, headers }: VideoPlayerProps) {
       {hasError && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80">
           <div className="flex flex-col items-center gap-3 text-center px-6">
-            <AlertCircle size={40} className="text-[var(--accent-red)]" />
-            <span className="text-sm font-medium text-[var(--text-primary)]">
-              Error al cargar el stream
+            <AlertCircle size={40} className="text-accent-red" />
+            <span className="text-sm font-medium text-text-primary">
+              {t.player.errorLoading}
             </span>
-            <span className="text-xs text-[var(--text-muted)]">
-              Probá con otro canal o intentá más tarde
+            <span className="text-xs text-text-muted">
+              {t.player.tryAnotherChannel}
             </span>
           </div>
         </div>
@@ -206,7 +208,7 @@ export default function VideoPlayer({ url, title, headers }: VideoPlayerProps) {
         {!isPlaying && !isLoading && !hasError && (
           <button
             onClick={togglePlay}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent-primary)]/90 text-white transition-all hover:scale-110 hover:bg-[var(--accent-primary)]"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex h-16 w-16 items-center justify-center rounded-full bg-accent-primary/90 text-black transition-all hover:scale-110 hover:bg-accent-primary"
             id="player-play-btn"
           >
             <Play size={28} className="ml-1" />
@@ -233,8 +235,8 @@ export default function VideoPlayer({ url, title, headers }: VideoPlayerProps) {
 
             {isPlaying && (
               <div className="ml-2 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[var(--accent-red)] animate-pulse" />
-                <span className="text-xs font-semibold text-white/80">EN VIVO</span>
+                <span className="h-2 w-2 rounded-full bg-accent-red animate-pulse" />
+                <span className="text-xs font-semibold text-white/80">{t.player.live}</span>
               </div>
             )}
           </div>
@@ -251,3 +253,4 @@ export default function VideoPlayer({ url, title, headers }: VideoPlayerProps) {
     </div>
   );
 }
+

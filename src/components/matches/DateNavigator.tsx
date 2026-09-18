@@ -36,12 +36,12 @@ export default function DateNavigator({ currentDate, onDateChange }: DateNavigat
 
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] px-3 py-2.5 sm:px-5 sm:justify-center sm:gap-6"
+      className="flex items-center justify-between gap-3 rounded-xl bg-bg-card border border-border-subtle px-3 py-2.5 sm:px-5 sm:justify-center sm:gap-6"
       id="date-navigator"
     >
       <button
         onClick={goToPrevDay}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-all hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-all hover:bg-bg-elevated hover:text-text-primary"
         aria-label="Día anterior"
         id="date-nav-prev"
       >
@@ -49,13 +49,13 @@ export default function DateNavigator({ currentDate, onDateChange }: DateNavigat
       </button>
 
       <div className="flex flex-col items-center gap-0.5 min-w-[140px]">
-        <span className="text-sm font-bold text-[var(--text-primary)]">{label}</span>
-        <span className="text-xs text-[var(--text-muted)] capitalize">{dateStr}</span>
+        <span className="text-sm font-bold text-text-primary">{label}</span>
+        <span className="text-xs text-text-muted capitalize">{dateStr}</span>
       </div>
 
       <button
         onClick={goToNextDay}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-all hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-all hover:bg-bg-elevated hover:text-text-primary"
         aria-label="Día siguiente"
         id="date-nav-next"
       >
@@ -65,7 +65,7 @@ export default function DateNavigator({ currentDate, onDateChange }: DateNavigat
       {!isToday && (
         <button
           onClick={goToToday}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--accent-primary)] transition-all hover:bg-[var(--accent-primary-glow)]"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-accent-primary transition-all hover:bg-accent-primary hover:text-black"
           id="date-nav-today"
         >
           <Calendar size={13} />

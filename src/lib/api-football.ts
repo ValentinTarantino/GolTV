@@ -96,11 +96,13 @@ function fixtureToMatch(fixture: APIFixture): Match {
   const isViewable = isUpcoming && nowInSeconds >= fixture.fixture.timestamp;
   const shouldShowChannels = !isUpcoming || isViewable;
   
+  const knownLeague = SUPPORTED_LEAGUES.find((l) => l.id === fixture.league.id);
+
   return {
     id: fixture.fixture.id,
     league: {
       id: fixture.league.id,
-      name: fixture.league.name,
+      name: knownLeague ? knownLeague.name : fixture.league.name,
       country: fixture.league.country,
       logo: fixture.league.logo,
       flag: fixture.league.flag || "",
@@ -128,7 +130,7 @@ function fixtureToMatch(fixture: APIFixture): Match {
       away: fixture.goals.away,
     },
     channels: [],
-    broadcastChannels: !shouldShowChannels ? getBroadcastChannels(fixture.league.id) : undefined,
+    broadcastChannels: getBroadcastChannels(fixture.league.id),
   };
 }
 

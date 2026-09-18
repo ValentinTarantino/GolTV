@@ -14,7 +14,7 @@ export function MatchSkeleton() {
             {[1, 2].map((match) => (
               <div
                 key={match}
-                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4"
+                className="rounded-xl border border-border-subtle bg-bg-card p-4"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex flex-1 items-center gap-2.5">
@@ -41,7 +41,7 @@ export function MatchSkeleton() {
 
 export function PlayerSkeleton() {
   return (
-    <div className="player-container animate-shimmer">
+    <div className="relative w-full aspect-video bg-black overflow-hidden border-4 border-white shadow-brutal animate-shimmer">
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="h-16 w-16 rounded-full animate-shimmer" />
       </div>
@@ -51,8 +51,8 @@ export function PlayerSkeleton() {
 
 export function StandingsSkeleton() {
   return (
-    <div className="card-static overflow-hidden">
-      <div className="border-b border-[var(--border-subtle)] px-6 py-3">
+    <div className="bg-bg-card border-4 border-white shadow-brutal-sm overflow-hidden">
+      <div className="border-b border-border-subtle px-6 py-3">
         <div className="h-5 w-48 rounded animate-shimmer" />
       </div>
       <div className="p-4 space-y-3">
