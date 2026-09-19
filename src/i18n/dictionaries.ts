@@ -1,3 +1,33 @@
+export const leagueNames: Record<string, string> = {
+  "Liga Profesional": "Liga Profesional",
+  "Copa de la Liga": "League Cup",
+  "Copa Argentina": "Argentina Cup",
+  "Liga de Primera": "First Division",
+  "Copa Chile": "Chile Cup",
+  "Brasileirão Serie A": "Serie A",
+  "Copa do Brasil": "Brazil Cup",
+  "Liga 1": "Liga 1",
+  "Copa Perú": "Peru Cup",
+  "División Profesional": "Professional Division",
+  "Copa Paraguay": "Paraguay Cup",
+  "Liga AUF Uruguaya": "Uruguayan League",
+  "Copa Uruguay": "Uruguay Cup",
+  "Copa Libertadores": "Copa Libertadores",
+  "Copa Sudamericana": "Copa Sudamericana",
+  "Champions League": "Champions League",
+  "Europa League": "Europa League",
+  "La Liga": "La Liga",
+  "Premier League": "Premier League",
+  "Bundesliga": "Bundesliga",
+  "2. Bundesliga": "2. Bundesliga",
+  "3. Liga": "3. Liga",
+  "Liga BetPlay": "Liga BetPlay",
+  "Liga MX": "Liga MX",
+  "Primera División": "First Division",
+  "Liga Pro": "Liga Pro",
+  "División de Honor": "Division of Honor",
+};
+
 export const dictionaries = {
   es: {
     header: {
@@ -45,15 +75,30 @@ export const dictionaries = {
       previewAvailable: "Previa disponible",
       chooseChannelPreview: "Elegí un canal para ver la previa del partido",
       streamAvailableSoon: "El stream estará disponible cuando empiece el partido",
-      noStreams: "No hay streams disponibles",
+      noStreams: "Señal no disponible",
+      noStreamsDesc:
+        "El proveedor de streaming no tiene señal usable ahora (a menudo por bloqueo del CDN). Probá de nuevo en unos minutos.",
+      retryStream: "Reintentar",
     },
     player: {
       availableChannels: "CANALES DISPONIBLES",
       noChannels: "No hay canales disponibles para este partido.",
       loadingStream: "Cargando stream...",
-      errorLoading: "Error al cargar el stream",
-      tryAnotherChannel: "Probá con otro canal o intentá más tarde",
+      errorLoading: "Señal no disponible",
+      tryAnotherChannel:
+        "El proveedor bloqueó o cortó la señal. Reintentá en unos minutos o probá otro canal.",
+      retry: "Reintentar",
+      reload: "Recargar",
       live: "EN VIVO",
+    },
+    chat: {
+      title: "CHAT EN VIVO",
+      nickPrompt: "Elegí un nick para chatear",
+      nickPlaceholder: "Tu nick",
+      enterButton: "Entrar",
+      placeholder: "Escribí un mensaje...",
+      sendButton: "Enviar",
+      messagesEmpty: "No hay mensajes todavía. ¡Sé el primero!",
     },
   },
   en: {
@@ -102,21 +147,41 @@ export const dictionaries = {
       previewAvailable: "Preview available",
       chooseChannelPreview: "Choose a channel to watch the match preview",
       streamAvailableSoon: "Stream will be available when the match starts",
-      noStreams: "No streams available",
+      noStreams: "Signal unavailable",
+      noStreamsDesc:
+        "The streaming provider has no usable signal right now (often a CDN block). Try again in a few minutes.",
+      retryStream: "Retry",
     },
     player: {
       availableChannels: "AVAILABLE CHANNELS",
       noChannels: "No channels available for this match.",
       loadingStream: "Loading stream...",
-      errorLoading: "Error loading stream",
-      tryAnotherChannel: "Try another channel or try again later",
+      errorLoading: "Signal unavailable",
+      tryAnotherChannel:
+        "The provider blocked or dropped the signal. Retry in a few minutes or try another channel.",
+      retry: "Retry",
+      reload: "Reload",
       live: "LIVE",
+    },
+    chat: {
+      title: "LIVE CHAT",
+      nickPrompt: "Pick a nick to chat",
+      nickPlaceholder: "Your nick",
+      enterButton: "Enter",
+      placeholder: "Type a message...",
+      sendButton: "Send",
+      messagesEmpty: "No messages yet. Be the first!",
     },
   }
 };
 
 export type Language = 'es' | 'en';
 export type Dictionary = typeof dictionaries['es'];
+
+export function translateLeague(name: string, lang: Language): string {
+  if (lang === "es") return name;
+  return leagueNames[name] || name;
+}
 
 
 

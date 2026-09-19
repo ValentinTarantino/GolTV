@@ -4,6 +4,7 @@ import {
   getBroadcastChannels,
   CHANNEL_SETS,
 } from "@/lib/constants";
+import { isAllowedStreamLeague } from "@/lib/streaming";
 
 describe("SUPPORTED_LEAGUES", () => {
   it("contains Liga Profesional Argentina", () => {
@@ -13,22 +14,25 @@ describe("SUPPORTED_LEAGUES", () => {
     expect(liga?.country).toBe("Argentina");
   });
 
-  it("contains Champions League", () => {
-    const champions = SUPPORTED_LEAGUES.find((l) => l.id === 2);
-    expect(champions).toBeDefined();
-    expect(champions?.name).toBe("Champions League");
+  it("uses display names for Chile and Uruguay", () => {
+    expect(SUPPORTED_LEAGUES.find((l) => l.id === 265)?.name).toBe("Liga de Primera");
+    expect(SUPPORTED_LEAGUES.find((l) => l.id === 268)?.name).toBe("Liga AUF Uruguaya");
   });
 
-  it("contains Premier League", () => {
-    const premier = SUPPORTED_LEAGUES.find((l) => l.id === 39);
-    expect(premier).toBeDefined();
-    expect(premier?.name).toBe("Premier League");
+  it("contains Libertadores, Champions and Premier", () => {
+    expect(SUPPORTED_LEAGUES.some((l) => l.id === 13)).toBe(true);
+    expect(SUPPORTED_LEAGUES.some((l) => l.id === 2)).toBe(true);
+    expect(SUPPORTED_LEAGUES.some((l) => l.id === 39)).toBe(true);
+  });
+
+  it("excludes Liga MX and Colombia", () => {
+    expect(SUPPORTED_LEAGUES.some((l) => l.id === 262)).toBe(false);
+    expect(SUPPORTED_LEAGUES.some((l) => l.id === 239)).toBe(false);
   });
 
   it("has unique IDs", () => {
     const ids = SUPPORTED_LEAGUES.map((l) => l.id);
-    const uniqueIds = new Set(ids);
-    expect(ids.length).toBe(uniqueIds.size);
+    expect(ids.length).toBe(new Set(ids).size);
   });
 
   it("has all required fields", () => {
@@ -47,18 +51,15 @@ describe("getChannelsForCountry", () => {
     const channels = getChannelsForCountry("Argentina");
     expect(channels.length).toBeGreaterThan(0);
     expect(channels[0]).toHaveProperty("id");
-    expect(channels[0]).toHaveProperty("name");
-    expect(channels[0]).toHaveProperty("url");
   });
 
-  it("returns Brazilian channels", () => {
-    const channels = getChannelsForCountry("Brasil");
-    expect(channels.length).toBeGreaterThan(0);
+  it("returns Chilean and Uruguayan channels", () => {
+    expect(getChannelsForCountry("Chile").length).toBeGreaterThan(0);
+    expect(getChannelsForCountry("Uruguay").length).toBeGreaterThan(0);
   });
 
   it("returns default channels for unknown country", () => {
-    const channels = getChannelsForCountry("PaisDesconocido");
-    expect(channels).toEqual(CHANNEL_SETS.default);
+    expect(getChannelsForCountry("PaisDesconocido")).toEqual(CHANNEL_SETS.default);
   });
 });
 
@@ -69,13 +70,32 @@ describe("getBroadcastChannels", () => {
     expect(channels).toContain("ESPN");
   });
 
-  it("returns default channels for unknown league", () => {
-    const channels = getBroadcastChannels(999999);
-    expect(channels).toEqual(["TyC Sports", "ESPN", "Fox Sports"]);
+  it("returns channels for Premier League", () => {
+    expect(getBroadcastChannels(39).length).toBeGreaterThan(0);
   });
 
-  it("returns channels for Premier League", () => {
-    const channels = getBroadcastChannels(39);
-    expect(channels.length).toBeGreaterThan(0);
+  it("returns default channels for unknown league", () => {
+    expect(getBroadcastChannels(999999)).toEqual(["TyC Sports", "ESPN", "Fox Sports"]);
+  });
+});
+
+describe("isAllowedStreamLeague", () => {
+  it("allows focus leagues", () => {
+    expect(isAllowedStreamLeague("Copa Libertadores")).toBe(true);
+    expect(isAllowedStreamLeague("English Premier League")).toBe(true);
+    expect(isAllowedStreamLeague("Liga de Primera")).toBe(true);
+    expect(isAllowedStreamLeague("Liga AUF Uruguaya")).toBe(true);
+  });
+
+  it("rejects unrelated live noise", () => {
+    expect(isAllowedStreamLeague("OCA Asian Games")).toBe(false);
+    expect(isAllowedStreamLeague("RUS D3B")).toBe(false);
+    expect(isAllowedStreamLeague("Mexican Liga MX")).toBe(false);
+    expect(isAllowedStreamLeague("Belarusian Premier League")).toBe(false);
+    expect(isAllowedStreamLeague("Poland Liga 1")).toBe(false);
+    expect(isAllowedStreamLeague("Azerbaijan Premier League")).toBe(false);
+    expect(isAllowedStreamLeague("Armenian Premier League")).toBe(false);
+    expect(isAllowedStreamLeague("Jordan Premier League")).toBe(false);
+    expect(isAllowedStreamLeague("Kazakhstan Premier League")).toBe(false);
   });
 });

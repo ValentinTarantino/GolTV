@@ -23,32 +23,32 @@ export default function Header() {
       </div>
 
       <header className="sticky top-0 z-50 bg-bg-primary border-b-4 border-white">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6">
+        <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-3 sm:px-4 md:px-6">
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-3 text-2xl font-black tracking-tight transition-transform hover:-translate-y-1"
+            className="flex items-center gap-2 sm:gap-3 text-lg sm:text-2xl font-black tracking-tight transition-transform hover:-translate-y-1"
             id="header-logo"
           >
-            <div className="relative flex h-12 w-12 items-center justify-center bg-accent-primary border-4 border-black shadow-brutal-white">
-              <Tv size={24} strokeWidth={3} className="text-black" />
-              <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center bg-accent-secondary border-2 border-white">
-                <Zap size={14} strokeWidth={3} className="text-white" />
+            <div className="relative flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center bg-accent-primary border-4 border-black shadow-brutal-white">
+              <Tv size={20} strokeWidth={3} className="text-black" />
+              <div className="absolute -right-1.5 -top-1.5 sm:-right-2 sm:-top-2 flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center bg-accent-secondary border-2 border-white">
+                <Zap size={12} strokeWidth={3} className="text-white" />
               </div>
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-white uppercase">GolTV</span>
-              <span className="text-accent-primary font-black text-sm uppercase tracking-widest">
+              <span className="text-white uppercase text-sm sm:text-base">GolTV</span>
+              <span className="text-accent-primary font-black text-xs sm:text-sm uppercase tracking-widest">
                 Libre
               </span>
             </div>
           </Link>
 
           {/* Language Toggle */}
-          <div className="flex items-center border-2 border-white bg-black shadow-brutal-sm font-black text-sm">
+          <div className="flex items-center border-2 border-white bg-black shadow-brutal-sm font-black text-xs sm:text-sm">
             <button
               onClick={() => setLanguage('es')}
-              className={`px-3 py-1.5 transition-colors ${
+              className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
                 language === 'es' ? 'bg-white text-black' : 'text-white hover:text-accent-primary'
               }`}
             >
@@ -56,7 +56,7 @@ export default function Header() {
             </button>
             <button
               onClick={() => setLanguage('en')}
-              className={`px-3 py-1.5 transition-colors ${
+              className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
                 language === 'en' ? 'bg-white text-black' : 'text-white hover:text-accent-primary'
               }`}
             >

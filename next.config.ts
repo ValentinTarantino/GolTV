@@ -7,7 +7,22 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "media.api-sports.io",
-        pathname: "/football/**",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "www.thesportsdb.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "r2.thesportsdb.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.football-live-stream.online",
+        pathname: "/**",
       },
     ],
   },

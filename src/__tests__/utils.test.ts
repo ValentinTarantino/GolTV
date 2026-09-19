@@ -59,7 +59,12 @@ describe("isViewable", () => {
     expect(isViewable("NS", pastTimestamp)).toBe(true);
   });
 
-  it("returns false for NS match before its timestamp", () => {
+  it("returns true for NS match within 30 min of timestamp", () => {
+    const nearTimestamp = Date.now() / 1000 + 20 * 60;
+    expect(isViewable("NS", nearTimestamp)).toBe(true);
+  });
+
+  it("returns false for NS match more than 30 min before timestamp", () => {
     const futureTimestamp = Date.now() / 1000 + 3600;
     expect(isViewable("NS", futureTimestamp)).toBe(false);
   });

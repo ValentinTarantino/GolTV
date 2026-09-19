@@ -10,7 +10,7 @@
 GolTV Libre es una plataforma web para seguir y visualizar partidos de fútbol en vivo y transmisiones deportivas en tiempo real. La aplicación integra una interfaz gráfica con diseño Neo-Brutalista, visualización de marcadores y estados en directo, selección de canales de transmisión mediante streaming HLS (HTTP Live Streaming) y soporte bilingüe (Español e Inglés).
 
 ### Características Principales
-- Agenda de partidos en tiempo real agrupados por ligas y competiciones (Copa Libertadores, Copa Sudamericana, Liga Profesional Argentina, La Liga, Premier League, Liga BetPlay, etc.).
+- Agenda de partidos en tiempo real agrupados por ligas y competiciones (Liga Profesional, Copa Libertadores/Sudamericana, Liga de Primera Chile, Liga AUF Uruguaya, Brasileirão, Liga 1 Perú, División Profesional Paraguay, Champions, Europa League, La Liga, Premier, y copas nacionales asociadas).
 - Estados de partido en directo (En Vivo, Próximo, Finalizado) con tiempos y marcadores actualizados.
 - Reproductor de video HLS integrado compatible con múltiples canales y señales de transmisión.
 - Interfaz con estética Neo-Brutalista moderna construida con Tailwind CSS v4.
@@ -30,8 +30,32 @@ GolTV Libre es una plataforma web para seguir y visualizar partidos de fútbol e
 - Contenedorización: Docker, Docker Compose
 
 ### APIs y Fuentes de Datos
-- API-Football (API-Sports): Utilizada para consultar partidos, ligas, escudos de equipos, trofeos de torneos, marcadores y tablas de posiciones.
-- Canales de Streaming HLS: Integración de flujos de video `.m3u8` asociados dinámicamente a cada encuentro deportivo.
+- API-Football (API-Sports): Utilizada para consultar fixtures, ligas, escudos, marcadores y estados de partido.
+- RapidAPI (`football-live-stream-api`): Utilizada para listar partidos en vivo y obtener URLs HLS (`.m3u8`).
+
+### Configuración de Variables de Entorno
+Cree un archivo `.env.local` en la raíz del proyecto:
+
+```env
+API_FOOTBALL_KEY=su_clave_api_football
+RAPIDAPI_KEY=su_clave_rapidapi
+# Opcional: restringir hosts del proxy HLS (sufijos separados por coma)
+# HLS_PROXY_ALLOWED_HOST_SUFFIXES=akamaized.net,cloudfront.net,mux.dev
+```
+
+### Uso cuidadoso de cuotas (importante)
+Para evitar suspensiones por rate limit, la app aplica límites internos conservadores, caches en memoria y cooldown tras un `429`:
+
+| API | Límite interno aprox. | Cache |
+|-----|----------------------|-------|
+| API-Football | ~70 llamadas/día | fixtures por fecha ~90s; partido por id ~2 min |
+| RapidAPI streams | ~35 llamadas/día | `/all-match` ~5 min; `/link` ~10 min |
+
+Recomendaciones:
+- No ejecute `npm run test:streams` en bucle (consume cuota de RapidAPI).
+- Evite refrescar la home de forma agresiva; el listado ya se revalida cada ~60s.
+- Si recibe `429`, espere al menos 5 minutos (cooldown automático).
+- En producción puede fijar `HLS_PROXY_ALLOWED_HOST_SUFFIXES` para endurecer el proxy.
 
 ### Estructura del Proyecto
 ```
@@ -62,46 +86,7 @@ goltv-libre/
 ### Requisitos Previos
 - Node.js versión 18.18 o superior (recomendado Node.js 20+)
 - npm, yarn, pnpm o bun
-- Clave de API de API-Football (opcional para datos reales)
-
-### Configuración de Variables de Entorno
-Cree un archivo `.env.local` en la raíz del proyecto con la siguiente variable:
-
-```env
-API_FOOTBALL_KEY=su_clave_de_api_aqui
-```
-
-### Ejecución del Proyecto
-
-Iniciar el servidor de desarrollo:
-```bash
-npm run dev
-```
-La aplicación estará disponible en `http://localhost:3000`.
-
-Ejecutar pruebas unitarias:
-```bash
-npm test
-```
-
-Compilar para producción:
-```bash
-npm run build
-npm start
-```
-
-### Ejecución con Docker
-
-Construcción y ejecución directa:
-```bash
-npm run docker:build
-npm run docker:run
-```
-
-O mediante Docker Compose:
-```bash
-npm run docker:compose
-```
+- Claves `API_FOOTBALL_KEY` y `RAPIDAPI_KEY` (opcionales; sin ellas la agenda/streams reales no cargan)
 
 ### Aviso Legal
 GolTV Libre es un proyecto con fines educativos y de demostración técnica. La aplicación no aloja material audiovisual en sus propios servidores y se limita a indexar o enlazar flujos de terceros disponibles públicamente en internet.
@@ -114,7 +99,7 @@ GolTV Libre es un proyecto con fines educativos y de demostración técnica. La 
 GolTV Libre is a web application designed to track and stream live football matches and sporting events in real time. The platform features a distinctive Neo-Brutalist interface, live scores and match status tracking, multi-channel HLS (HTTP Live Streaming) playback, and full bilingual support (Spanish and English).
 
 ### Key Features
-- Live match schedule grouped by leagues and tournaments (Copa Libertadores, Copa Sudamericana, Argentine Primera Division, La Liga, Premier League, Liga BetPlay, etc.).
+- Live match schedule grouped by focused leagues (Argentine Primera, Libertadores/Sudamericana, Chile Liga de Primera, Uruguay Liga AUF, Brasileirão, Peru Liga 1, Paraguay División Profesional, Champions, Europa League, La Liga, Premier, plus national cups).
 - Real-time match status (Live, Upcoming, Finished) with dynamic clocks and scores.
 - Integrated HLS video player supporting multiple broadcast channels per fixture.
 - Modern Neo-Brutalist user interface powered by Tailwind CSS v4.
@@ -134,8 +119,32 @@ GolTV Libre is a web application designed to track and stream live football matc
 - Containerization: Docker, Docker Compose
 
 ### APIs and Data Sources
-- API-Football (API-Sports): Used for retrieving fixtures, league details, team crests, competition logos, live scores, and tournament standings.
-- HLS Streaming Streams: Dynamic `.m3u8` video source integration mapped to corresponding fixtures.
+- API-Football (API-Sports): Used for fixtures, leagues, crests, scores, and match status.
+- RapidAPI (`football-live-stream-api`): Used for live match listings and HLS (`.m3u8`) URLs.
+
+### Environment Variables
+Create a `.env.local` file in the root directory:
+
+```env
+API_FOOTBALL_KEY=your_api_football_key
+RAPIDAPI_KEY=your_rapidapi_key
+# Optional: restrict HLS proxy hosts (comma-separated suffixes)
+# HLS_PROXY_ALLOWED_HOST_SUFFIXES=akamaized.net,cloudfront.net,mux.dev
+```
+
+### Rate-limit hygiene (important)
+To reduce suspension risk, the app uses conservative internal caps, in-memory caches, and a cooldown after `429`:
+
+| API | Internal cap (approx.) | Cache |
+|-----|------------------------|-------|
+| API-Football | ~70 calls/day | fixtures by date ~90s; match by id ~2 min |
+| RapidAPI streams | ~35 calls/day | `/all-match` ~5 min; `/link` ~10 min |
+
+Tips:
+- Do not loop `npm run test:streams` (burns RapidAPI quota).
+- Avoid aggressive home refreshes; the list already revalidates ~every 60s.
+- After a `429`, wait at least 5 minutes (automatic cooldown).
+- In production you can set `HLS_PROXY_ALLOWED_HOST_SUFFIXES` to harden the proxy.
 
 ### Project Structure
 ```
@@ -166,46 +175,7 @@ goltv-libre/
 ### Prerequisites
 - Node.js version 18.18 or higher (Node.js 20+ recommended)
 - npm, yarn, pnpm, or bun
-- API-Football API key (optional for real data)
-
-### Environment Variables
-Create a `.env.local` file in the root directory:
-
-```env
-API_FOOTBALL_KEY=your_api_key_here
-```
-
-### Running the Project
-
-Run the development server:
-```bash
-npm run dev
-```
-Open `http://localhost:3000` in your browser.
-
-Run tests:
-```bash
-npm test
-```
-
-Build for production:
-```bash
-npm run build
-npm start
-```
-
-### Docker Deployment
-
-Build and run using Docker:
-```bash
-npm run docker:build
-npm run docker:run
-```
-
-Or using Docker Compose:
-```bash
-npm run docker:compose
-```
+- `API_FOOTBALL_KEY` and `RAPIDAPI_KEY` (optional; without them real fixtures/streams won't load)
 
 ### Legal Disclaimer
 GolTV Libre is an educational and technical demonstration project. The platform does not host any video streams on its servers and only links to publicly accessible third-party streams on the internet.

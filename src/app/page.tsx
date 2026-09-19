@@ -42,24 +42,24 @@ export default function HomePage() {
   const filteredMatches = showLiveOnly ? liveMatches : matches;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6" id="home-page">
+    <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 py-6 sm:py-8" id="home-page">
       {/* Filters */}
-      <div className="mb-8 flex flex-wrap items-center gap-4 animate-fade-in bg-accent-primary border-4 border-black p-4 shadow-brutal transform rotate-1">
-        <div className="flex flex-col mr-2">
-          <h1 className="text-3xl font-black text-black uppercase tracking-tight">
+      <div className="mb-6 sm:mb-8 flex flex-wrap items-center gap-3 sm:gap-4 animate-fade-in bg-accent-primary border-3 sm:border-4 border-black p-3 sm:p-4 shadow-brutal transform rotate-1">
+        <div className="flex flex-col mr-1 sm:mr-2">
+          <h1 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight">
             {t.home.todayMatches}
           </h1>
           {currentDate && (
-            <span className="text-sm font-bold text-black/80 uppercase tracking-widest mt-1">
+            <span className="text-xs sm:text-sm font-bold text-black/80 uppercase tracking-widest mt-1">
               {currentDate}
             </span>
           )}
         </div>
 
         {liveMatches.length > 0 && (
-          <div className="inline-flex items-center gap-2 bg-black border-2 border-white px-3 py-1">
-            <Zap size={16} strokeWidth={3} className="text-accent-primary" />
-            <span className="text-sm font-black text-white uppercase tracking-widest">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-black border-2 border-white px-2 sm:px-3 py-0.5 sm:py-1">
+            <Zap size={14} strokeWidth={3} className="text-accent-primary" />
+            <span className="text-xs sm:text-sm font-black text-white uppercase tracking-widest">
               {liveMatches.length} {t.home.live}
             </span>
           </div>
@@ -67,25 +67,25 @@ export default function HomePage() {
 
         <button
           onClick={() => setShowLiveOnly(!showLiveOnly)}
-          className={`inline-flex items-center gap-2 border-2 px-4 py-1.5 text-sm font-black uppercase transition-all ${
+          className={`inline-flex items-center gap-1.5 sm:gap-2 border-2 px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-black uppercase transition-all ${
             showLiveOnly
               ? "bg-black border-white text-white shadow-brutal-white hover:-translate-y-1"
               : "bg-white border-black text-black hover:bg-black hover:text-white hover:border-white hover:shadow-brutal-white hover:-translate-y-1"
           }`}
         >
-          <Filter size={16} strokeWidth={3} />
+          <Filter size={14} strokeWidth={3} />
           {showLiveOnly ? t.home.seeAll : t.home.onlyLive}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-10">
+      <div className="grid grid-cols-1 gap-6 sm:gap-10">
         {/* Main Column — Full Grid */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {isLoading ? (
             <MatchSkeleton />
           ) : filteredMatches.length === 0 ? (
-            <div className="border-4 border-white bg-black p-12 text-center shadow-brutal-sm">
-              <h2 className="text-xl font-black uppercase text-white tracking-widest">
+            <div className="border-3 sm:border-4 border-white bg-black p-8 sm:p-12 text-center shadow-brutal-sm">
+              <h2 className="text-lg sm:text-xl font-black uppercase text-white tracking-widest">
                 {t.home.noMatches}
               </h2>
             </div>

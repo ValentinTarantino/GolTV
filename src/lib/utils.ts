@@ -16,7 +16,7 @@ export function isUpcoming(status: MatchStatusShort): boolean {
 export function isViewable(status: MatchStatusShort, timestamp: number): boolean {
   if (isLive(status)) return true;
   if (!isUpcoming(status)) return false;
-  return Date.now() / 1000 >= timestamp;
+  return Date.now() / 1000 >= timestamp - 30 * 60;
 }
 
 export function formatTime(dateStr: string): string {

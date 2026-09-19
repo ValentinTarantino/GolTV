@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useSyncExternalStore } from "react";
 import { dictionaries, Language, Dictionary } from "@/i18n/dictionaries";
 
 interface LanguageContextType {
@@ -11,19 +11,33 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-function getInitialLanguage(): Language {
-  if (typeof window === "undefined") return "es";
-  const saved = localStorage.getItem("goltv-language") as Language;
-  if (saved && (saved === "es" || saved === "en")) return saved;
+const STORAGE_KEY = "goltv-language";
+
+function getSnapshot(): Language {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === "es" || saved === "en") return saved;
+  } catch { /* ignore */ }
   return "es";
 }
 
+function getServerSnapshot(): Language {
+  return "es";
+}
+
+function subscribeLanguage(): () => void {
+  const handler = () => {};
+  window.addEventListener("storage", handler);
+  return () => window.removeEventListener("storage", handler);
+}
+
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(getInitialLanguage);
+  const language = useSyncExternalStore(subscribeLanguage, getSnapshot, getServerSnapshot);
+  const [, forceUpdate] = useState(0);
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem("goltv-language", lang);
+    localStorage.setItem(STORAGE_KEY, lang);
+    forceUpdate((n) => n + 1);
   };
 
   const t = dictionaries[language];

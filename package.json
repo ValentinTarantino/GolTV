@@ -10,11 +10,14 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:streams": "node scripts/test-streams.js",
+    "validate": "npm run lint && tsc --noEmit && npm test && npm run build",
     "docker:build": "docker build -t goltv-libre .",
     "docker:run": "docker run -p 3000:3000 goltv-libre",
     "docker:compose": "docker-compose up --build"
   },
   "dependencies": {
+    "dotenv": "^18.0.0",
     "hls.js": "^1.7.3",
     "lucide-react": "^1.46.0",
     "next": "16.3.5",

@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap");
 @import "tailwindcss";
 
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars -- Tailwind CSS v4 @theme syntax */
 @theme {
   --color-bg-primary: #000000;
   --color-bg-secondary: #000000;
@@ -109,18 +110,25 @@
   }
   
   ::-webkit-scrollbar {
-    width: 12px;
-    border-left: 2px solid white;
+    width: 8px;
+    border-left: 1px solid white;
   }
   ::-webkit-scrollbar-track {
     background: black;
   }
   ::-webkit-scrollbar-thumb {
     background: white;
-    border: 2px solid black;
+    border: 1px solid black;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--color-accent-primary);
+  }
+
+  /* Mobile-specific scrollbar adjustments */
+  @media (max-width: 640px) {
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
   }
 }
 

@@ -54,12 +54,16 @@ export interface Match {
   score: MatchScore;
   channels: Channel[];
   broadcastChannels?: string[];
+  _streamId?: string;
+  _pelotaLibreSlug?: string;
+  _pelotaLibreSources?: { id: string; name: string }[];
 }
 
 export interface Channel {
   id: string;
   name: string;
   url: string;
+  kind?: "hls" | "iframe";
   headers?: Record<string, string>;
 }
 
