@@ -45,15 +45,13 @@ export default function IframePlayer({ url, title }: IframePlayerProps) {
       <iframe
         src={url}
         className="w-full h-full border-0"
-        allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+        allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
         allowFullScreen
         onLoad={() => setIsLoading(false)}
         onError={() => {
           setIsLoading(false);
           setHasError(true);
         }}
-        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-        referrerPolicy="no-referrer"
         title={title || "Stream"}
       />
     </div>
