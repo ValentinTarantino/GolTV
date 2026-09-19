@@ -1,4 +1,4 @@
-﻿# GolTV Libre
+# GolTV Libre
 
 [Espanol](#espanol) | [English](#english)
 
@@ -46,7 +46,7 @@ GolTV Libre es una plataforma web gratuita para seguir y ver partidos de futbol 
 
 ### Variables de Entorno
 
-Archivo .env.local en la raiz del proyecto:
+Archivo `.env.local` en la raiz del proyecto:
 
 ```
 API_FOOTBALL_KEY=clave_api_football
@@ -61,28 +61,20 @@ RAPIDAPI_KEY=clave_rapidapi
 | RapidAPI | ~35 llamadas/dia | all-match ~5min, link ~10min |
 | PelotaLibre | 300 llamadas/dia | agenda revalida ~5min, streams ~30min |
 
-- No ejecutar 
-npm run test:streams en bucle
+- No ejecutar `npm run test:streams` en bucle
 - Si recibe 429, espere 5 minutos (cooldown automatico)
 
 ### Scripts Disponibles
 
 | Script | Descripcion |
 |--------|-------------|
-| 
-npm run dev | Servidor de desarrollo |
-| 
-npm run build | Build de produccion |
-| 
-npm run lint | Linter ESLint |
-| 
-npm test | Ejecutar tests (49 tests, 4 suites) |
-| 
-npm run validate | Lint + TypeScript + Tests + Build |
-| 
-npm run docker:build | Construir imagen Docker |
-| 
-npm run docker:compose | Levantar con Docker Compose |
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Build de produccion |
+| `npm run lint` | Linter ESLint |
+| `npm test` | Ejecutar tests (49 tests, 4 suites) |
+| `npm run validate` | Lint + TypeScript + Tests + Build |
+| `npm run docker:build` | Construir imagen Docker |
+| `npm run docker:compose` | Levantar con Docker Compose |
 
 ### Estructura del Proyecto
 
@@ -158,7 +150,7 @@ GolTV Libre is a free web platform for watching live football matches. It featur
 
 ### Environment Variables
 
-File .env.local in the project root:
+File `.env.local` in the project root:
 
 ```
 API_FOOTBALL_KEY=your_api_football_key
@@ -173,28 +165,20 @@ RAPIDAPI_KEY=your_rapidapi_key
 | RapidAPI | ~35 calls/day | all-match ~5min, link ~10min |
 | PelotaLibre | 300 calls/day | agenda revalidates ~5min, streams ~30min |
 
-- Do not loop 
-npm run test:streams
+- Do not loop `npm run test:streams`
 - After a 429, wait at least 5 minutes (automatic cooldown)
 
 ### Available Scripts
 
 | Script | Description |
 |--------|-------------|
-| 
-npm run dev | Development server |
-| 
-npm run build | Production build |
-| 
-npm run lint | ESLint linter |
-| 
-npm test | Run tests (49 tests, 4 suites) |
-| 
-npm run validate | Lint + TypeScript + Tests + Build |
-| 
-npm run docker:build | Build Docker image |
-| 
-npm run docker:compose | Start with Docker Compose |
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint linter |
+| `npm test` | Run tests (49 tests, 4 suites) |
+| `npm run validate` | Lint + TypeScript + Tests + Build |
+| `npm run docker:build` | Build Docker image |
+| `npm run docker:compose` | Start with Docker Compose |
 
 ### Project Structure
 

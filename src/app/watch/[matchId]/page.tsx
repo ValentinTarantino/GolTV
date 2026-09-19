@@ -60,6 +60,18 @@ function WatchPageInner({
     return () => { cancelled = true; controller.abort(); };
   }, [matchId, searchParams]);
 
+  useEffect(() => {
+    if (!isLoading) {
+      if (match) {
+        document.title = `${match.homeTeam.name} vs ${match.awayTeam.name} — ${match.league.name} | GolTV Libre`;
+      } else {
+        document.title = "GolTV";
+      }
+    } else {
+      document.title = "GolTV";
+    }
+  }, [isLoading, match]);
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-5xl px-3 sm:px-4 md:px-6 py-4 sm:py-6">
