@@ -22,10 +22,14 @@ function WatchPageInner({
 }) {
   const { matchId } = use(params);
   const searchParams = useSearchParams();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +132,7 @@ function WatchPageInner({
                 </div>
               )}
               <h2 className="text-base sm:text-xl md:text-2xl font-black text-black uppercase tracking-tight">
-                {translateLeague(match.league.name, language)}
+                {translateLeague(match.league.name)}
               </h2>
             </div>
             {live && <LiveBadge />}

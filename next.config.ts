@@ -24,6 +24,16 @@ const nextConfig: NextConfig = {
         hostname: "images.football-live-stream.online",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.freebiesupply.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "upload.wikimedia.org",
+        pathname: "/**",
+      },
     ],
   },
 };

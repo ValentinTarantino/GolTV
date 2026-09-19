@@ -21,22 +21,60 @@ export default function HomePage() {
   }, [language]);
 
   useEffect(() => {
-    const fetchMatches = async () => {
-      if (matches.length === 0) setIsLoading(true);
+    const fetchMatches = async (isBackground = false) => {
+      if (!isBackground) setIsLoading(true);
       try {
         const dateStr = formatDateISO(new Date());
         const res = await fetch(`/api/matches?date=${dateStr}`);
         const data = await res.json();
         setMatches(data.matches);
       } catch {
-        setMatches([]);
+        if (!isBackground) setMatches([]);
       } finally {
-        setIsLoading(false);
+        if (!isBackground) setIsLoading(false);
       }
     };
 
-    fetchMatches();
-  }, [matches.length]);
+    fetchMatches().then(() => {
+      const saved = sessionStorage.getItem("home-scroll");
+      if (saved) {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, Number(saved));
+          sessionStorage.removeItem("home-scroll");
+        });
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const hasLive = matches.some((m) => LIVE_STATUSES.includes(m.status.short));
+    if (!hasLive) return;
+
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        const dateStr = formatDateISO(new Date());
+        fetch(`/api/matches?date=${dateStr}`)
+          .then((r) => r.json())
+          .then((data) => setMatches(data.matches))
+          .catch(() => {});
+      }
+    }, 30000);
+
+    const onVisibility = () => {
+      if (document.hidden) return;
+      const dateStr = formatDateISO(new Date());
+      fetch(`/api/matches?date=${dateStr}`)
+        .then((r) => r.json())
+        .then((data) => setMatches(data.matches))
+        .catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [matches]);
 
   const liveMatches = matches.filter((m) => LIVE_STATUSES.includes(m.status.short));
   const filteredMatches = showLiveOnly ? liveMatches : matches;

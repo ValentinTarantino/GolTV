@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { fetchPelotaLibreAgenda } from "@/lib/pelotalibre";
-import { matchPlLeague, getBroadcastChannels } from "@/lib/constants";
+import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS } from "@/lib/constants";
 import { getTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
 
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     if (seenTeams.has(dedupKey)) continue;
     seenTeams.add(dedupKey);
 
-    const league = matchPlLeague(plMatch.league);
+    const league = matchPlLeague(plMatch.league, plMatch.homeTeam, plMatch.awayTeam);
     if (!league) continue;
     if (plMatch.sources.length === 0) continue;
 
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         id: league.id,
         name: league.name,
         country: league.country,
-        logo: `https://media.api-sports.io/football/leagues/${league.id}.png`,
+        logo: LEAGUE_LOGOS[league.id] || `https://media.api-sports.io/football/leagues/${league.id}.png`,
         flag: "",
         slug: league.slug,
       },

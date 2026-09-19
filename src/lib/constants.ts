@@ -20,9 +20,10 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   140: "https://media.api-sports.io/football/leagues/140.png",
   39: "https://media.api-sports.io/football/leagues/39.png",
   78: "https://media.api-sports.io/football/leagues/78.png",
-  79: "https://media.api-sports.io/football/leagues/79.png",
   80: "https://media.api-sports.io/football/leagues/80.png",
-  332: "https://media.api-sports.io/football/leagues/332.png",
+  135: "https://r2.thesportsdb.com/images/media/league/badge/67q3q21679951383.png",
+  137: "https://media.api-sports.io/football/leagues/137.png",
+  332: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Major_League_Soccer_logo.svg/250px-Major_League_Soccer_logo.svg.png",
   235: "https://media.api-sports.io/football/leagues/235.png",
   5: "https://media.api-sports.io/football/leagues/5.png",
   431: "https://media.api-sports.io/football/leagues/431.png",
@@ -71,8 +72,10 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 140, name: "La Liga", country: "España", countryFlag: "🇪🇸", slug: "la-liga", season: 2026 },
   { id: 39, name: "Premier League", country: "Inglaterra", countryFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", slug: "premier-league", season: 2026 },
   { id: 78, name: "Bundesliga", country: "Alemania", countryFlag: "🇩🇪", slug: "bundesliga", season: 2026 },
-  { id: 79, name: "2. Bundesliga", country: "Alemania", countryFlag: "🇩🇪", slug: "2-bundesliga", season: 2026 },
   { id: 80, name: "3. Liga", country: "Alemania", countryFlag: "🇩🇪", slug: "3-liga", season: 2026 },
+  // Italia
+  { id: 135, name: "Serie A", country: "Italia", countryFlag: "🇮🇹", slug: "serie-a-italia", season: 2026 },
+  { id: 137, name: "Coppa Italia", country: "Italia", countryFlag: "🇮🇹", slug: "copa-italia", season: 2026 },
   // USA / Mexico / CONCACAF
   { id: 332, name: "MLS", country: "Estados Unidos", countryFlag: "🇺🇸", slug: "mls", season: 2026 },
   { id: 235, name: "Liga MX", country: "Mexico", countryFlag: "🇲🇽", slug: "liga-mx", season: 2026 },
@@ -155,6 +158,7 @@ export function getChannelsForCountry(country: string): { id: string; name: stri
   if (key.includes("inglaterra") || key.includes("england")) return CHANNEL_SETS.inglaterra;
   if (key.includes("estados unidos") || key.includes("united states") || key.includes("usa")) return CHANNEL_SETS.internacional;
   if (key.includes("mexico") || key.includes("méxico")) return CHANNEL_SETS.internacional;
+  if (key.includes("italia") || key.includes("italy")) return CHANNEL_SETS.internacional;
   if (key.includes("internacional") || key.includes("europa")) return CHANNEL_SETS.internacional;
   return CHANNEL_SETS.default;
 }
@@ -178,6 +182,8 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   3: ["HBO Max", "ESPN", "Fox Sports", "DSports"],
   140: ["Movistar Plus+", "DAZN", "ESPN"],
   39: ["Sky Sports", "TNT Sports", "Prime Video"],
+  135: ["ESPN", "DAZN", "Sky Sport"],
+  137: ["ESPN", "DAZN", "Sky Sport"],
   332: ["Apple TV", "Fox Sports", "ESPN"],
   235: ["Fox Sports", "ESPN", "TUDN", "ViX"],
   5: ["Fox Sports", "TUDN", "ViX"],
@@ -229,10 +235,11 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "premier league": 39,
   "premier": 39,
   "bundesliga": 78,
-  "2. bundesliga": 79,
-  "2 bundesliga": 79,
   "3. liga": 80,
   "3 liga": 80,
+  "serie a": 135,
+  "serie a italia": 135,
+  "copa italia": 137,
   "mls": 332,
   "major league soccer": 332,
   "major league": 332,
@@ -243,7 +250,6 @@ const PL_LEAGUE_MAP: Record<string, number> = {
 };
 
 const PL_EXCLUDED_LEAGUES = [
-  "serie a",
   "serie b",
   "ekstraklasa",
   "eredivisie",
@@ -260,7 +266,44 @@ const PL_EXCLUDED_LEAGUES = [
   "division profesional",
 ];
 
-export function matchPlLeague(plLeagueName: string): LeagueConfig | null {
+const ECUADOR_SERIE_A_TEAMS = [
+  "ldu quito", "barcelona sc", "emelec", "el nacional", "independiente del valle",
+  "universidad católica", "aucas", "delfín", "mushuc runa", "deportivo cuenca",
+  "guayaquil city", "libertad", "gualaceo", "orense", "tecnico universitario",
+  "macará", "cumbayá", "imbabura", "leones del norte", "rc altoríz",
+  "cuniburo", "vinotinto", "anta", "22 de julio", "politécnica",
+];
+
+const TEAM_DISPLAY_NAMES: Record<string, string> = {
+  "brighton & hove albion": "Brighton",
+  "brighton & hove albion fc": "Brighton",
+  "manchester united": "Man Utd",
+  "manchester city": "Man City",
+  "newcastle united": "Newcastle",
+  "west ham united": "West Ham",
+  "leicester city": "Leicester",
+  "aston villa": "Aston Villa",
+  "wolverhampton wanderers": "Wolves",
+  "nottingham forest": "Nott'm Forest",
+  "tottenham hotspur": "Tottenham",
+  "sheffield united": "Sheffield Utd",
+  "real betis balompié": "Real Betis",
+  "real sociedad de fútbol": "Real Sociedad",
+  "atlético de madrid": "Atlético Madrid",
+  "rcd mallorca": "Mallorca",
+  "real valladolid cf": "Valladolid",
+  "deportivo alavés": "Alavés",
+  "celta de vigo": "Celta Vigo",
+  "getafe cf": "Getafe",
+  "orca del norte": "Leones del Norte",
+  "guayaquil city fc": "Guayaquil City",
+};
+
+export function shortenTeamName(name: string): string {
+  return TEAM_DISPLAY_NAMES[name.toLowerCase()] ?? name;
+}
+
+export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?: string): LeagueConfig | null {
   const normalized = plLeagueName.toLowerCase().trim();
 
   for (const excluded of PL_EXCLUDED_LEAGUES) {
@@ -269,10 +312,18 @@ export function matchPlLeague(plLeagueName: string): LeagueConfig | null {
 
   const leagueId = PL_LEAGUE_MAP[normalized];
   if (leagueId) {
+    if (leagueId === 135 && (homeTeam || awayTeam)) {
+      const combined = `${homeTeam ?? ""} ${awayTeam ?? ""}`.toLowerCase();
+      if (ECUADOR_SERIE_A_TEAMS.some((t) => combined.includes(t))) return null;
+    }
     return SUPPORTED_LEAGUES.find((l) => l.id === leagueId) ?? null;
   }
   for (const [key, id] of Object.entries(PL_LEAGUE_MAP)) {
     if (key.length > 3 && (normalized.includes(key) || key.includes(normalized))) {
+      if (id === 135 && (homeTeam || awayTeam)) {
+        const combined = `${homeTeam ?? ""} ${awayTeam ?? ""}`.toLowerCase();
+        if (ECUADOR_SERIE_A_TEAMS.some((t) => combined.includes(t))) return null;
+      }
       return SUPPORTED_LEAGUES.find((l) => l.id === id) ?? null;
     }
   }

@@ -69,6 +69,13 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "seattlesoundersfc": "Seattle Sounders",
   "atlantaunited": "Atlanta United",
   "stlouiscity": "STL City",
+  "intermilan": "Inter Milan",
+  "internazionale": "Inter Milan",
+  "acmilan": "AC Milan",
+  "sscnapoli": "Napoli",
+  "asroma": "Roma",
+  "sslazio": "Lazio",
+  "sportinggijon": "Sporting de Gijon",
 };
 
 function getSearchVariations(name: string): string[] {

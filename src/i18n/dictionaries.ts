@@ -26,6 +26,8 @@ export const leagueNames: Record<string, string> = {
   "MLS": "MLS",
   "CONCACAF Champions Cup": "CONCACAF Champions Cup",
   "Leagues Cup": "Leagues Cup",
+  "Serie A": "Serie A",
+  "Coppa Italia": "Coppa Italia",
   "Primera División": "First Division",
   "Liga Pro": "Liga Pro",
   "División de Honor": "Division of Honor",
@@ -57,6 +59,7 @@ export const dictionaries = {
     home: {
       todayMatches: "PARTIDOS DE HOY",
       noMatches: "NO HAY PARTIDOS PROGRAMADOS PARA HOY.",
+      noMatchesForDate: "No se encontraron partidos para esta fecha.",
       live: "EN VIVO",
       seeAll: "VER TODOS",
       onlyLive: "SOLO EN VIVO",
@@ -92,6 +95,7 @@ export const dictionaries = {
       retry: "Reintentar",
       reload: "Recargar",
       live: "EN VIVO",
+      adBlockerTip: "¿Se abren ventanas emergentes? Usá un bloqueador de anuncios para evitarlas",
     },
     chat: {
       title: "CHAT EN VIVO",
@@ -133,6 +137,7 @@ export const dictionaries = {
     home: {
       todayMatches: "TODAY'S MATCHES",
       noMatches: "NO MATCHES SCHEDULED FOR TODAY.",
+      noMatchesForDate: "No matches found for this date.",
       live: "LIVE",
       seeAll: "SEE ALL",
       onlyLive: "ONLY LIVE",
@@ -168,6 +173,7 @@ export const dictionaries = {
       retry: "Retry",
       reload: "Reload",
       live: "LIVE",
+      adBlockerTip: "Popups opening? Use an ad-blocker to prevent them",
     },
     chat: {
       title: "LIVE CHAT",
@@ -189,9 +195,8 @@ export const dictionaries = {
 export type Language = 'es' | 'en';
 export type Dictionary = typeof dictionaries['es'];
 
-export function translateLeague(name: string, lang: Language): string {
-  if (lang === "es") return name;
-  return leagueNames[name] || name;
+export function translateLeague(name: string): string {
+  return name;
 }
 
 

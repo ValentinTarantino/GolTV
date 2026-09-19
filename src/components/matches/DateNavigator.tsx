@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { getDayLabel, formatDateISO } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DateNavigatorProps {
   currentDate: Date;
@@ -9,6 +10,8 @@ interface DateNavigatorProps {
 }
 
 export default function DateNavigator({ currentDate, onDateChange }: DateNavigatorProps) {
+  const { language } = useLanguage();
+
   const goToPrevDay = () => {
     const prev = new Date(currentDate);
     prev.setDate(prev.getDate() - 1);
@@ -25,8 +28,8 @@ export default function DateNavigator({ currentDate, onDateChange }: DateNavigat
     onDateChange(new Date());
   };
 
-  const label = getDayLabel(currentDate);
-  const dateStr = currentDate.toLocaleDateString("es-AR", {
+  const label = getDayLabel(currentDate, language);
+  const dateStr = currentDate.toLocaleDateString(language === "es" ? "es-AR" : "en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -42,7 +45,7 @@ export default function DateNavigator({ currentDate, onDateChange }: DateNavigat
       <button
         onClick={goToPrevDay}
         className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-all hover:bg-bg-elevated hover:text-text-primary"
-        aria-label="Día anterior"
+        aria-label={language === "es" ? "Día anterior" : "Previous day"}
         id="date-nav-prev"
       >
         <ChevronLeft size={20} />
@@ -56,7 +59,7 @@ export default function DateNavigator({ currentDate, onDateChange }: DateNavigat
       <button
         onClick={goToNextDay}
         className="flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-all hover:bg-bg-elevated hover:text-text-primary"
-        aria-label="Día siguiente"
+        aria-label={language === "es" ? "Día siguiente" : "Next day"}
         id="date-nav-next"
       >
         <ChevronRight size={20} />
@@ -69,7 +72,7 @@ export default function DateNavigator({ currentDate, onDateChange }: DateNavigat
           id="date-nav-today"
         >
           <Calendar size={13} />
-          Hoy
+          {language === "es" ? "Hoy" : "Today"}
         </button>
       )}
     </div>

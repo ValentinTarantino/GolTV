@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Play } from "lucide-react";
 import type { Match } from "@/lib/types";
+import { shortenTeamName } from "@/lib/constants";
 import { isLive, isFinished, isUpcoming, isViewable, formatTime, getStatusLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -12,7 +13,7 @@ interface MatchCardProps {
 }
 
 export default function MatchCard({ match }: MatchCardProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const live = isLive(match.status.short);
   const finished = isFinished(match.status.short);
   const upcoming = isUpcoming(match.status.short);
@@ -36,9 +37,14 @@ export default function MatchCard({ match }: MatchCardProps) {
     return `/watch/${match.id}${qs ? `?${qs}` : ""}`;
   })();
 
+  const saveScroll = () => {
+    sessionStorage.setItem("home-scroll", String(window.scrollY));
+  };
+
   return (
     <Link
       href={watchUrl}
+      onClick={saveScroll}
       className={`group block p-3 sm:p-4 transition-all duration-200 ${
         live
           ? "bg-black border-4 border-accent-primary shadow-brutal hover:-translate-y-1 hover:-translate-x-1"
@@ -61,7 +67,7 @@ export default function MatchCard({ match }: MatchCardProps) {
             ) : null}
           </div>
           <span className="truncate text-sm sm:text-base font-bold text-white uppercase tracking-tight">
-            {match.homeTeam.name}
+            {shortenTeamName(match.homeTeam.name)}
           </span>
         </div>
 
@@ -81,13 +87,13 @@ export default function MatchCard({ match }: MatchCardProps) {
 
           {(live || upcoming) && (
             <span className={`text-sm sm:text-lg font-black tabular-nums bg-black px-1.5 sm:px-2 py-0.5 sm:py-1 border-2 ${live ? "text-accent-primary border-accent-primary" : "text-accent-primary border-accent-primary"}`}>
-              {formatTime(match.date)}
+              {formatTime(match.date, language)}
             </span>
           )}
 
           {finished && (
             <span className="text-sm sm:text-lg font-black tabular-nums text-white/60 bg-black px-1.5 sm:px-2 py-0.5 sm:py-1 border-2 border-white/30">
-              {formatTime(match.date)}
+              {formatTime(match.date, language)}
             </span>
           )}
 
@@ -95,7 +101,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           {finished && (
             <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1">
               <span className="inline-flex px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-extrabold uppercase bg-white text-black border-2 border-black">
-                {getStatusLabel(match.status.short, match.status.elapsed)}
+                {getStatusLabel(match.status.short, match.status.elapsed, language)}
               </span>
             </div>
           )}
@@ -110,7 +116,7 @@ export default function MatchCard({ match }: MatchCardProps) {
         {/* Away Team */}
         <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3 min-w-0">
           <span className="truncate text-right text-sm sm:text-base font-bold text-white uppercase tracking-tight">
-            {match.awayTeam.name}
+            {shortenTeamName(match.awayTeam.name)}
           </span>
           <div className="relative h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
             {match.awayTeam.logo ? (

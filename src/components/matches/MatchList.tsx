@@ -20,14 +20,14 @@ interface LeagueGroup {
 }
 
 export default function MatchList({ matches }: MatchListProps) {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   if (matches.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 sm:py-20 text-center animate-fade-in border-3 sm:border-4 border-dashed border-white/20">
         <div className="mb-3 sm:mb-4 text-4xl sm:text-6xl">⚽</div>
-        <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-widest">No hay partidos</h3>
+        <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-widest">{t.home.noMatches}</h3>
         <p className="mt-2 text-sm sm:text-base font-bold text-white/50 uppercase">
-          No se encontraron partidos para esta fecha.
+          {t.home.noMatchesForDate}
         </p>
       </div>
     );
@@ -85,7 +85,7 @@ export default function MatchList({ matches }: MatchListProps) {
               )}
               <div className="flex flex-col">
                 <h2 className="text-lg sm:text-xl md:text-2xl font-black text-black uppercase tracking-tight">
-                  {translateLeague(group.leagueName, language)}
+                  {translateLeague(group.leagueName)}
                 </h2>
               </div>
             </div>
