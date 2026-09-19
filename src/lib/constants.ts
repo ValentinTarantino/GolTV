@@ -10,8 +10,6 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   73: "https://media.api-sports.io/football/leagues/73.png",
   281: "https://media.api-sports.io/football/leagues/281.png",
   503: "https://media.api-sports.io/football/leagues/503.png",
-  250: "https://media.api-sports.io/football/leagues/250.png",
-  252: "https://media.api-sports.io/football/leagues/252.png",
   501: "https://media.api-sports.io/football/leagues/501.png",
   268: "https://media.api-sports.io/football/leagues/268.png",
   930: "https://media.api-sports.io/football/leagues/930.png",
@@ -24,6 +22,10 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   78: "https://media.api-sports.io/football/leagues/78.png",
   79: "https://media.api-sports.io/football/leagues/79.png",
   80: "https://media.api-sports.io/football/leagues/80.png",
+  332: "https://media.api-sports.io/football/leagues/332.png",
+  235: "https://media.api-sports.io/football/leagues/235.png",
+  5: "https://media.api-sports.io/football/leagues/5.png",
+  431: "https://media.api-sports.io/football/leagues/431.png",
 };
 
 export function getLeagueLogo(leagueId: number): string {
@@ -55,9 +57,7 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   // Perú
   { id: 281, name: "Liga 1", country: "Perú", countryFlag: "🇵🇪", slug: "liga1-peru", season: 2026 },
   { id: 503, name: "Copa Perú", country: "Perú", countryFlag: "🇵🇪", slug: "copa-peru", season: 2026 },
-  // Paraguay (API separa Apertura/Clausura)
-  { id: 250, name: "División Profesional", country: "Paraguay", countryFlag: "🇵🇾", slug: "division-profesional-paraguay", season: 2026 },
-  { id: 252, name: "División Profesional", country: "Paraguay", countryFlag: "🇵🇾", slug: "division-profesional-paraguay-clausura", season: 2026 },
+  // Paraguay
   { id: 501, name: "Copa Paraguay", country: "Paraguay", countryFlag: "🇵🇾", slug: "copa-paraguay", season: 2026 },
   // Uruguay
   { id: 268, name: "Liga AUF Uruguaya", country: "Uruguay", countryFlag: "🇺🇾", slug: "liga-auf-uruguaya", season: 2026 },
@@ -73,6 +73,11 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 78, name: "Bundesliga", country: "Alemania", countryFlag: "🇩🇪", slug: "bundesliga", season: 2026 },
   { id: 79, name: "2. Bundesliga", country: "Alemania", countryFlag: "🇩🇪", slug: "2-bundesliga", season: 2026 },
   { id: 80, name: "3. Liga", country: "Alemania", countryFlag: "🇩🇪", slug: "3-liga", season: 2026 },
+  // USA / Mexico / CONCACAF
+  { id: 332, name: "MLS", country: "Estados Unidos", countryFlag: "🇺🇸", slug: "mls", season: 2026 },
+  { id: 235, name: "Liga MX", country: "Mexico", countryFlag: "🇲🇽", slug: "liga-mx", season: 2026 },
+  { id: 5, name: "CONCACAF Champions Cup", country: "Internacional", countryFlag: "🌎", slug: "concacaf-champions-cup", season: 2026 },
+  { id: 431, name: "Leagues Cup", country: "Internacional", countryFlag: "🌎", slug: "leagues-cup", season: 2026 },
 ];
 
 export const API_FOOTBALL_BASE = "https://v3.football.api-sports.io";
@@ -148,6 +153,8 @@ export function getChannelsForCountry(country: string): { id: string; name: stri
   if (key.includes("uruguay")) return CHANNEL_SETS.uruguay;
   if (key.includes("españa") || key.includes("spain")) return CHANNEL_SETS.españa;
   if (key.includes("inglaterra") || key.includes("england")) return CHANNEL_SETS.inglaterra;
+  if (key.includes("estados unidos") || key.includes("united states") || key.includes("usa")) return CHANNEL_SETS.internacional;
+  if (key.includes("mexico") || key.includes("méxico")) return CHANNEL_SETS.internacional;
   if (key.includes("internacional") || key.includes("europa")) return CHANNEL_SETS.internacional;
   return CHANNEL_SETS.default;
 }
@@ -162,8 +169,6 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   73: ["SporTV", "Globo", "Premiere"],
   281: ["Latina Televisión", "Movistar Deportes"],
   503: ["Latina Televisión", "Movistar Deportes"],
-  250: ["Tigo Sports", "ESPN"],
-  252: ["Tigo Sports", "ESPN"],
   501: ["Tigo Sports", "ESPN"],
   268: ["DSports", "ESPN"],
   930: ["DSports", "ESPN"],
@@ -173,6 +178,10 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   3: ["HBO Max", "ESPN", "Fox Sports", "DSports"],
   140: ["Movistar Plus+", "DAZN", "ESPN"],
   39: ["Sky Sports", "TNT Sports", "Prime Video"],
+  332: ["Apple TV", "Fox Sports", "ESPN"],
+  235: ["Fox Sports", "ESPN", "TUDN", "ViX"],
+  5: ["Fox Sports", "TUDN", "ViX"],
+  431: ["Apple TV", "Fox Sports", "TUDN"],
 };
 
 export function getBroadcastChannels(leagueId: number): string[] {
@@ -200,10 +209,6 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "liga peruana": 281,
   "copa perú": 503,
   "copa peru": 503,
-  "división profesional": 250,
-  "division profesional": 250,
-  "división profesional paraguay": 250,
-  "división prof.": 250,
   "copa paraguay": 501,
   "liga auf uruguaya": 268,
   "liga uruguaya": 268,
@@ -228,6 +233,13 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "2 bundesliga": 79,
   "3. liga": 80,
   "3 liga": 80,
+  "mls": 332,
+  "major league soccer": 332,
+  "major league": 332,
+  "liga mx": 235,
+  "concacaf champions cup": 5,
+  "concacaf": 5,
+  "leagues cup": 431,
 };
 
 const PL_EXCLUDED_LEAGUES = [
@@ -241,6 +253,11 @@ const PL_EXCLUDED_LEAGUES = [
   "liga pro",
   "liga de ecuador",
   "liga ecuatoriana",
+  "liga mx femenil",
+  "liga de expansión mx",
+  "liga de expansion mx",
+  "división profesional",
+  "division profesional",
 ];
 
 export function matchPlLeague(plLeagueName: string): LeagueConfig | null {

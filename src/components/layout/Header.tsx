@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { Tv, Zap } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import SearchBar from "@/components/search/SearchBar";
+import MobileMenu from "@/components/search/MobileMenu";
 
 export default function Header() {
   const { language, setLanguage, t } = useLanguage();
@@ -44,25 +46,31 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Language Toggle */}
-          <div className="flex items-center border-2 border-white bg-black shadow-brutal-sm font-black text-xs sm:text-sm">
-            <button
-              onClick={() => setLanguage('es')}
-              className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
-                language === 'es' ? 'bg-white text-black' : 'text-white hover:text-accent-primary'
-              }`}
-            >
-              ES
-            </button>
-            <button
-              onClick={() => setLanguage('en')}
-              className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
-                language === 'en' ? 'bg-white text-black' : 'text-white hover:text-accent-primary'
-              }`}
-            >
-              EN
-            </button>
+          {/* Desktop: Search + Language */}
+          <div className="hidden md:flex items-center gap-2">
+            <SearchBar />
+            <div className="flex items-center border-2 border-white bg-black shadow-brutal-sm font-black text-xs sm:text-sm">
+              <button
+                onClick={() => setLanguage('es')}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
+                  language === 'es' ? 'bg-white text-black' : 'text-white hover:text-accent-primary'
+                }`}
+              >
+                ES
+              </button>
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
+                  language === 'en' ? 'bg-white text-black' : 'text-white hover:text-accent-primary'
+                }`}
+              >
+                EN
+              </button>
+            </div>
           </div>
+
+          {/* Mobile: Hamburger */}
+          <MobileMenu />
         </div>
       </header>
     </>

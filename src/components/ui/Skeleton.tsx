@@ -48,23 +48,3 @@ export function PlayerSkeleton() {
     </div>
   );
 }
-
-export function StandingsSkeleton() {
-  return (
-    <div className="bg-bg-card border-4 border-white shadow-brutal-sm overflow-hidden">
-      <div className="border-b border-border-subtle px-6 py-3">
-        <div className="h-5 w-48 rounded animate-shimmer" />
-      </div>
-      <div className="p-4 space-y-3">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <div className="h-4 w-6 rounded animate-shimmer" />
-            <div className="h-6 w-6 rounded-full animate-shimmer" />
-            <div className="h-4 w-28 rounded animate-shimmer flex-1" />
-            <div className="h-4 w-8 rounded animate-shimmer" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

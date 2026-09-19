@@ -2,8 +2,9 @@
 
 import { useRef, useEffect, useState } from "react";
 import Hls from "hls.js";
-import { Play, Pause, Maximize, Volume2, VolumeX, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { Play, Pause, Maximize, Volume2, VolumeX, AlertCircle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import FootballLoader from "@/components/ui/FootballLoader";
 
 interface HlsPlayerProps {
   url: string;
@@ -167,7 +168,7 @@ function HlsPlayer({ url, title, headers }: HlsPlayerProps) {
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           <div className="flex flex-col items-center gap-2 sm:gap-3">
-            <Loader2 size={32} strokeWidth={3} className="animate-spin text-accent-primary" />
+            <FootballLoader size={48} />
             <span className="text-xs sm:text-sm text-text-secondary">{t.player.loadingStream}</span>
           </div>
         </div>

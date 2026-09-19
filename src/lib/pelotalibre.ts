@@ -43,6 +43,18 @@ function canCallPL(): boolean {
   return plDailyCount < PL_DAILY_LIMIT;
 }
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#039;/g, "'");
+}
+
 function normalize(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -80,16 +92,18 @@ function parseAgendaHTML(html: string): PelotaLibreMatch[] {
     const block = eventMatch[2];
 
     const competitionMatch = block.match(/<span[^>]*class="[^"]*source-agenda-competition[^"]*"[^>]*>([^<]*)<\/span>/);
-    const league = competitionMatch ? competitionMatch[1].trim().replace(/:$/, "") : "Desconocido";
+    const league = decodeHtmlEntities(competitionMatch ? competitionMatch[1].trim().replace(/:$/, "") : "Desconocido");
 
     const textMatch = block.match(/<span[^>]*class="[^"]*source-agenda-eventtext[^"]*"[^>]*>\s*<strong[^>]*>([\s\S]*?)<\/strong>/);
     if (!textMatch) continue;
 
     const strongHTML = textMatch[1];
-    const teamsText = strongHTML
-      .replace(/<span[^>]*class="[^"]*source-agenda-competition[^"]*"[^>]*>[\s\S]*?<\/span>/, "")
-      .replace(/<[^>]*>/g, "")
-      .trim();
+    const teamsText = decodeHtmlEntities(
+      strongHTML
+        .replace(/<span[^>]*class="[^"]*source-agenda-competition[^"]*"[^>]*>[\s\S]*?<\/span>/, "")
+        .replace(/<[^>]*>/g, "")
+        .trim()
+    );
     const vsSplit = teamsText.split(/\s+vs\s+/i);
     if (vsSplit.length < 2) continue;
 
@@ -105,7 +119,7 @@ function parseAgendaHTML(html: string): PelotaLibreMatch[] {
     while ((sourceMatch = sourceRegex.exec(block)) !== null) {
       sources.push({
         id: sourceMatch[1],
-        name: sourceMatch[2].trim(),
+        name: decodeHtmlEntities(sourceMatch[2].trim()),
       });
     }
 

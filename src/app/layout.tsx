@@ -15,6 +15,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  themeColor: "#ccff00",
 };
 
 export const metadata: Metadata = {
@@ -33,6 +34,14 @@ export const metadata: Metadata = {
     title: "GolTV Libre — Fútbol en vivo gratis",
     description: "Mirá partidos de fútbol en vivo gratis. Todas las ligas de Latinoamérica.",
     type: "website",
+  },
+  icons: {
+    icon: "/icon.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black",
+    title: "GolTV",
   },
 };
 

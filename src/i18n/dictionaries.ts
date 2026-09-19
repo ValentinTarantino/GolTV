@@ -23,6 +23,9 @@ export const leagueNames: Record<string, string> = {
   "3. Liga": "3. Liga",
   "Liga BetPlay": "Liga BetPlay",
   "Liga MX": "Liga MX",
+  "MLS": "MLS",
+  "CONCACAF Champions Cup": "CONCACAF Champions Cup",
+  "Leagues Cup": "Leagues Cup",
   "Primera División": "First Division",
   "Liga Pro": "Liga Pro",
   "División de Honor": "Division of Honor",
@@ -66,7 +69,6 @@ export const dictionaries = {
     },
     watch: {
       selectChannel: "SELECCIONAR CANAL",
-      loadingPlayer: "Cargando reproductor...",
       selectChannelPrompt: "Selecciona un canal para ver el partido",
       notFound: "Partido no encontrado",
       notFoundDesc: "El partido que buscás no existe o ya no está disponible.",
@@ -99,6 +101,11 @@ export const dictionaries = {
       placeholder: "Escribí un mensaje...",
       sendButton: "Enviar",
       messagesEmpty: "No hay mensajes todavía. ¡Sé el primero!",
+    },
+    search: {
+      placeholder: "Buscar equipo...",
+      searching: "Buscando...",
+      noResults: "No se encontraron partidos",
     },
   },
   en: {
@@ -138,7 +145,6 @@ export const dictionaries = {
     },
     watch: {
       selectChannel: "SELECT CHANNEL",
-      loadingPlayer: "Loading player...",
       selectChannelPrompt: "Select a channel to watch the match",
       notFound: "Match not found",
       notFoundDesc: "The match you are looking for does not exist or is no longer available.",
@@ -171,6 +177,11 @@ export const dictionaries = {
       placeholder: "Type a message...",
       sendButton: "Send",
       messagesEmpty: "No messages yet. Be the first!",
+    },
+    search: {
+      placeholder: "Search team...",
+      searching: "Searching...",
+      noResults: "No matches found",
     },
   }
 };
