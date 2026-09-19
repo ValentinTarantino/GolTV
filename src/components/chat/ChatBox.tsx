@@ -24,6 +24,18 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
   const [error, setError] = useState<string | null>(null);
   const offsetRef = useRef<number>(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isNearBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+  };
+
+  const scrollToBottom = () => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  };
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -73,6 +85,12 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
     };
   }, [nick, fetchMessages]);
 
+  useEffect(() => {
+    if (messages.length > 0 && isNearBottom()) {
+      scrollToBottom();
+    }
+  }, [messages.length]);
+
   const handleEnterNick = () => {
     const trimmed = nickInput.trim();
     if (!trimmed) return;
@@ -86,6 +104,7 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
 
     setError(null);
     setInput("");
+    scrollToBottom();
 
     try {
       const res = await fetch("/api/chat", {
@@ -143,7 +162,7 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
         <span className="text-[10px] font-bold opacity-60">@{nick}</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 min-h-0 break-words">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 min-h-0 break-words">
         {messages.length === 0 ? (
           <p className="text-xs text-text-muted text-center mt-8">{t.chat.messagesEmpty}</p>
         ) : (
