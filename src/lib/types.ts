@@ -56,7 +56,7 @@ export interface Match {
   broadcastChannels?: string[];
   _streamId?: string;
   _pelotaLibreSlug?: string;
-  _pelotaLibreSources?: { id: string; name: string }[];
+  _pelotaLibreSources?: { id: string; name: string; embedIframe: string }[];
 }
 
 export interface Channel {

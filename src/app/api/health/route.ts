@@ -1,5 +1,5 @@
 import { getApiFootballUsage } from "@/lib/api-football";
-import { getPLUsage } from "@/lib/pelotalibre";
+import { getFLUsage } from "@/lib/futbollibre";
 import { getStreamUsage } from "@/lib/streaming";
 
 export const revalidate = 0;
@@ -12,9 +12,9 @@ export async function GET() {
         description: "API-Football (api-sports.io)",
         keys: getApiFootballUsage(),
       },
-      pelotaLibre: {
-        description: "Pelota Libre playback",
-        ...getPLUsage(),
+      futbolLibre: {
+        description: "FutbolLibre agenda + streams",
+        ...getFLUsage(),
       },
       rapidApi: {
         description: "RapidAPI streaming (fallback)",

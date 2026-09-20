@@ -1,3 +1,5 @@
+import { PROMIEDOS_BADGES, PROMIEDOS_ALIASES } from "./constants";
+
 const SPORTSDB_KEY = "3";
 const SPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json";
 
@@ -117,6 +119,10 @@ async function searchTeam(query: string): Promise<SportsDBTeam[]> {
 export async function getTeamLogo(teamName: string): Promise<string> {
   const key = normalize(teamName);
   if (!key) return "";
+
+  const aliasKey = PROMIEDOS_ALIASES[key];
+  const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key];
+  if (promiedosUrl) return promiedosUrl;
 
   const cached = logoCache.get(key);
   if (cached !== undefined) return cached;

@@ -1,4 +1,4 @@
-import type { Channel } from "./types";
+﻿import type { Channel } from "./types";
 
 const PL_BASE = "https://pelotalibre.biz";
 const PL_AGENDA_URL = `${PL_BASE}/agenda`;
@@ -146,6 +146,7 @@ export async function fetchPelotaLibreAgenda(): Promise<PelotaLibreMatch[]> {
         "Accept": "text/html,application/xhtml+xml",
         "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
       },
+      signal: AbortSignal.timeout(15000),
       next: { revalidate: 300 },
     });
 
@@ -190,6 +191,7 @@ export async function getPelotaLibreStream(
         "Accept": "application/json",
         "Referer": `${PL_BASE}/match/${slug}`,
       },
+      signal: AbortSignal.timeout(15000),
       next: { revalidate: 600 },
     });
 

@@ -1,6 +1,6 @@
 import { getMatchById } from "@/lib/api-football";
 import { getStreamsForMatch } from "@/lib/streaming";
-import { getPelotaLibreStream, findPelotaLibreStreams } from "@/lib/pelotalibre";
+import { getFutbolLibreStream, findFutbolLibreStreams } from "@/lib/futbollibre";
 import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo } from "@/lib/constants";
 import type { Match, Channel } from "@/lib/types";
 
@@ -31,11 +31,10 @@ export async function GET(
 
     if (plSlug && plSources) {
       try {
-        const sources = JSON.parse(plSources) as { id: string; name: string }[];
+        const sources = JSON.parse(plSources) as { id: string; name: string; embedIframe: string }[];
         for (const source of sources) {
-          const ch = await getPelotaLibreStream(plSlug, source.id);
+          const ch = await getFutbolLibreStream(source.embedIframe, source.name);
           if (ch) {
-            ch.name = source.name;
             channels.push(ch);
           }
         }
@@ -45,11 +44,11 @@ export async function GET(
     }
 
     if (channels.length === 0) {
-      const plChannels = await findPelotaLibreStreams(
+      const flChannels = await findFutbolLibreStreams(
         match.homeTeam.name,
         match.awayTeam.name
       );
-      channels.push(...plChannels);
+      channels.push(...flChannels);
     }
 
     if (channels.length === 0 && streamId) {
@@ -83,11 +82,10 @@ export async function GET(
   if (plSlug && plSources) {
     const channels: Channel[] = [];
     try {
-      const sources = JSON.parse(plSources) as { id: string; name: string }[];
+      const sources = JSON.parse(plSources) as { id: string; name: string; embedIframe: string }[];
       for (const source of sources) {
-        const ch = await getPelotaLibreStream(plSlug, source.id);
+        const ch = await getFutbolLibreStream(source.embedIframe, source.name);
         if (ch) {
-          ch.name = source.name;
           channels.push(ch);
         }
       }

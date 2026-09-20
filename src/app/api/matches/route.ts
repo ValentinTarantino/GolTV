@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import { fetchPelotaLibreAgenda } from "@/lib/pelotalibre";
+import { fetchFutbolLibreAgenda } from "@/lib/futbollibre";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS } from "@/lib/constants";
 import { getTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
 
-export const revalidate = 300;
+export const revalidate = 60;
 
 function toArgentinaDate(dateISO: string): string {
   return new Date(dateISO).toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 10);
@@ -39,27 +39,27 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const _date = searchParams.get("date");
 
-  const plAgenda = await fetchPelotaLibreAgenda();
+  const flAgenda = await fetchFutbolLibreAgenda();
 
   const todayART = getArgentinaToday();
-  const filteredAgenda = plAgenda.filter((m) => toArgentinaDate(m.dateISO) === todayART);
+  const filteredAgenda = flAgenda.filter((m) => toArgentinaDate(m.dateISO) === todayART);
 
   const seenTeams = new Set<string>();
   const matches: Match[] = [];
 
-  for (const plMatch of filteredAgenda) {
-    const dedupKey = `${normalize(plMatch.homeTeam)}-${normalize(plMatch.awayTeam)}`;
+  for (const flMatch of filteredAgenda) {
+    const dedupKey = `${normalize(flMatch.homeTeam)}-${normalize(flMatch.awayTeam)}`;
     if (seenTeams.has(dedupKey)) continue;
     seenTeams.add(dedupKey);
 
-    const league = matchPlLeague(plMatch.league, plMatch.homeTeam, plMatch.awayTeam);
+    const league = matchPlLeague(flMatch.league, flMatch.homeTeam, flMatch.awayTeam);
     if (!league) continue;
-    if (plMatch.sources.length === 0) continue;
+    if (flMatch.embeds.length === 0) continue;
 
-    const status = inferStatus(plMatch.dateISO);
+    const status = inferStatus(flMatch.dateISO);
 
     matches.push({
-      id: hashSlug(plMatch.slug),
+      id: hashSlug(flMatch.slug),
       league: {
         id: league.id,
         name: league.name,
@@ -68,10 +68,10 @@ export async function GET(request: NextRequest) {
         flag: "",
         slug: league.slug,
       },
-      homeTeam: { id: 0, name: plMatch.homeTeam, logo: "" },
-      awayTeam: { id: 0, name: plMatch.awayTeam, logo: "" },
-      date: plMatch.dateISO,
-      timestamp: Math.floor(new Date(plMatch.dateISO).getTime() / 1000),
+      homeTeam: { id: 0, name: flMatch.homeTeam, logo: "" },
+      awayTeam: { id: 0, name: flMatch.awayTeam, logo: "" },
+      date: flMatch.dateISO,
+      timestamp: Math.floor(new Date(flMatch.dateISO).getTime() / 1000),
       status: {
         short: status,
         long: status === "NS" ? "Próximamente" : status === "FT" ? "Finalizado" : "En Juego",
@@ -80,8 +80,8 @@ export async function GET(request: NextRequest) {
       score: { home: null, away: null },
       channels: [],
       broadcastChannels: getBroadcastChannels(league.id),
-      _pelotaLibreSlug: plMatch.slug,
-      _pelotaLibreSources: plMatch.sources.map((s) => ({ id: s.id, name: s.name })),
+      _pelotaLibreSlug: flMatch.slug,
+      _pelotaLibreSources: flMatch.embeds.map((e) => ({ id: e.id, name: e.name, embedIframe: e.embedIframe })),
     });
   }
 
