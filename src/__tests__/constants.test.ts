@@ -14,8 +14,7 @@ describe("SUPPORTED_LEAGUES", () => {
     expect(liga?.country).toBe("Argentina");
   });
 
-  it("uses display names for Chile and Uruguay", () => {
-    expect(SUPPORTED_LEAGUES.find((l) => l.id === 265)?.name).toBe("Liga de Primera");
+  it("uses display names for Uruguay", () => {
     expect(SUPPORTED_LEAGUES.find((l) => l.id === 268)?.name).toBe("Liga AUF Uruguaya");
   });
 
@@ -53,8 +52,7 @@ describe("getChannelsForCountry", () => {
     expect(channels[0]).toHaveProperty("id");
   });
 
-  it("returns Chilean and Uruguayan channels", () => {
-    expect(getChannelsForCountry("Chile").length).toBeGreaterThan(0);
+  it("returns Uruguayan channels", () => {
     expect(getChannelsForCountry("Uruguay").length).toBeGreaterThan(0);
   });
 
@@ -83,7 +81,6 @@ describe("isAllowedStreamLeague", () => {
   it("allows focus leagues", () => {
     expect(isAllowedStreamLeague("Copa Libertadores")).toBe(true);
     expect(isAllowedStreamLeague("English Premier League")).toBe(true);
-    expect(isAllowedStreamLeague("Liga de Primera")).toBe(true);
     expect(isAllowedStreamLeague("Liga AUF Uruguaya")).toBe(true);
   });
 

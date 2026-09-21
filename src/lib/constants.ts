@@ -47,40 +47,26 @@ export function getLeagueIdByName(name: string): number {
 export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   // Argentina
   { id: 128, name: "Liga Profesional", country: "Argentina", countryFlag: "🇦🇷", slug: "liga-argentina", season: 2026 },
-  { id: 1032, name: "Copa de la Liga", country: "Argentina", countryFlag: "🇦🇷", slug: "copa-de-la-liga", season: 2026 },
   { id: 130, name: "Copa Argentina", country: "Argentina", countryFlag: "🇦🇷", slug: "copa-argentina", season: 2026 },
-  // Chile
-  { id: 265, name: "Liga de Primera", country: "Chile", countryFlag: "🇨🇱", slug: "liga-de-primera-chile", season: 2026 },
-  { id: 267, name: "Copa Chile", country: "Chile", countryFlag: "🇨🇱", slug: "copa-chile", season: 2026 },
   // Brasil
   { id: 71, name: "Brasileirão Serie A", country: "Brasil", countryFlag: "🇧🇷", slug: "brasileirao", season: 2026 },
   { id: 73, name: "Copa do Brasil", country: "Brasil", countryFlag: "🇧🇷", slug: "copa-do-brasil", season: 2026 },
-  // Perú
-  { id: 281, name: "Liga 1", country: "Perú", countryFlag: "🇵🇪", slug: "liga1-peru", season: 2026 },
-  { id: 503, name: "Copa Perú", country: "Perú", countryFlag: "🇵🇪", slug: "copa-peru", season: 2026 },
-  // Paraguay
-  { id: 501, name: "Copa Paraguay", country: "Paraguay", countryFlag: "🇵🇾", slug: "copa-paraguay", season: 2026 },
   // Uruguay
   { id: 268, name: "Liga AUF Uruguaya", country: "Uruguay", countryFlag: "🇺🇾", slug: "liga-auf-uruguaya", season: 2026 },
-  { id: 930, name: "Copa Uruguay", country: "Uruguay", countryFlag: "🇺🇾", slug: "copa-uruguay", season: 2026 },
   // CONMEBOL
   { id: 13, name: "Copa Libertadores", country: "Internacional", countryFlag: "🌎", slug: "copa-libertadores", season: 2026 },
   { id: 11, name: "Copa Sudamericana", country: "Internacional", countryFlag: "🌎", slug: "copa-sudamericana", season: 2026 },
-  // Europa
-  { id: 2, name: "Champions League", country: "Europa", countryFlag: "🇪🇺", slug: "champions-league", season: 2026 },
-  { id: 3, name: "Europa League", country: "Europa", countryFlag: "🇪🇺", slug: "europa-league", season: 2026 },
+  // UEFA
+  { id: 2, name: "Champions League", country: "Internacional", countryFlag: "🌎", slug: "champions-league", season: 2026 },
+  { id: 3, name: "Europa League", country: "Internacional", countryFlag: "🌎", slug: "europa-league", season: 2026 },
   { id: 140, name: "La Liga", country: "España", countryFlag: "🇪🇸", slug: "la-liga", season: 2026 },
   { id: 39, name: "Premier League", country: "Inglaterra", countryFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", slug: "premier-league", season: 2026 },
   { id: 78, name: "Bundesliga", country: "Alemania", countryFlag: "🇩🇪", slug: "bundesliga", season: 2026 },
-  { id: 80, name: "3. Liga", country: "Alemania", countryFlag: "🇩🇪", slug: "3-liga", season: 2026 },
   // Italia
   { id: 135, name: "Serie A", country: "Italia", countryFlag: "🇮🇹", slug: "serie-a-italia", season: 2026 },
-  { id: 137, name: "Coppa Italia", country: "Italia", countryFlag: "🇮🇹", slug: "copa-italia", season: 2026 },
-  // USA / Mexico / CONCACAF
+  // USA / CONCACAF
   { id: 332, name: "MLS", country: "Estados Unidos", countryFlag: "🇺🇸", slug: "mls", season: 2026 },
-  { id: 235, name: "Liga MX", country: "Mexico", countryFlag: "🇲🇽", slug: "liga-mx", season: 2026 },
   { id: 5, name: "CONCACAF Champions Cup", country: "Internacional", countryFlag: "🌎", slug: "concacaf-champions-cup", season: 2026 },
-  { id: 431, name: "Leagues Cup", country: "Internacional", countryFlag: "🌎", slug: "leagues-cup", season: 2026 },
 ];
 
 export const API_FOOTBALL_BASE = "https://v3.football.api-sports.io";

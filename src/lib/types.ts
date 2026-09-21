@@ -78,6 +78,37 @@ export interface Standing {
   goalsFor: number;
   goalsAgainst: number;
   goalsDiff: number;
+  trend: number[];
+  destinationColor?: string;
+}
+
+export interface StandingsTable {
+  name: string;
+  standings: Standing[];
+}
+
+export interface StandingsTab {
+  name: string;
+  tables: StandingsTable[];
+}
+
+export interface BracketMatch {
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: string;
+  awayScore: string;
+  round: string;
+  status: string;
+}
+
+export interface BracketRound {
+  name: string;
+  matches: BracketMatch[];
+}
+
+export interface LeagueStandingsData {
+  tabs: StandingsTab[];
+  brackets: BracketRound[];
 }
 
 export interface LeagueConfig {

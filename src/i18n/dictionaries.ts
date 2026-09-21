@@ -111,6 +111,45 @@ export const dictionaries = {
       searching: "Buscando...",
       noResults: "No se encontraron partidos",
     },
+    leagues: {
+      title: "LIGAS",
+      countries: "PAÍSES",
+      positions: "POSICIONES",
+      selectLeague: "Seleccioná una liga para ver las posiciones",
+      loading: "Cargando posiciones...",
+      noStandings: "SIN POSICIONES DISPONIBLES",
+      noStandingsDesc: "Este torneo no tiene tabla de posiciones disponible.",
+      noBracket: "SIN LLAVES DISPONIBLES",
+      team: "EQUIPO",
+      gp: "PJ",
+      g: "G",
+      e: "E",
+      p: "P",
+      gol: "GOL",
+      gd: "DG",
+      form: "ÚLTIMAS",
+      pts: "PTS",
+      general: "GENERAL",
+      anual: "ANUAL",
+      backHome: "Volver al inicio",
+      countryNames: {
+        Internacional: "Internacional",
+        Argentina: "Argentina",
+        Brasil: "Brasil",
+        Uruguay: "Uruguay",
+        "España": "España",
+        Inglaterra: "Inglaterra",
+        Alemania: "Alemania",
+        Italia: "Italia",
+        "Estados Unidos": "Estados Unidos",
+      },
+      tabNames: {
+        Clausura: "Clausura",
+        Apertura: "Apertura",
+        Anual: "Anual",
+        "Fase de grupos": "Fase de grupos",
+      },
+    },
   },
   en: {
     header: {
@@ -189,13 +228,55 @@ export const dictionaries = {
       searching: "Searching...",
       noResults: "No matches found",
     },
-  }
+    leagues: {
+      title: "LEAGUES",
+      countries: "COUNTRIES",
+      positions: "STANDINGS",
+      selectLeague: "Select a league to view standings",
+      loading: "Loading standings...",
+      noStandings: "NO STANDINGS AVAILABLE",
+      noStandingsDesc: "This tournament does not have standings available.",
+      noBracket: "NO BRACKET AVAILABLE",
+      team: "TEAM",
+      gp: "GP",
+      g: "W",
+      e: "D",
+      p: "L",
+      gol: "GOL",
+      gd: "GD",
+      form: "FORM",
+      pts: "PTS",
+      general: "GENERAL",
+      anual: "ANNUAL",
+      backHome: "Back to home",
+      countryNames: {
+        Internacional: "International",
+        Argentina: "Argentina",
+        Brasil: "Brazil",
+        Uruguay: "Uruguay",
+        "España": "Spain",
+        Inglaterra: "England",
+        Alemania: "Germany",
+        Italia: "Italy",
+        "Estados Unidos": "United States",
+      },
+      tabNames: {
+        Clausura: "Closing",
+        Apertura: "Opening",
+        Anual: "Annual",
+        "Fase de grupos": "Group Stage",
+      },
+    },
+  },
 };
 
 export type Language = 'es' | 'en';
 export type Dictionary = typeof dictionaries['es'];
 
-export function translateLeague(name: string): string {
+export function translateLeague(name: string, lang: Language = "es"): string {
+  if (lang === "en") {
+    return leagueNames[name] || name;
+  }
   return name;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Tv, Zap } from "lucide-react";
+import { Tv, Zap, Trophy } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SearchBar from "@/components/search/SearchBar";
 import MobileMenu from "@/components/search/MobileMenu";
@@ -46,9 +46,16 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Desktop: Search + Language */}
+          {/* Desktop: Search + Leagues + Language */}
           <div className="hidden md:flex items-center gap-2">
             <SearchBar />
+            <Link
+              href="/leagues"
+              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-brutal-sm font-black text-xs sm:text-sm text-white hover:text-accent-primary hover:border-accent-primary transition-colors uppercase"
+            >
+              <Trophy size={14} strokeWidth={3} />
+              <span>{t.leagues?.title || "LIGAS"}</span>
+            </Link>
             <div className="flex items-center border-2 border-white bg-black shadow-brutal-sm font-black text-xs sm:text-sm">
               <button
                 onClick={() => setLanguage('es')}

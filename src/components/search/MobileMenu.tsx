@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X, Search } from "lucide-react";
+import { Menu, X, Search, Trophy } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { Match } from "@/lib/types";
 
 function formatDateISO(date: Date): string {
@@ -126,8 +127,19 @@ export default function MobileMenu() {
             </div>
           </div>
 
+          <div className="px-4 py-3 border-b-2 border-white">
+            <Link
+              href="/leagues"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center justify-center gap-2 w-full py-2.5 bg-accent-primary text-black border-2 border-black shadow-brutal-sm font-black text-sm uppercase"
+            >
+              <Trophy size={16} strokeWidth={3} />
+              <span>{t.leagues?.title || "LIGAS"}</span>
+            </Link>
+          </div>
+
           <div className="flex-1 overflow-y-auto">
-            {query.trim() ? (
+            {query.trim() && (
               filtered.length === 0 ? (
                 <p className="p-4 text-xs text-text-muted text-center">{t.search.noResults}</p>
               ) : (
@@ -153,8 +165,6 @@ export default function MobileMenu() {
                   </button>
                 ))
               )
-            ) : (
-              <p className="p-4 text-xs text-text-muted text-center">{t.search.searching}</p>
             )}
           </div>
         </div>
