@@ -26,6 +26,7 @@ function WatchPageInner({
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
+  const [playerMode, setPlayerMode] = useState<"1" | "2">("1");
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -39,6 +40,7 @@ function WatchPageInner({
       setIsLoading(true);
       try {
         const sp = new URLSearchParams(searchParams.toString());
+        sp.set("player", playerMode);
         const qs = sp.toString();
         const url = `/api/matches/${matchId}${qs ? `?${qs}` : ""}`;
         const res = await fetch(url, { cache: "no-store", signal: controller.signal });
@@ -58,7 +60,7 @@ function WatchPageInner({
 
     fetchMatch();
     return () => { cancelled = true; controller.abort(); };
-  }, [matchId, searchParams]);
+  }, [matchId, searchParams, playerMode]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -151,6 +153,29 @@ function WatchPageInner({
           </div>
 
           <div className="animate-fade-in">
+            <div className="mb-3 flex flex-wrap gap-2" id="player-mode-selector">
+              {(["1", "2"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => {
+                    if (mode !== playerMode) {
+                      setMatch((current) => current ? { ...current, channels: [] } : current);
+                      setActiveChannel(null);
+                      setPlayerMode(mode);
+                    }
+                  }}
+                  className={`border-2 px-3 py-1.5 text-xs font-black uppercase transition-all ${
+                    playerMode === mode
+                      ? "border-black bg-accent-primary text-black shadow-btn"
+                      : "border-white bg-bg-card text-white hover:border-accent-primary hover:text-accent-primary"
+                  }`}
+                  aria-pressed={playerMode === mode}
+                >
+                  {mode === "1" ? t.player.playerOne : t.player.playerTwo}
+                </button>
+              ))}
+            </div>
             {activeChannel ? (
               <VideoPlayer
                 url={activeChannel.url}

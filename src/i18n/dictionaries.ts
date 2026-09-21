@@ -86,6 +86,8 @@ export const dictionaries = {
       retryStream: "Reintentar",
     },
     player: {
+      playerOne: "REPRODUCTOR 1",
+      playerTwo: "REPRODUCTOR 2",
       availableChannels: "CANALES DISPONIBLES",
       noChannels: "No hay canales disponibles para este partido.",
       loadingStream: "Cargando stream...",
@@ -203,6 +205,8 @@ export const dictionaries = {
       retryStream: "Retry",
     },
     player: {
+      playerOne: "PLAYER 1",
+      playerTwo: "PLAYER 2",
       availableChannels: "AVAILABLE CHANNELS",
       noChannels: "No channels available for this match.",
       loadingStream: "Loading stream...",
