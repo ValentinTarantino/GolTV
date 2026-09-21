@@ -27,14 +27,7 @@ function hashSlug(slug: string): number {
 }
 
 function inferStatus(dateISO: string): "NS" | "1H" | "FT" {
-  const now = Date.now();
-  const matchArgentina = new Date(
-    new Date(dateISO).toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" })
-  ).getTime();
-  const nowArgentina = new Date(
-    new Date(now).toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" })
-  ).getTime();
-  const diffMin = (matchArgentina - nowArgentina) / 60000;
+  const diffMin = (new Date(dateISO).getTime() - Date.now()) / 60000;
   if (diffMin > 10) return "NS";
   if (diffMin < -150) return "FT";
   return "1H";
@@ -76,11 +69,7 @@ export async function GET(request: NextRequest) {
       homeTeam: { id: 0, name: flMatch.homeTeam, logo: "" },
       awayTeam: { id: 0, name: flMatch.awayTeam, logo: "" },
       date: flMatch.dateISO,
-      timestamp: Math.floor(
-        new Date(
-          new Date(flMatch.dateISO).toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" })
-        ).getTime() / 1000
-      ),
+      timestamp: Math.floor(new Date(flMatch.dateISO).getTime() / 1000),
       status: {
         short: status,
         long: status === "NS" ? "Próximamente" : status === "FT" ? "Finalizado" : "En Juego",

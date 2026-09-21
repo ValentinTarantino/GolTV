@@ -76,7 +76,7 @@ function limaToArgentinaISO(dateDiary: string, diaryHour: string): string {
     finalDate = d.toISOString().slice(0, 10);
   }
 
-  return `${finalDate}T${String(finalHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
+  return `${finalDate}T${String(finalHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}-03:00`;
 }
 
 interface StrapiEmbed {
