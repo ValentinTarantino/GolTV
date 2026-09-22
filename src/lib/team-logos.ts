@@ -72,6 +72,7 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "atlantaunited": "Atlanta United",
   "stlouiscity": "STL City",
   "intermilan": "Inter Milan",
+  "intermilano": "Inter Milan",
   "internazionale": "Inter Milan",
   "acmilan": "AC Milan",
   "sscnapoli": "Napoli",

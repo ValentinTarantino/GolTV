@@ -309,6 +309,12 @@ const TEAM_DISPLAY_NAMES: Record<string, string> = {
   "getafe cf": "Getafe",
   "orca del norte": "Leones del Norte",
   "guayaquil city fc": "Guayaquil City",
+  "inter milano": "Inter Milan",
+  "inter de milán": "Inter Milan",
+  "inter de milan": "Inter Milan",
+  "internazionale milano": "Inter Milan",
+  "internazionale": "Inter Milan",
+  "fc internazionale": "Inter Milan",
 };
 
 export function shortenTeamName(name: string): string {
@@ -372,6 +378,9 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "independiente medellin": "independientemedellin",
   "dim": "independientemedellin",
   "inter": "intermilan",
+  "inter milano": "intermilan",
+  "inter de milan": "intermilan",
+  "internazionale": "intermilan",
   "lanus": "lanus",
   "libertad": "libertad",
   "mancity": "manchestercity",
