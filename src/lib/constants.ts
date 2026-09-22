@@ -6,6 +6,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   130: "https://media.api-sports.io/football/leagues/130.png",
   265: "https://media.api-sports.io/football/leagues/265.png",
   267: "https://media.api-sports.io/football/leagues/267.png",
+  239: "https://media.api-sports.io/football/leagues/239.png",
   71: "https://media.api-sports.io/football/leagues/71.png",
   73: "https://media.api-sports.io/football/leagues/73.png",
   281: "https://media.api-sports.io/football/leagues/281.png",
@@ -53,6 +54,11 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 73, name: "Copa do Brasil", country: "Brasil", countryFlag: "🇧🇷", slug: "copa-do-brasil", season: 2026 },
   // Uruguay
   { id: 268, name: "Liga AUF Uruguaya", country: "Uruguay", countryFlag: "🇺🇾", slug: "liga-auf-uruguaya", season: 2026 },
+  // Chile
+  { id: 265, name: "Liga de Primera", country: "Chile", countryFlag: "🇨🇱", slug: "liga-de-primera", season: 2026 },
+  { id: 267, name: "Copa Chile", country: "Chile", countryFlag: "🇨🇱", slug: "copa-chile", season: 2026 },
+  // Colombia
+  { id: 239, name: "Liga BetPlay", country: "Colombia", countryFlag: "🇨🇴", slug: "liga-betplay", season: 2026 },
   // CONMEBOL
   { id: 13, name: "Copa Libertadores", country: "Internacional", countryFlag: "🌎", slug: "copa-libertadores", season: 2026 },
   { id: 11, name: "Copa Sudamericana", country: "Internacional", countryFlag: "🌎", slug: "copa-sudamericana", season: 2026 },
@@ -97,6 +103,12 @@ export const CHANNEL_SETS: Record<string, { id: string; name: string; url: strin
   chile: [
     { id: "espn_cl", name: "ESPN", url: "https://cdn.jwplayer.com/manifests/pZxWPRg4.m3u8" },
     { id: "tnt_cl", name: "TNT Sports", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+    { id: "cdf", name: "CDF", url: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8" },
+  ],
+  colombia: [
+    { id: "win_co", name: "Win Sports", url: "https://cdn.jwplayer.com/manifests/pZxWPRg4.m3u8" },
+    { id: "espn_co", name: "ESPN", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+    { id: "dsports_co", name: "DSports", url: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8" },
   ],
   peru: [
     { id: "movistar_pe", name: "Movistar Deportes", url: "https://cdn.jwplayer.com/manifests/pZxWPRg4.m3u8" },
@@ -137,6 +149,7 @@ export function getChannelsForCountry(country: string): { id: string; name: stri
   if (key.includes("argentina")) return CHANNEL_SETS.argentina;
   if (key.includes("brasil") || key.includes("brazil")) return CHANNEL_SETS.brasil;
   if (key.includes("chile")) return CHANNEL_SETS.chile;
+  if (key.includes("colombia") || key.includes("colombian")) return CHANNEL_SETS.colombia;
   if (key.includes("perú") || key.includes("peru")) return CHANNEL_SETS.peru;
   if (key.includes("paraguay")) return CHANNEL_SETS.paraguay;
   if (key.includes("uruguay")) return CHANNEL_SETS.uruguay;
@@ -155,6 +168,7 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   130: ["TyC Sports", "ESPN"],
   265: ["ESPN", "TNT Sports", "CDF"],
   267: ["ESPN", "TNT Sports"],
+  239: ["Win Sports", "ESPN", "DSports"],
   71: ["SporTV", "Premiere", "Globo"],
   73: ["SporTV", "Globo", "Premiere"],
   281: ["Latina Televisión", "Movistar Deportes"],
@@ -190,7 +204,19 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "copa argentina": 130,
   "liga de primera": 265,
   "liga de primera chile": 265,
+  "primera division chile": 265,
+  "chilean primera division": 265,
+  "campeonato nacional": 265,
   "copa chile": 267,
+  "liga betplay": 239,
+  "betplay": 239,
+  "categoria primera a": 239,
+  "primera a": 239,
+  "primera a colombiana": 239,
+  "liga colombiana": 239,
+  "colombian primera": 239,
+  "colombian primera division": 239,
+  "colombia primera division": 239,
   "brasileirão serie a": 71,
   "brasileirao serie a": 71,
   "brasileirão": 71,
@@ -342,6 +368,9 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "guadalajara": "chivasdeguadalajara",
   "huracan": "huracan",
   "independiente": "independiente",
+  "medellin": "independientemedellin",
+  "independiente medellin": "independientemedellin",
+  "dim": "independientemedellin",
   "inter": "intermilan",
   "lanus": "lanus",
   "libertad": "libertad",
@@ -474,6 +503,8 @@ export const PROMIEDOS_BADGES: Record<string, string> = {
   "danubiofc": "https://api.promiedos.com.ar/images/team/igbb/3",
   "albion": "https://api.promiedos.com.ar/images/team/fbfcc/3",
   "independientemedellin": "https://api.promiedos.com.ar/images/team/iged/3",
+  "puertomontt": "https://r2.thesportsdb.com/images/media/team/badge/k1wdah1677471408.png",
+  "deportespuertomontt": "https://r2.thesportsdb.com/images/media/team/badge/k1wdah1677471408.png",
   "cuscofc": "https://api.promiedos.com.ar/images/team/jcjb/3",
   "deportestolima": "https://api.promiedos.com.ar/images/team/hgdf/3",
   "universitario": "https://api.promiedos.com.ar/images/team/hbgj/3",

@@ -24,9 +24,22 @@ describe("SUPPORTED_LEAGUES", () => {
     expect(SUPPORTED_LEAGUES.some((l) => l.id === 39)).toBe(true);
   });
 
-  it("excludes Liga MX and Colombia", () => {
+  it("excludes Liga MX", () => {
     expect(SUPPORTED_LEAGUES.some((l) => l.id === 262)).toBe(false);
-    expect(SUPPORTED_LEAGUES.some((l) => l.id === 239)).toBe(false);
+    expect(SUPPORTED_LEAGUES.some((l) => l.id === 235)).toBe(false);
+  });
+
+  it("contains Chile and Colombia leagues", () => {
+    const chile = SUPPORTED_LEAGUES.find((l) => l.id === 265);
+    const colombia = SUPPORTED_LEAGUES.find((l) => l.id === 239);
+    expect(chile).toBeDefined();
+    expect(chile?.name).toBe("Liga de Primera");
+    expect(chile?.country).toBe("Chile");
+    expect(SUPPORTED_LEAGUES.some((l) => l.id === 267)).toBe(true);
+    expect(SUPPORTED_LEAGUES.find((l) => l.id === 267)?.name).toBe("Copa Chile");
+    expect(colombia).toBeDefined();
+    expect(colombia?.name).toBe("Liga BetPlay");
+    expect(colombia?.country).toBe("Colombia");
   });
 
   it("has unique IDs", () => {

@@ -78,6 +78,9 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "asroma": "Roma",
   "sslazio": "Lazio",
   "sportinggijon": "Sporting de Gijon",
+  "puertomontt": "Deportes Puerto Montt",
+  "deportespuertomontt": "Deportes Puerto Montt",
+  "medellin": "Independiente Medellin",
 };
 
 function getSearchVariations(name: string): string[] {

@@ -13,6 +13,8 @@ const COUNTRY_ORDER = [
   { name: "Argentina", flag: "🇦🇷" },
   { name: "Brasil", flag: "🇧🇷" },
   { name: "Uruguay", flag: "🇺🇾" },
+  { name: "Chile", flag: "🇨🇱" },
+  { name: "Colombia", flag: "🇨🇴" },
   { name: "España", flag: "🇪🇸" },
   { name: "Inglaterra", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
   { name: "Alemania", flag: "🇩🇪" },
