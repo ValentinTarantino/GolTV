@@ -315,6 +315,8 @@ const TEAM_DISPLAY_NAMES: Record<string, string> = {
   "internazionale milano": "Inter Milan",
   "internazionale": "Inter Milan",
   "fc internazionale": "Inter Milan",
+  "oud-heverlee leuven": "OH Leuven",
+  "oud heverlee leuven": "OH Leuven",
 };
 
 export function shortenTeamName(name: string): string {
@@ -514,6 +516,10 @@ export const PROMIEDOS_BADGES: Record<string, string> = {
   "independientemedellin": "https://api.promiedos.com.ar/images/team/iged/3",
   "puertomontt": "https://r2.thesportsdb.com/images/media/team/badge/k1wdah1677471408.png",
   "deportespuertomontt": "https://r2.thesportsdb.com/images/media/team/badge/k1wdah1677471408.png",
+  "ohleuven": "https://r2.thesportsdb.com/images/media/team/badge/3ra01v1783527582.png",
+  "oudheverleeleuven": "https://r2.thesportsdb.com/images/media/team/badge/3ra01v1783527582.png",
+  "ohl": "https://r2.thesportsdb.com/images/media/team/badge/3ra01v1783527582.png",
+  "leuven": "https://r2.thesportsdb.com/images/media/team/badge/3ra01v1783527582.png",
   "cuscofc": "https://api.promiedos.com.ar/images/team/jcjb/3",
   "deportestolima": "https://api.promiedos.com.ar/images/team/hgdf/3",
   "universitario": "https://api.promiedos.com.ar/images/team/hbgj/3",

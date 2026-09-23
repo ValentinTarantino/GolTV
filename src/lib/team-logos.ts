@@ -82,6 +82,9 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "puertomontt": "Deportes Puerto Montt",
   "deportespuertomontt": "Deportes Puerto Montt",
   "medellin": "Independiente Medellin",
+  "ohleuven": "Oud-Heverlee Leuven",
+  "oudheverleeleuven": "Oud-Heverlee Leuven",
+  "leuven": "Oud-Heverlee Leuven",
 };
 
 function getSearchVariations(name: string): string[] {
