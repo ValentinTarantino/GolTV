@@ -13,7 +13,7 @@ GolTV Libre es una plataforma web gratuita para seguir y ver partidos de futbol 
 ### Caracteristicas
 
 - Agenda de partidos en vivo agrupada por ligas y competiciones
-- 18 ligas cubiertas: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Liga de Primera Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
+- 19 ligas cubiertas: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Liga de Primera Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Liga 1 Perú, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
 - Tablas de posiciones y brackets de copa en la pagina de ligas (scraping de Promiedos)
 - Estados en tiempo real: En Vivo, Proximo, Finalizado con marcadores y tiempos
 - Reproductor HLS integrado con selector de canales y reload
@@ -155,7 +155,7 @@ GolTV Libre is a free web platform for watching live football matches. It featur
 ### Features
 
 - Live match schedule grouped by leagues and competitions
-- 18 leagues covered: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Liga de Primera Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
+- 19 leagues covered: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Liga de Primera Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Liga 1 Peru, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
 - League standings and cup brackets on the leagues page (scraped from Promiedos)
 - Real-time statuses: Live, Upcoming, Finished with scores and timers
 - Integrated HLS player with channel selector and reload

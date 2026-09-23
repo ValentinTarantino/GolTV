@@ -42,6 +42,15 @@ describe("SUPPORTED_LEAGUES", () => {
     expect(colombia?.country).toBe("Colombia");
   });
 
+  it("contains Liga 1 Peru", () => {
+    const peru = SUPPORTED_LEAGUES.find((l) => l.id === 281);
+    expect(peru).toBeDefined();
+    expect(peru?.name).toBe("Liga 1");
+    expect(peru?.country).toBe("Perú");
+    expect(getBroadcastChannels(281).length).toBeGreaterThan(0);
+    expect(getChannelsForCountry("Perú").length).toBeGreaterThan(0);
+  });
+
   it("has unique IDs", () => {
     const ids = SUPPORTED_LEAGUES.map((l) => l.id);
     expect(ids.length).toBe(new Set(ids).size);

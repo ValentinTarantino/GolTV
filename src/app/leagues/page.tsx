@@ -22,9 +22,12 @@ const COUNTRY_ORDER = [
   { name: "Estados Unidos", flag: "🇺🇸" },
 ];
 
+const LEAGUES_PAGE_EXCLUDED_IDS = new Set([281]);
+
 function groupByCountry() {
   const groups: Record<string, typeof SUPPORTED_LEAGUES> = {};
   for (const league of SUPPORTED_LEAGUES) {
+    if (LEAGUES_PAGE_EXCLUDED_IDS.has(league.id)) continue;
     if (!groups[league.country]) groups[league.country] = [];
     groups[league.country].push(league);
   }

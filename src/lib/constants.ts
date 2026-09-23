@@ -59,6 +59,8 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 267, name: "Copa Chile", country: "Chile", countryFlag: "🇨🇱", slug: "copa-chile", season: 2026 },
   // Colombia
   { id: 239, name: "Liga BetPlay", country: "Colombia", countryFlag: "🇨🇴", slug: "liga-betplay", season: 2026 },
+  // Perú
+  { id: 281, name: "Liga 1", country: "Perú", countryFlag: "🇵🇪", slug: "liga-1-peru", season: 2026 },
   // CONMEBOL
   { id: 13, name: "Copa Libertadores", country: "Internacional", countryFlag: "🌎", slug: "copa-libertadores", season: 2026 },
   { id: 11, name: "Copa Sudamericana", country: "Internacional", countryFlag: "🌎", slug: "copa-sudamericana", season: 2026 },

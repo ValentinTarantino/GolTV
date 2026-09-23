@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SUPPORTED_LEAGUES } from "@/lib/constants";
+import { hasStandings } from "@/lib/standings";
 
 const BASE_URL = "https://goltv-libre.vercel.app";
 
@@ -19,7 +20,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  const leaguePages: MetadataRoute.Sitemap = SUPPORTED_LEAGUES.map((league) => ({
+  const leaguePages: MetadataRoute.Sitemap = SUPPORTED_LEAGUES.filter((league) =>
+    hasStandings(league.id)
+  ).map((league) => ({
     url: `${BASE_URL}/leagues?league=${league.id}`,
     lastModified: new Date(),
     changeFrequency: "daily" as const,
