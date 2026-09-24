@@ -236,6 +236,8 @@ export const dictionaries = {
       reload: "Recargar",
       live: "EN VIVO",
       adBlockerTip: "¿Se abren ventanas emergentes? Usá un bloqueador de anuncios para evitarlas",
+      quality: "CALIDAD",
+      autoQuality: "Automática",
     },
     chat: {
       title: "CHAT EN VIVO",
@@ -360,6 +362,8 @@ export const dictionaries = {
       reload: "Reload",
       live: "LIVE",
       adBlockerTip: "Popups opening? Use an ad-blocker to prevent them",
+      quality: "QUALITY",
+      autoQuality: "Auto",
     },
     chat: {
       title: "LIVE CHAT",
