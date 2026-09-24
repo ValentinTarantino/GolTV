@@ -39,6 +39,11 @@ const nextConfig: NextConfig = {
         hostname: "api.promiedos.com.ar",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "flagcdn.com",
+        pathname: "/**",
+      },
     ],
   },
 };

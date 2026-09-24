@@ -95,6 +95,35 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "nicaragua": "Nicaragua",
   "noruega": "Norway",
   "dinamarca": "Denmark",
+  "gales": "Wales",
+  "wales": "Wales",
+  "lituania": "Lithuania",
+  "paisesbajos": "Netherlands",
+  "netherlands": "Netherlands",
+  "holanda": "Netherlands",
+  "alemania": "Germany",
+  "germany": "Germany",
+};
+
+// Country flags mapping for national teams using flagcdn.com (more reliable)
+const COUNTRY_FLAGS: Record<string, string> = {
+  "Portugal": "https://flagcdn.com/w160/pt.png",
+  "Liechtenstein": "https://flagcdn.com/w160/li.png",
+  "Austria": "https://flagcdn.com/w160/at.png",
+  "Israel": "https://flagcdn.com/w160/il.png",
+  "Wales": "https://flagcdn.com/w160/gb-wls.png",
+  "Lithuania": "https://flagcdn.com/w160/lt.png",
+  "Netherlands": "https://flagcdn.com/w160/nl.png",
+  "Germany": "https://flagcdn.com/w160/de.png",
+  "Dominican Republic": "https://flagcdn.com/w160/do.png",
+  "Curaçao": "https://flagcdn.com/w160/cw.png",
+  "Costa Rica": "https://flagcdn.com/w160/cr.png",
+  "Nicaragua": "https://flagcdn.com/w160/ni.png",
+  "Norway": "https://flagcdn.com/w160/no.png",
+  "Denmark": "https://flagcdn.com/w160/dk.png",
+  "Spain": "https://flagcdn.com/w160/es.png",
+  "Andorra": "https://flagcdn.com/w160/ad.png",
+  "Malta": "https://flagcdn.com/w160/mt.png",
 };
 
 function getSearchVariations(name: string): string[] {
@@ -136,6 +165,14 @@ async function searchTeam(query: string): Promise<SportsDBTeam[]> {
 export async function getTeamLogo(teamName: string): Promise<string> {
   const key = normalize(teamName);
   if (!key) return "";
+
+  // Check if it's a national team first
+  const normalizedTeamName = teamName.toLowerCase();
+  for (const [country, flagUrl] of Object.entries(COUNTRY_FLAGS)) {
+    if (normalizedTeamName.includes(country.toLowerCase()) || country.toLowerCase().includes(normalizedTeamName)) {
+      return flagUrl;
+    }
+  }
 
   const aliasKey = PROMIEDOS_ALIASES[key];
   const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key];
