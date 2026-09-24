@@ -3,6 +3,7 @@ import {
   getChannelsForCountry,
   getBroadcastChannels,
   CHANNEL_SETS,
+  matchPlLeague,
 } from "@/lib/constants";
 import { isAllowedStreamLeague } from "@/lib/streaming";
 
@@ -116,5 +117,43 @@ describe("isAllowedStreamLeague", () => {
     expect(isAllowedStreamLeague("Armenian Premier League")).toBe(false);
     expect(isAllowedStreamLeague("Jordan Premier League")).toBe(false);
     expect(isAllowedStreamLeague("Kazakhstan Premier League")).toBe(false);
+  });
+});
+
+describe("matchPlLeague", () => {
+  it("maps UEFA Nations League exactly", () => {
+    const league = matchPlLeague("UEFA Nations League");
+    expect(league).not.toBeNull();
+    expect(league?.id).toBe(5);
+    expect(league?.name).toBe("UEFA Nations League");
+  });
+
+  it("maps CONCACAF Nations League (Spanish agenda name)", () => {
+    const league = matchPlLeague("Liga de Naciones de la CONCACAF");
+    expect(league).not.toBeNull();
+    expect(league?.id).toBe(6);
+    expect(league?.name).toBe("CONCACAF Nations League");
+    expect(league?.name).not.toBe("CONCACAF Champions Cup");
+  });
+
+  it("maps CONCACAF Nations League (English name)", () => {
+    const league = matchPlLeague("CONCACAF Nations League");
+    expect(league?.id).toBe(6);
+  });
+
+  it("maps CONCACAF Champions Cup to id 18, not Nations League", () => {
+    expect(matchPlLeague("CONCACAF Champions Cup")?.id).toBe(18);
+    expect(matchPlLeague("CONCACAF Champions League")?.id).toBe(18);
+  });
+
+  it("does not map broad concacaf text to Champions Cup for Nations League names", () => {
+    const league = matchPlLeague("Liga de Naciones de la CONCACAF");
+    expect(league?.id).not.toBe(18);
+  });
+
+  it("still maps club leagues after national-team entries", () => {
+    expect(matchPlLeague("Liga Profesional")?.id).toBe(128);
+    expect(matchPlLeague("Copa Libertadores")?.id).toBe(13);
+    expect(matchPlLeague("Champions League")?.id).toBe(2);
   });
 });

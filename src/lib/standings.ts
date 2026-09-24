@@ -22,7 +22,7 @@ export const PROMIEDOS_LEAGUES: Record<number, PromiedosLeague> = {
   78: { urlName: "bundesliga", id: "cf" },
   332: { urlName: "mls", id: "bae" },
   268: { urlName: "uruguayan-championship", id: "gbh" },
-  5: { urlName: "concacaf-champions-cup", id: "bhb" },
+  18: { urlName: "concacaf-champions-cup", id: "bhb" },
   265: { urlName: "campeonato-nacional", id: "bdf" },
   239: { urlName: "liga-betplay", id: "gca" },
 };

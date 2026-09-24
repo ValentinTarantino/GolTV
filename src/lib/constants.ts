@@ -27,6 +27,8 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   332: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Major_League_Soccer_logo.svg/250px-Major_League_Soccer_logo.svg.png",
   235: "https://media.api-sports.io/football/leagues/235.png",
   5: "https://media.api-sports.io/football/leagues/5.png",
+  18: "https://media.api-sports.io/football/leagues/18.png",
+  6: "https://media.api-sports.io/football/leagues/6.png",
   431: "https://media.api-sports.io/football/leagues/431.png",
 };
 
@@ -74,7 +76,10 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 135, name: "Serie A", country: "Italia", countryFlag: "🇮🇹", slug: "serie-a-italia", season: 2026 },
   // USA / CONCACAF
   { id: 332, name: "MLS", country: "Estados Unidos", countryFlag: "🇺🇸", slug: "mls", season: 2026 },
-  { id: 5, name: "CONCACAF Champions Cup", country: "Internacional", countryFlag: "🌎", slug: "concacaf-champions-cup", season: 2026 },
+  { id: 18, name: "CONCACAF Champions Cup", country: "Internacional", countryFlag: "🌎", slug: "concacaf-champions-cup", season: 2026 },
+  // Selecciones (solo para fixture, no se muestran en sección de ligas)
+  { id: 5, name: "UEFA Nations League", country: "Internacional", countryFlag: "🌍", slug: "uefa-nations-league", season: 2026 },
+  { id: 6, name: "CONCACAF Nations League", country: "Internacional", countryFlag: "🌎", slug: "concacaf-nations-league", season: 2026 },
 ];
 
 export const API_FOOTBALL_BASE = "https://v3.football.api-sports.io";
@@ -188,7 +193,9 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   137: ["ESPN", "DAZN", "Sky Sport"],
   332: ["Apple TV", "Fox Sports", "ESPN"],
   235: ["Fox Sports", "ESPN", "TUDN", "ViX"],
-  5: ["Fox Sports", "TUDN", "ViX"],
+  18: ["Fox Sports", "TUDN", "ViX"],
+  5: ["ESPN", "Fox Sports", "DAZN", "TNT Sports"],
+  6: ["Fox Sports", "TUDN", "ViX"],
   431: ["Apple TV", "Fox Sports", "TUDN"],
 };
 
@@ -258,8 +265,12 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "major league soccer": 332,
   "major league": 332,
   "liga mx": 235,
-  "concacaf champions cup": 5,
-  "concacaf": 5,
+  "concacaf champions cup": 18,
+  "concacaf champions league": 18,
+  "uefa nations league": 5,
+  "nations league uefa": 5,
+  "liga de naciones de la concacaf": 6,
+  "concacaf nations league": 6,
   "leagues cup": 431,
 };
 

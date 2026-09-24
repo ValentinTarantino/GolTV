@@ -85,6 +85,16 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "ohleuven": "Oud-Heverlee Leuven",
   "oudheverleeleuven": "Oud-Heverlee Leuven",
   "leuven": "Oud-Heverlee Leuven",
+  // National teams
+  "republicadominicana": "Dominican Republic",
+  "repdominicana": "Dominican Republic",
+  "dominicanrepublic": "Dominican Republic",
+  "curazao": "Curaçao",
+  "curacao": "Curaçao",
+  "costarica": "Costa Rica",
+  "nicaragua": "Nicaragua",
+  "noruega": "Norway",
+  "dinamarca": "Denmark",
 };
 
 function getSearchVariations(name: string): string[] {

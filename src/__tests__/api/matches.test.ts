@@ -110,6 +110,33 @@ describe("/api/matches", () => {
     expect(data.matches).toHaveLength(0);
   });
 
+  it("keeps national-team matches (Nations League)", async () => {
+    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        league: "UEFA Nations League",
+        homeTeam: "Portugal",
+        awayTeam: "Spain",
+        slug: "portugal-spain-nl",
+      }),
+      flMatch({
+        league: "Liga de Naciones de la CONCACAF",
+        homeTeam: "Mexico",
+        awayTeam: "United States",
+        slug: "mexico-usa-nl",
+      }),
+    ]);
+
+    const req = makeRequest(todayISO());
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(2);
+    const names = data.matches.map((m: { league: { name: string } }) => m.league.name);
+    expect(names).toContain("UEFA Nations League");
+    expect(names).toContain("CONCACAF Nations League");
+    expect(names).not.toContain("CONCACAF Champions Cup");
+  });
+
   it("returns empty array when agenda is empty", async () => {
     (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([]);
 

@@ -1,4 +1,5 @@
 import type { Channel, Match, MatchStatusShort } from "./types";
+import { getTeamLogo } from "./team-logos";
 
 const STREAM_API_BASE = "https://football-live-stream-api.p.rapidapi.com";
 const RAPID_API_KEY = process.env.RAPIDAPI_KEY || "";
@@ -88,6 +89,11 @@ const LEAGUE_ID_MAP: Record<string, number> = {
   "champions league": 2,
   "uefa europa league": 3,
   "europa league": 3,
+  "uefa nations league": 5,
+  "nations league": 5,
+  "concacaf nations league": 6,
+  "concacaf champions league": 7,
+  "concacaf champions cup": 7,
   "english premier league": 39,
   "premier league": 39,
   "spanish la liga": 140,
@@ -126,6 +132,10 @@ const STREAM_LEAGUE_PATTERNS: RegExp[] = [
   /\bsudamericana\b/,
   /\b(uefa\s+)?champions league\b/,
   /\b(uefa\s+)?europa league\b/,
+  /\b(uefa\s+)?nations league\b/,
+  /\bnations league\b/,
+  /\bconcacaf\s+nations league\b/,
+  /\bconcacaf\s+champions( league| cup)?\b/,
   /\bspanish la liga\b/,
   /\bla liga\b/,
   /\benglish premier( league)?\b/,
@@ -490,37 +500,46 @@ export async function fetchLiveStreamMatches(): Promise<Match[]> {
     const liveMatches = matches.filter((m) => m.status === "Live");
     const filteredMatches = liveMatches.filter((m) => isAllowedStreamLeague(m.league));
 
-    return filteredMatches.map((m) => {
-      const scoreParts = m.score.split(" - ").map(Number);
-      const leagueId = resolveLeagueId(m.league);
-      return {
-        id: stableStreamMatchId(m.id),
-        league: {
-          id: leagueId,
-          name: m.league,
-          country: "Internacional",
-          logo: getLeagueLogo(m.league),
-          flag: "",
-          slug: m.league.toLowerCase().replace(/\s+/g, "-"),
-        },
-        homeTeam: {
-          id: 0,
-          name: m.home_name,
-          logo: m.home_flag || PLACEHOLDER_TEAM_LOGO,
-        },
-        awayTeam: {
-          id: 0,
-          name: m.away_name,
-          logo: m.away_flag || PLACEHOLDER_TEAM_LOGO,
-        },
-        date: m.date || new Date().toISOString(),
-        timestamp: Math.floor(Date.now() / 1000),
-        status: { short: "LIVE" as MatchStatusShort, long: "En Juego", elapsed: null },
-        score: { home: scoreParts[0] || 0, away: scoreParts[1] || 0 },
-        channels: [],
-        _streamId: m.id,
-      };
-    });
+    const matchesWithLogos = await Promise.all(
+      filteredMatches.map(async (m) => {
+        const scoreParts = m.score.split(" - ").map(Number);
+        const leagueId = resolveLeagueId(m.league);
+        const [homeLogo, awayLogo] = await Promise.all([
+          getTeamLogo(m.home_name),
+          getTeamLogo(m.away_name),
+        ]);
+
+        return {
+          id: stableStreamMatchId(m.id),
+          league: {
+            id: leagueId,
+            name: m.league,
+            country: "Internacional",
+            logo: getLeagueLogo(m.league),
+            flag: "",
+            slug: m.league.toLowerCase().replace(/\s+/g, "-"),
+          },
+          homeTeam: {
+            id: 0,
+            name: m.home_name,
+            logo: m.home_flag || homeLogo || PLACEHOLDER_TEAM_LOGO,
+          },
+          awayTeam: {
+            id: 0,
+            name: m.away_name,
+            logo: m.away_flag || awayLogo || PLACEHOLDER_TEAM_LOGO,
+          },
+          date: m.date || new Date().toISOString(),
+          timestamp: Math.floor(Date.now() / 1000),
+          status: { short: "LIVE" as MatchStatusShort, long: "En Juego", elapsed: null },
+          score: { home: scoreParts[0] || 0, away: scoreParts[1] || 0 },
+          channels: [],
+          _streamId: m.id,
+        };
+      })
+    );
+
+    return matchesWithLogos;
   } catch (error) {
     console.warn("Failed to fetch live stream matches:", error);
     return [];

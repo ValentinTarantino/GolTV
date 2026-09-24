@@ -22,7 +22,7 @@ const COUNTRY_ORDER = [
   { name: "Estados Unidos", flag: "🇺🇸" },
 ];
 
-const LEAGUES_PAGE_EXCLUDED_IDS = new Set([281]);
+const LEAGUES_PAGE_EXCLUDED_IDS = new Set([281, 5, 6]);
 
 function groupByCountry() {
   const groups: Record<string, typeof SUPPORTED_LEAGUES> = {};

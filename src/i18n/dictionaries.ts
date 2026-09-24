@@ -25,6 +25,8 @@ export const leagueNames: Record<string, string> = {
   "Liga MX": "Liga MX",
   "MLS": "MLS",
   "CONCACAF Champions Cup": "CONCACAF Champions Cup",
+  "UEFA Nations League": "UEFA Nations League",
+  "CONCACAF Nations League": "CONCACAF Nations League",
   "Leagues Cup": "Leagues Cup",
   "Serie A": "Serie A",
   "Coppa Italia": "Coppa Italia",
@@ -147,6 +149,7 @@ export const dictionaries = {
         Alemania: "Alemania",
         Italia: "Italia",
         "Estados Unidos": "Estados Unidos",
+        Europa: "Europa",
       },
       tabNames: {
         Clausura: "Clausura",
@@ -269,6 +272,7 @@ export const dictionaries = {
         Alemania: "Germany",
         Italia: "Italy",
         "Estados Unidos": "United States",
+        Europa: "Europe",
       },
       tabNames: {
         Clausura: "Closing",
