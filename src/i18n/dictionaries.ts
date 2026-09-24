@@ -35,6 +35,141 @@ export const leagueNames: Record<string, string> = {
   "División de Honor": "Division of Honor",
 };
 
+export const countryNames: Record<string, string> = {
+  "NORUEGA": "Norway",
+  "DINAMARCA": "Denmark",
+  "PORTUGAL": "Portugal",
+  "GALES": "Wales",
+  "LIECHTENSTEIN": "Liechtenstein",
+  "LITUANIA": "Lithuania",
+  "AUSTRIA": "Austria",
+  "ISRAEL": "Israel",
+  "PAÍSES BAJOS": "Netherlands",
+  "ALEMANIA": "Germany",
+  "SERBIA": "Serbia",
+  "GRECIA": "Greece",
+  "ESPAÑA": "Spain",
+  "FRANCIA": "France",
+  "ITALIA": "Italy",
+  "INGLATERRA": "England",
+  "ESCOCIA": "Scotland",
+  "IRLANDA": "Ireland",
+  "REPÚBLICA DE IRLANDA": "Republic of Ireland",
+  "BELGICA": "Belgium",
+  "SUIZA": "Switzerland",
+  "POLONIA": "Poland",
+  "RUSIA": "Russia",
+  "UCRANIA": "Ukraine",
+  "SUECIA": "Sweden",
+  "FINLANDIA": "Finland",
+  "HOLANDA": "Netherlands",
+  "HUNGRIA": "Hungary",
+  "RUMANIA": "Romania",
+  "BULGARIA": "Bulgaria",
+  "TURQUIA": "Turkey",
+  "REPÚBLICA CHECA": "Czech Republic",
+  "ESLOVAQUIA": "Slovakia",
+  "CROACIA": "Croatia",
+  "ESLOVENIA": "Slovenia",
+  "BOSNIA": "Bosnia",
+  "MONTENEGRO": "Montenegro",
+  "KOSOVO": "Kosovo",
+  "ALBANIA": "Albania",
+  "MACEDONIA": "North Macedonia",
+  "MOLDAVIA": "Moldova",
+  "LETONIA": "Latvia",
+  "ESTONIA": "Estonia",
+  "BIELORRUSIA": "Belarus",
+  "ANDORRA": "Andorra",
+  "MALTA": "Malta",
+  "CHIPRE": "Cyprus",
+  "ISLANDIA": "Iceland",
+  "ESTADOS UNIDOS": "United States",
+  "CANADA": "Canada",
+  "MEXICO": "Mexico",
+  "CHILE": "Chile",
+  "COLOMBIA": "Colombia",
+  "PERU": "Peru",
+  "ECUADOR": "Ecuador",
+  "BOLIVIA": "Bolivia",
+  "PARAGUAY": "Paraguay",
+  "URUGUAY": "Uruguay",
+  "VENEZUELA": "Venezuela",
+  "COSTA RICA": "Costa Rica",
+  "PANAMA": "Panama",
+  "JAMAICA": "Jamaica",
+  "HAITI": "Haiti",
+  "REPÚBLICA DOMINICANA": "Dominican Republic",
+  "CUBA": "Cuba",
+  "NICARAGUA": "Nicaragua",
+  "HONDURAS": "Honduras",
+  "EL SALVADOR": "El Salvador",
+  "GUATEMALA": "Guatemala",
+  "CURAZAO": "Curaçao",
+  "SURINAM": "Suriname",
+  "GUYANA": "Guyana",
+  "TRINIDAD Y TOBAGO": "Trinidad and Tobago",
+  "AUSTRALIA": "Australia",
+  "NUEVA ZELANDA": "New Zealand",
+  "JAPON": "Japan",
+  "COREA DEL SUR": "South Korea",
+  "COREA DEL NORTE": "North Korea",
+  "CHINA": "China",
+  "INDIA": "India",
+  "TAILANDIA": "Thailand",
+  "VIETNAM": "Vietnam",
+  "INDONESIA": "Indonesia",
+  "MALASIA": "Malaysia",
+  "SINGAPUR": "Singapore",
+  "FILIPINAS": "Philippines",
+  "EGIPTO": "Egypt",
+  "MARRUECOS": "Morocco",
+  "ARGELIA": "Algeria",
+  "TUNEZIA": "Tunisia",
+  "LIBIA": "Libya",
+  "SUDAN": "Sudan",
+  "SUDAFRICA": "South Africa",
+  "NIGERIA": "Nigeria",
+  "GHANA": "Ghana",
+  "COSTA DE MARFIL": "Ivory Coast",
+  "SENEGAL": "Senegal",
+  "CAMERUN": "Cameroon",
+  "IRAN": "Iran",
+  "IRAQ": "Iraq",
+  "ARABIA SAUDITA": "Saudi Arabia",
+  "EMIRATOS ARABES": "United Arab Emirates",
+  "QATAR": "Qatar",
+  "KUWAIT": "Kuwait",
+  "OMAN": "Oman",
+  "BAHREIN": "Bahrain",
+  "YEMEN": "Yemen",
+  "SYRIA": "Syria",
+  "JORDAN": "Jordan",
+  "LIBANO": "Lebanon",
+  "PALESTINA": "Palestine",
+};
+
+function stripAccents(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+const countryNamesNormalized: Record<string, string> = Object.fromEntries(
+  Object.entries(countryNames).map(([key, value]) => [stripAccents(key.toUpperCase().trim()), value])
+);
+
+export function translateCountryName(name: string, language: string = "en"): string {
+  if (language === "es") return name; // No translation needed for Spanish
+
+  const key = stripAccents(name.toUpperCase().trim());
+  return countryNamesNormalized[key] || name;
+}
+
+export function translateLeague(name: string, language: string = "es"): string {
+  if (language === "es") return name; // No translation needed for Spanish
+
+  return leagueNames[name] || name;
+}
+
 export const dictionaries = {
   es: {
     header: {
@@ -54,9 +189,10 @@ export const dictionaries = {
         "— No requiere tarjeta ni registro",
         "— Ligas de todo el continente",
         "— Canales en alta definición",
+        "— Soporte 24/7",
       ],
       legalTitle: "Aviso Legal",
-      legalText: "GolTV Libre no aloja ningún contenido en sus servidores. Todo el material es enlazado desde sitios de terceros ajenos a nosotros.",
+      legalText: "Este sitio es solo para fines informativos. No alojamos ni transmitimos contenido protegido por derechos de autor.",
     },
     home: {
       todayMatches: "PARTIDOS DE HOY",
@@ -162,10 +298,10 @@ export const dictionaries = {
   en: {
     header: {
       ticker: [
-        "LIVE BROADCASTS",
-        "HD SIGNALS NO BUFFERING",
-        "FREE & DIRECT FOOTBALL",
-        "INSTANTLY UPDATED SCHEDULE",
+        "LIVE STREAMING",
+        "HD SIGNALS WITHOUT INTERRUPTIONS",
+        "FREE AND DIRECT FOOTBALL",
+        "AGENDA UPDATED INSTANTLY",
         "ALL MATCHES IN ONE PLACE",
       ],
     },
@@ -174,12 +310,13 @@ export const dictionaries = {
       featuresTitle: "Features",
       features: [
         "— 100% Free Streaming",
-        "— No credit card or registration required",
+        "— No card or registration required",
         "— Leagues from across the continent",
         "— High definition channels",
+        "— 24/7 Support",
       ],
-      legalTitle: "Legal Disclaimer",
-      legalText: "GolTV Libre does not host any content on its servers. All material is linked from third-party sites independent of us.",
+      legalTitle: "Legal Notice",
+      legalText: "This site is for informational purposes only. We do not host or transmit copyrighted content.",
     },
     home: {
       todayMatches: "TODAY'S MATCHES",
@@ -286,13 +423,3 @@ export const dictionaries = {
 
 export type Language = 'es' | 'en';
 export type Dictionary = typeof dictionaries['es'];
-
-export function translateLeague(name: string, lang: Language = "es"): string {
-  if (lang === "en") {
-    return leagueNames[name] || name;
-  }
-  return name;
-}
-
-
-

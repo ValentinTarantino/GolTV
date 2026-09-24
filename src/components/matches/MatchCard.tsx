@@ -7,6 +7,7 @@ import type { Match } from "@/lib/types";
 import { shortenTeamName } from "@/lib/constants";
 import { isLive, isFinished, isUpcoming, isViewable, formatTime, getStatusLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { translateCountryName } from "@/i18n/dictionaries";
 
 interface MatchCardProps {
   match: Match;
@@ -67,7 +68,7 @@ export default function MatchCard({ match }: MatchCardProps) {
             ) : null}
           </div>
           <span className="truncate text-sm sm:text-base font-bold text-white uppercase tracking-tight">
-            {shortenTeamName(match.homeTeam.name)}
+            {translateCountryName(shortenTeamName(match.homeTeam.name), language)}
           </span>
         </div>
 
@@ -116,7 +117,7 @@ export default function MatchCard({ match }: MatchCardProps) {
         {/* Away Team */}
         <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3 min-w-0">
           <span className="truncate text-right text-sm sm:text-base font-bold text-white uppercase tracking-tight">
-            {shortenTeamName(match.awayTeam.name)}
+            {translateCountryName(shortenTeamName(match.awayTeam.name), language)}
           </span>
           <div className="relative h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
             {match.awayTeam.logo ? (

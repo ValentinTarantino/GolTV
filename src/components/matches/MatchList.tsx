@@ -20,7 +20,7 @@ interface LeagueGroup {
 }
 
 export default function MatchList({ matches }: MatchListProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   if (matches.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 sm:py-20 text-center animate-fade-in border-3 sm:border-4 border-dashed border-white/20">
@@ -85,7 +85,7 @@ export default function MatchList({ matches }: MatchListProps) {
               )}
               <div className="flex flex-col">
                 <h2 className="text-lg sm:text-xl md:text-2xl font-black text-black uppercase tracking-tight">
-                  {translateLeague(group.leagueName)}
+                  {translateLeague(group.leagueName, language)}
                 </h2>
               </div>
             </div>

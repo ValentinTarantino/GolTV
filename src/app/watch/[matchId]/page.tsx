@@ -22,7 +22,7 @@ function WatchPageInner({
 }) {
   const { matchId } = use(params);
   const searchParams = useSearchParams();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
@@ -146,7 +146,7 @@ function WatchPageInner({
                 </div>
               )}
               <h2 className="text-base sm:text-xl md:text-2xl font-black text-black uppercase tracking-tight">
-                {translateLeague(match.league.name)}
+                {translateLeague(match.league.name, language)}
               </h2>
             </div>
             {live && <LiveBadge />}

@@ -103,6 +103,14 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "holanda": "Netherlands",
   "alemania": "Germany",
   "germany": "Germany",
+  "irlanda": "Ireland",
+  "ireland": "Ireland",
+  "republicofireland": "Ireland",
+  "republicofirlanda": "Ireland",
+  "repdelirlanda": "Ireland",
+  "republicadeirlanda": "Ireland",
+  "república": "Ireland",
+  "kosovo": "Kosovo",
 };
 
 // Country flags mapping for national teams using flagcdn.com (more reliable)
@@ -124,6 +132,13 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "Spain": "https://flagcdn.com/w160/es.png",
   "Andorra": "https://flagcdn.com/w160/ad.png",
   "Malta": "https://flagcdn.com/w160/mt.png",
+  "Ireland": "https://flagcdn.com/w160/ie.png",
+  "Republic of Ireland": "https://flagcdn.com/w160/ie.png",
+  "República de Irlanda": "https://flagcdn.com/w160/ie.png",
+  "REPÚBLICA DE IRLANDA": "https://flagcdn.com/w160/ie.png",
+  "republicadeirlanda": "https://flagcdn.com/w160/ie.png",
+  "repdelirlanda": "https://flagcdn.com/w160/ie.png",
+  "Kosovo": "https://flagcdn.com/w160/xk.png",
 };
 
 function getSearchVariations(name: string): string[] {
@@ -166,10 +181,21 @@ export async function getTeamLogo(teamName: string): Promise<string> {
   const key = normalize(teamName);
   if (!key) return "";
 
-  // Check if it's a national team first
+  // Direct country matching for Ireland - special case
+  if (key.includes("irland") || key.includes("ireland")) {
+    return "https://flagcdn.com/w160/ie.png";
+  }
+
+  // Check if it's a national team first - improved matching
   const normalizedTeamName = teamName.toLowerCase();
   for (const [country, flagUrl] of Object.entries(COUNTRY_FLAGS)) {
-    if (normalizedTeamName.includes(country.toLowerCase()) || country.toLowerCase().includes(normalizedTeamName)) {
+    const countryLower = country.toLowerCase();
+    // Check if team name contains country name or vice versa
+    if (normalizedTeamName.includes(countryLower) || countryLower.includes(normalizedTeamName)) {
+      return flagUrl;
+    }
+    // Check for more specific matches
+    if (normalizedTeamName === countryLower || key === countryLower) {
       return flagUrl;
     }
   }
