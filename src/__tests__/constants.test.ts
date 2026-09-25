@@ -5,6 +5,7 @@ import {
   CHANNEL_SETS,
   matchPlLeague,
 } from "@/lib/constants";
+import { getTeamLogo } from "@/lib/team-logos";
 import { isAllowedStreamLeague } from "@/lib/streaming";
 
 describe("SUPPORTED_LEAGUES", () => {
@@ -117,6 +118,37 @@ describe("isAllowedStreamLeague", () => {
     expect(isAllowedStreamLeague("Armenian Premier League")).toBe(false);
     expect(isAllowedStreamLeague("Jordan Premier League")).toBe(false);
     expect(isAllowedStreamLeague("Kazakhstan Premier League")).toBe(false);
+  });
+});
+
+describe("getTeamLogo", () => {
+  it("returns visible badges for remaining national teams", async () => {
+    const expected = {
+      Armenia: "https://flagcdn.com/w160/am.png",
+      Poland: "https://flagcdn.com/w160/pl.png",
+      "Bosnia and Herzegovina": "https://flagcdn.com/w160/ba.png",
+      Montenegro: "https://flagcdn.com/w160/me.png",
+      Cyprus: "https://flagcdn.com/w160/cy.png",
+      "Chipre": "https://flagcdn.com/w160/cy.png",
+      Latvia: "https://flagcdn.com/w160/lv.png",
+      Hungary: "https://flagcdn.com/w160/hu.png",
+      Sweden: "https://flagcdn.com/w160/se.png",
+      Turkey: "https://flagcdn.com/w160/tr.png",
+      Ukraine: "https://flagcdn.com/w160/ua.png",
+      Romania: "https://flagcdn.com/w160/ro.png",
+      France: "https://flagcdn.com/w160/fr.png",
+    };
+
+    for (const [team, url] of Object.entries(expected)) {
+      await expect(getTeamLogo(team)).resolves.toBe(url);
+    }
+
+    await expect(getTeamLogo("Letonia")).resolves.toBe("https://flagcdn.com/w160/lv.png");
+  });
+
+  it("uses the Chilean crest for Audax Italiano", async () => {
+    await expect(getTeamLogo("Audax Italiano", "Chile")).resolves.toBe("https://audax.dwos.cl/uploads/otros/escudos/2022.svg");
+    await expect(getTeamLogo("audaxitaliano")).resolves.toBe("https://audax.dwos.cl/uploads/otros/escudos/2022.svg");
   });
 });
 

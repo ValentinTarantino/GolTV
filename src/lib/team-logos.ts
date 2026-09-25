@@ -143,6 +143,26 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "REPÚBLICA DE IRLANDA": "https://flagcdn.com/w160/ie.png",
   "republicadeirlanda": "https://flagcdn.com/w160/ie.png",
   "repdelirlanda": "https://flagcdn.com/w160/ie.png",
+  "Armenia": "https://flagcdn.com/w160/am.png",
+  "Poland": "https://flagcdn.com/w160/pl.png",
+  "Bosnia and Herzegovina": "https://flagcdn.com/w160/ba.png",
+  "Montenegro": "https://flagcdn.com/w160/me.png",
+  "Cyprus": "https://flagcdn.com/w160/cy.png",
+  "Chipre": "https://flagcdn.com/w160/cy.png",
+  "Latvia": "https://flagcdn.com/w160/lv.png",
+  "Letonia": "https://flagcdn.com/w160/lv.png",
+  "Hungary": "https://flagcdn.com/w160/hu.png",
+  "Hungría": "https://flagcdn.com/w160/hu.png",
+  "Sweden": "https://flagcdn.com/w160/se.png",
+  "Suecia": "https://flagcdn.com/w160/se.png",
+  "Turkey": "https://flagcdn.com/w160/tr.png",
+  "Turquía": "https://flagcdn.com/w160/tr.png",
+  "Ukraine": "https://flagcdn.com/w160/ua.png",
+  "Ucrania": "https://flagcdn.com/w160/ua.png",
+  "Romania": "https://flagcdn.com/w160/ro.png",
+  "Rumania": "https://flagcdn.com/w160/ro.png",
+  "France": "https://flagcdn.com/w160/fr.png",
+  "Francia": "https://flagcdn.com/w160/fr.png",
   "Kosovo": "https://flagcdn.com/w160/xk.png",
 };
 
@@ -151,6 +171,41 @@ const NATIONAL_TEAM_BADGES: Record<string, string> = {
   georgianationalfootballteam: "https://upload.wikimedia.org/wikipedia/en/9/9c/Georgia_national_football_team_crest.svg",
   northernireland: "https://upload.wikimedia.org/wikipedia/en/2/25/Irish_Football_Association_logo.svg",
   irlandadelnorte: "https://upload.wikimedia.org/wikipedia/en/2/25/Irish_Football_Association_logo.svg",
+  armenia: "https://flagcdn.com/w160/am.png",
+  armenianationalfootballteam: "https://flagcdn.com/w160/am.png",
+  poland: "https://flagcdn.com/w160/pl.png",
+  polandnationalfootballteam: "https://flagcdn.com/w160/pl.png",
+  bosniaandherzegovina: "https://flagcdn.com/w160/ba.png",
+  bosniaherzegovina: "https://flagcdn.com/w160/ba.png",
+  bosniaandherzegovinanationalfootballteam: "https://flagcdn.com/w160/ba.png",
+  montenegro: "https://flagcdn.com/w160/me.png",
+  montenegronationalfootballteam: "https://flagcdn.com/w160/me.png",
+  cyprus: "https://flagcdn.com/w160/cy.png",
+  cyprusnationalfootballteam: "https://flagcdn.com/w160/cy.png",
+  chipre: "https://flagcdn.com/w160/cy.png",
+  chiprenationalfootballteam: "https://flagcdn.com/w160/cy.png",
+  latvia: "https://flagcdn.com/w160/lv.png",
+  latvianationalfootballteam: "https://flagcdn.com/w160/lv.png",
+  letonia: "https://flagcdn.com/w160/lv.png",
+  letonianationalfootballteam: "https://flagcdn.com/w160/lv.png",
+  hungary: "https://flagcdn.com/w160/hu.png",
+  hungarnationalfootballteam: "https://flagcdn.com/w160/hu.png",
+  hungria: "https://flagcdn.com/w160/hu.png",
+  sweden: "https://flagcdn.com/w160/se.png",
+  swedennationalfootballteam: "https://flagcdn.com/w160/se.png",
+  suecia: "https://flagcdn.com/w160/se.png",
+  turkey: "https://flagcdn.com/w160/tr.png",
+  turkishnationalfootballteam: "https://flagcdn.com/w160/tr.png",
+  turquia: "https://flagcdn.com/w160/tr.png",
+  ukraine: "https://flagcdn.com/w160/ua.png",
+  ukrainenationalfootballteam: "https://flagcdn.com/w160/ua.png",
+  ucrania: "https://flagcdn.com/w160/ua.png",
+  romania: "https://flagcdn.com/w160/ro.png",
+  romanianationalfootballteam: "https://flagcdn.com/w160/ro.png",
+  rumania: "https://flagcdn.com/w160/ro.png",
+  france: "https://flagcdn.com/w160/fr.png",
+  francesnationalfootballteam: "https://flagcdn.com/w160/fr.png",
+  francia: "https://flagcdn.com/w160/fr.png",
 };
 
 const LEAGUE_COUNTRY_FLAGS: Record<string, string> = {
@@ -223,6 +278,11 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
   const key = normalize(teamName);
   const fallbackFlag = getCountryFlag(country);
   if (!key) return fallbackFlag;
+
+  const explicitAudaxLogo = PROMIEDOS_BADGES["audaxitaliano"] || PROMIEDOS_BADGES["audax italiano"];
+  if (key === "audaxitaliano" || key === "audaxitaliano" || key === "audaxitaliano") {
+    return explicitAudaxLogo || fallbackFlag;
+  }
 
   const nationalTeamBadge = NATIONAL_TEAM_BADGES[key];
   if (nationalTeamBadge) return nationalTeamBadge;
