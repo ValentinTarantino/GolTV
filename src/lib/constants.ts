@@ -1,6 +1,7 @@
 import type { LeagueConfig } from "./types";
 
 export const LEAGUE_LOGOS: Record<number, string> = {
+  57: "https://media.api-sports.io/football/leagues/57.png",
   128: "https://media.api-sports.io/football/leagues/128.png",
   1032: "https://media.api-sports.io/football/leagues/1032.png",
   130: "https://media.api-sports.io/football/leagues/130.png",
@@ -11,6 +12,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   73: "https://media.api-sports.io/football/leagues/73.png",
   281: "https://media.api-sports.io/football/leagues/281.png",
   503: "https://media.api-sports.io/football/leagues/503.png",
+  504: "https://media.api-sports.io/football/leagues/504.png",
   501: "https://media.api-sports.io/football/leagues/501.png",
   268: "https://media.api-sports.io/football/leagues/268.png",
   930: "https://media.api-sports.io/football/leagues/930.png",
@@ -28,7 +30,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   235: "https://media.api-sports.io/football/leagues/235.png",
   5: "https://media.api-sports.io/football/leagues/5.png",
   18: "https://media.api-sports.io/football/leagues/18.png",
-  6: "https://media.api-sports.io/football/leagues/6.png",
+  6: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRekCc8DUZqEyM2shv_jyJrNoJ65Ao6ybVRgZQ1-sn6Q&s",
   431: "https://media.api-sports.io/football/leagues/431.png",
 };
 
@@ -63,6 +65,9 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 239, name: "Liga BetPlay", country: "Colombia", countryFlag: "🇨🇴", slug: "liga-betplay", season: 2026 },
   // Perú
   { id: 281, name: "Liga 1", country: "Perú", countryFlag: "🇵🇪", slug: "liga-1-peru", season: 2026 },
+  // Ecuador
+  { id: 57, name: "Liga Pro", country: "Ecuador", countryFlag: "🇪🇨", slug: "liga-pro-ecuador", season: 2026 },
+  { id: 504, name: "Copa Ecuador", country: "Ecuador", countryFlag: "🇪🇨", slug: "copa-ecuador", season: 2026 },
   // CONMEBOL
   { id: 13, name: "Copa Libertadores", country: "Internacional", countryFlag: "🌎", slug: "copa-libertadores", season: 2026 },
   { id: 11, name: "Copa Sudamericana", country: "Internacional", countryFlag: "🌎", slug: "copa-sudamericana", season: 2026 },
@@ -121,6 +126,11 @@ export const CHANNEL_SETS: Record<string, { id: string; name: string; url: strin
     { id: "movistar_pe", name: "Movistar Deportes", url: "https://cdn.jwplayer.com/manifests/pZxWPRg4.m3u8" },
     { id: "latina", name: "Latina", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
   ],
+  ecuador: [
+    { id: "goltv_ec", name: "GolTV", url: "https://cdn.jwplayer.com/manifests/pZxWPRg4.m3u8" },
+    { id: "espn_ec", name: "ESPN", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+    { id: "direcTV_ec", name: "DirecTV Sports", url: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8" },
+  ],
   paraguay: [
     { id: "tigo_py", name: "Tigo Sports", url: "https://cdn.jwplayer.com/manifests/pZxWPRg4.m3u8" },
     { id: "espn_py", name: "ESPN", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
@@ -158,6 +168,7 @@ export function getChannelsForCountry(country: string): { id: string; name: stri
   if (key.includes("chile")) return CHANNEL_SETS.chile;
   if (key.includes("colombia") || key.includes("colombian")) return CHANNEL_SETS.colombia;
   if (key.includes("perú") || key.includes("peru")) return CHANNEL_SETS.peru;
+  if (key.includes("ecuador")) return CHANNEL_SETS.ecuador;
   if (key.includes("paraguay")) return CHANNEL_SETS.paraguay;
   if (key.includes("uruguay")) return CHANNEL_SETS.uruguay;
   if (key.includes("españa") || key.includes("spain")) return CHANNEL_SETS.españa;
@@ -180,6 +191,7 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   73: ["SporTV", "Globo", "Premiere"],
   281: ["Latina Televisión", "Movistar Deportes"],
   503: ["Latina Televisión", "Movistar Deportes"],
+  504: ["GolTV", "ESPN", "DirecTV Sports"],
   501: ["Tigo Sports", "ESPN"],
   268: ["DSports", "ESPN"],
   930: ["DSports", "ESPN"],
@@ -234,8 +246,13 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "liga 1 peru": 281,
   "liga 1 peruana": 281,
   "liga peruana": 281,
+  "liga pro": 57,
+  "liga pro ecuador": 57,
+  "serie a ecuador": 57,
+  "ecuadorian serie a": 57,
   "copa perú": 503,
   "copa peru": 503,
+  "copa ecuador": 504,
   "copa paraguay": 501,
   "liga auf uruguaya": 268,
   "liga uruguaya": 268,
@@ -281,9 +298,6 @@ const PL_EXCLUDED_LEAGUES = [
   "super lig",
   "ligue 1",
   "primeira liga",
-  "liga pro",
-  "liga de ecuador",
-  "liga ecuatoriana",
   "liga mx femenil",
   "liga de expansión mx",
   "liga de expansion mx",
@@ -337,7 +351,12 @@ export function shortenTeamName(name: string): string {
 }
 
 export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?: string): LeagueConfig | null {
-  const normalized = plLeagueName.toLowerCase().trim();
+  const normalized = plLeagueName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   for (const excluded of PL_EXCLUDED_LEAGUES) {
     if (normalized === excluded) return null;

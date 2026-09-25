@@ -1,3 +1,5 @@
+﻿import { getCache, setCache, incrementCounter } from "./cache";
+
 export interface ChatMessage {
   id: string;
   matchId: string;
@@ -6,22 +8,19 @@ export interface ChatMessage {
   ts: number;
 }
 
-const chatStore = new Map<string, ChatMessage[]>();
 const MAX_MESSAGES_PER_MATCH = 200;
-
-const rateLimitMap = new Map<string, number>();
 const RATE_LIMIT_MS = 3000;
+const CHAT_RATE_LIMIT_KEY = "chat:ratelimit";
+const CHAT_MESSAGES_KEY = "chat:messages";
 
 let msgCounter = 0;
 
 function sanitizeText(input: string): string {
   return input
     .replace(/<[^>]*>/g, "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;")
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
     .trim();
 }
 
@@ -46,24 +45,31 @@ function validateMatchId(matchId: string): string | null {
   return matchId;
 }
 
-function canSend(nick: string): boolean {
-  const now = Date.now();
-  const last = rateLimitMap.get(nick) ?? 0;
-  if (now - last < RATE_LIMIT_MS) return false;
-  rateLimitMap.set(nick, now);
-  return true;
+async function canSend(nick: string): Promise<boolean> {
+  const key = `${CHAT_RATE_LIMIT_KEY}:${nick}`;
+  const count = await incrementCounter(key, RATE_LIMIT_MS);
+  return count === 1;
 }
 
-export function getChatMessages(matchId: string, offset: number): ChatMessage[] {
-  const messages = chatStore.get(matchId) ?? [];
+async function getMessagesFromCache(matchId: string): Promise<ChatMessage[]> {
+  const cached = await getCache<ChatMessage[]>(`${CHAT_MESSAGES_KEY}:${matchId}`);
+  return cached ?? [];
+}
+
+async function saveMessagesToCache(matchId: string, messages: ChatMessage[]): Promise<void> {
+  await setCache(`${CHAT_MESSAGES_KEY}:${matchId}`, messages, 24 * 60 * 60 * 1000);
+}
+
+export async function getChatMessages(matchId: string, offset: number): Promise<ChatMessage[]> {
+  const messages = await getMessagesFromCache(matchId);
   return messages.filter((m) => m.ts >= offset);
 }
 
-export function addChatMessage(
+export async function addChatMessage(
   matchId: string,
   nick: string,
   text: string
-): { ok: boolean; error?: string } {
+): Promise<{ ok: boolean; error?: string }> {
   const validId = validateMatchId(matchId);
   if (!validId) return { ok: false, error: "Invalid match ID" };
 
@@ -73,11 +79,11 @@ export function addChatMessage(
   const validText = validateMessage(text);
   if (!validText) return { ok: false, error: "Invalid message" };
 
-  if (!canSend(validNick)) {
+  if (!await canSend(validNick)) {
     return { ok: false, error: "Rate limited" };
   }
 
-  const messages = chatStore.get(validId) ?? [];
+  const messages = await getMessagesFromCache(validId);
 
   const msg: ChatMessage = {
     id: `${validId}-${++msgCounter}-${Date.now()}`,
@@ -93,7 +99,7 @@ export function addChatMessage(
     messages.splice(0, messages.length - MAX_MESSAGES_PER_MATCH);
   }
 
-  chatStore.set(validId, messages);
+  await saveMessagesToCache(validId, messages);
 
   return { ok: true };
 }

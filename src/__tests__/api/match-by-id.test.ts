@@ -9,18 +9,18 @@ jest.mock("@/lib/streaming", () => ({
   getStreamsForMatch: jest.fn().mockResolvedValue([]),
 }));
 
-jest.mock("@/lib/futbollibre", () => ({
-  getFutbolLibreStream: jest.fn(),
+jest.mock("@/lib/agenda-source", () => ({
+  getAgendaStream: jest.fn(),
 }));
 
-jest.mock("@/lib/pelotalibre", () => ({
-  findPelotaLibreStreams: jest.fn().mockResolvedValue([]),
+jest.mock("@/lib/event-source", () => ({
+  findEventStreams: jest.fn().mockResolvedValue([]),
 }));
 
 import { GET } from "@/app/api/matches/[matchId]/route";
 import { getMatchById } from "@/lib/api-football";
 import { getStreamsForMatch } from "@/lib/streaming";
-import { findPelotaLibreStreams } from "@/lib/pelotalibre";
+import { findEventStreams } from "@/lib/event-source";
 import type { Match } from "@/lib/types";
 
 function makeMatch(overrides: Partial<Match> = {}): Match {
@@ -89,13 +89,13 @@ describe("/api/matches/[matchId]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("creates synthetic match with plSlug fallback", async () => {
+  it("creates synthetic match with event source fallback", async () => {
     (getMatchById as jest.Mock).mockResolvedValue(null);
 
     const sources = JSON.stringify([{ id: "s1", name: "Test", embedIframe: "https://example.com/embed" }]);
-    const req = makeRequest(
-      `http://localhost/api/matches/99999?plSlug=test-slug&plSources=${encodeURIComponent(sources)}&home=Boca&away=River&league=Liga`
-    );
+      const req = makeRequest(
+        `http://localhost/api/matches/99999?eventSlug=test-slug&eventSources=${encodeURIComponent(sources)}&home=Boca&away=River&league=Liga`
+      );
     const res = await GET(req, {
       params: Promise.resolve({ matchId: "99999" }),
     });
@@ -124,9 +124,9 @@ describe("/api/matches/[matchId]", () => {
     expect(getStreamsForMatch).toHaveBeenCalledWith("Boca", "River", "abc123");
   });
 
-  it("uses PelotaLibre when player=2", async () => {
+  it("uses the event source when player=2", async () => {
     (getMatchById as jest.Mock).mockResolvedValue(null);
-    (findPelotaLibreStreams as jest.Mock).mockResolvedValue([
+    (findEventStreams as jest.Mock).mockResolvedValue([
       { id: "pl1", name: "PL Stream", url: "http://pl.stream" },
     ]);
 
@@ -138,6 +138,6 @@ describe("/api/matches/[matchId]", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(findPelotaLibreStreams).toHaveBeenCalledWith("Boca", "River");
+    expect(findEventStreams).toHaveBeenCalledWith("Boca", "River");
   });
 });

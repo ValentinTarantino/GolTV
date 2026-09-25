@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
-import { fetchFutbolLibreAgenda } from "@/lib/futbollibre";
+import { fetchAgenda } from "@/lib/agenda-source";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS } from "@/lib/constants";
 import { getTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
+import { validateQuery, matchesQuerySchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,11 @@ function toArgentinaDate(dateISO: string): string {
 
 function getArgentinaToday(): string {
   return new Date().toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 10);
+}
+
+function isNearNow(dateISO: string): boolean {
+  const difference = Math.abs(new Date(dateISO).getTime() - Date.now());
+  return difference <= 6 * 60 * 60 * 1000;
 }
 
 function normalize(s: string): string {
@@ -29,18 +35,21 @@ function hashSlug(slug: string): number {
 function inferStatus(dateISO: string): "NS" | "1H" | "FT" {
   const diffMin = (new Date(dateISO).getTime() - Date.now()) / 60000;
   if (diffMin > 10) return "NS";
-  if (diffMin < -150) return "FT";
+  if (diffMin < -240) return "FT";
   return "1H";
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
-  const _date = searchParams.get("date");
+  const validation = await validateQuery(request, matchesQuerySchema);
+  if ("error" in validation) return validation.error;
 
-  const flAgenda = await fetchFutbolLibreAgenda();
+  const requestedDate = validation.data.date;
+  const flAgenda = await fetchAgenda();
 
-  const todayART = getArgentinaToday();
-  const filteredAgenda = flAgenda.filter((m) => toArgentinaDate(m.dateISO) === todayART);
+  const date = requestedDate || getArgentinaToday();
+  const filteredAgenda = flAgenda.filter(
+    (m) => toArgentinaDate(m.dateISO) === date || isNearNow(m.dateISO)
+  );
 
   const seenTeams = new Set<string>();
   const matches: Match[] = [];
@@ -78,8 +87,8 @@ export async function GET(request: NextRequest) {
       score: { home: null, away: null },
       channels: [],
       broadcastChannels: getBroadcastChannels(league.id),
-      _pelotaLibreSlug: flMatch.slug,
-      _pelotaLibreSources: flMatch.embeds.map((e) => ({ id: e.id, name: e.name, embedIframe: e.embedIframe })),
+      _eventSlug: flMatch.slug,
+      _eventSources: flMatch.embeds.map((e) => ({ id: e.id, name: e.name, embedIframe: e.embedIframe })),
     });
   }
 
@@ -104,5 +113,5 @@ export async function GET(request: NextRequest) {
     m.awayTeam.logo = logoMap.get(m.awayTeam.name) ?? "";
   }
 
-  return Response.json({ matches, date: _date });
+  return Response.json({ matches, date });
 }

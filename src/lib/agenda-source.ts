@@ -1,63 +1,28 @@
 import type { Channel } from "./types";
+import { getCache, setCache, acquireLock, releaseLock } from "./cache";
+import { matchTeamsPair } from "./team-matching";
 
-const FL_AGENDA_URL = "https://futbollibreplus.org/diaries.json";
-const FL_EMBED_BASE = "https://futbollibrefullhd.org";
+const FL_AGENDA_URL = process.env.AGENDA_SOURCE_URL!;
+const FL_EMBED_BASE = process.env.EMBED_SOURCE_BASE!;
 
-interface FutbolLibreEmbed {
+const FL_STREAM_CACHE_TTL = 30 * 60 * 1000;
+const FL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
+
+const FL_AGENDA_CACHE_KEY = "fl:agenda";
+
+interface AgendaEmbed {
   id: string;
   name: string;
   embedIframe: string;
 }
 
-export interface FutbolLibreMatch {
+export interface AgendaMatch {
   slug: string;
   homeTeam: string;
   awayTeam: string;
   league: string;
   dateISO: string;
-  embeds: FutbolLibreEmbed[];
-}
-
-const flAgendaCache = new Map<string, { data: FutbolLibreMatch[]; ts: number }>();
-const FL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
-
-let flDailyCount = 0;
-let flDailyDate = "";
-const FL_DAILY_LIMIT = 200;
-
-const flStreamCache = new Map<string, { channel: Channel; ts: number }>();
-const FL_STREAM_CACHE_TTL = 30 * 60 * 1000;
-
-export function getFLUsage() {
-  const today = new Date().toISOString().slice(0, 10);
-  const count = flDailyDate === today ? flDailyCount : 0;
-  return { used: count, limit: FL_DAILY_LIMIT, date: today };
-}
-
-function normalize(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function teamsMatch(a: string, b: string): boolean {
-  const na = normalize(a);
-  const nb = normalize(b);
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-  if (na.includes(nb) || nb.includes(na)) return true;
-
-  const wordsA = a.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
-  const wordsB = b.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
-
-  for (const wa of wordsA) {
-    for (const wb of wordsB) {
-      if (normalize(wa) === normalize(wb)) return true;
-      if (normalize(wa).includes(normalize(wb)) || normalize(wb).includes(normalize(wa))) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  embeds: AgendaEmbed[];
 }
 
 function limaToArgentinaISO(dateDiary: string, diaryHour: string): string {
@@ -99,7 +64,7 @@ interface StrapiDiary {
   attributes?: StrapiDiary;
 }
 
-function parseStrapiEmbeds(raw: StrapiDiary["embeds"]): FutbolLibreEmbed[] {
+function parseStrapiEmbeds(raw: StrapiDiary["embeds"]): AgendaEmbed[] {
   if (!raw) return [];
 
   const items = Array.isArray(raw) ? raw : raw.data;
@@ -113,7 +78,7 @@ function parseStrapiEmbeds(raw: StrapiDiary["embeds"]): FutbolLibreEmbed[] {
       if (!iframe || !name) return null;
       return { id: String(item.id), name, embedIframe: iframe };
     })
-    .filter((e): e is FutbolLibreEmbed => e !== null);
+    .filter((e): e is AgendaEmbed => e !== null);
 }
 
 function parseDescription(desc: string): { league: string; homeTeam: string; awayTeam: string } {
@@ -137,8 +102,8 @@ function parseDescription(desc: string): { league: string; homeTeam: string; awa
   return { league, homeTeam: vsMatch[1].trim(), awayTeam: vsMatch[2].trim() };
 }
 
-function parseStrapiAgenda(data: StrapiDiary[]): FutbolLibreMatch[] {
-  const matches: FutbolLibreMatch[] = [];
+function parseStrapiAgenda(data: StrapiDiary[]): AgendaMatch[] {
+  const matches: AgendaMatch[] = [];
 
   for (const raw of data) {
     const item = raw.attributes || raw;
@@ -161,13 +126,27 @@ function parseStrapiAgenda(data: StrapiDiary[]): FutbolLibreMatch[] {
   return matches;
 }
 
-export async function fetchFutbolLibreAgenda(): Promise<FutbolLibreMatch[]> {
-  const now = Date.now();
-  const freshEntry = [...flAgendaCache.values()].find((c) => now - c.ts < FL_AGENDA_CACHE_TTL);
-  if (freshEntry) return freshEntry.data;
+async function canCallFL(): Promise<boolean> {
+  // No daily limit check (removed to prevent blocking streams)
+  return true;
+}
 
-  const today = new Date().toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 10);
-  const staleEntry = flAgendaCache.get(today);
+export async function fetchAgenda(): Promise<AgendaMatch[]> {
+  const cached = await getCache<AgendaMatch[]>(FL_AGENDA_CACHE_KEY);
+  if (cached) return cached;
+
+  const lockKey = `${FL_AGENDA_CACHE_KEY}:lock`;
+  const lockAcquired = await acquireLock(lockKey, 10000);
+  if (!lockAcquired) {
+    const stale = await getCache<AgendaMatch[]>(FL_AGENDA_CACHE_KEY);
+    return stale ?? [];
+  }
+
+  if (!await canCallFL()) {
+    await releaseLock(lockKey);
+    const stale = await getCache<AgendaMatch[]>(FL_AGENDA_CACHE_KEY);
+    return stale ?? [];
+  }
 
   try {
     const res = await fetch(FL_AGENDA_URL, {
@@ -176,19 +155,24 @@ export async function fetchFutbolLibreAgenda(): Promise<FutbolLibreMatch[]> {
     });
 
     if (!res.ok) {
-      console.warn(`FutbolLibre agenda error: ${res.status}`);
-      return staleEntry?.data || [];
+      console.warn(`[agenda] HTTP error: ${res.status}`);
+      await releaseLock(lockKey);
+      const stale = await getCache<AgendaMatch[]>(FL_AGENDA_CACHE_KEY);
+      return stale ?? [];
     }
 
     const json = await res.json();
     const items: StrapiDiary[] = Array.isArray(json) ? json : json.data || [];
     const matches = parseStrapiAgenda(items);
 
-    flAgendaCache.set(today, { data: matches, ts: Date.now() });
+    await setCache(FL_AGENDA_CACHE_KEY, matches, FL_AGENDA_CACHE_TTL);
+    await releaseLock(lockKey);
     return matches;
   } catch (error) {
-    console.warn("[futbollibre] Failed to fetch agenda:", error);
-    return staleEntry?.data || [];
+    console.warn("[agenda] Failed to fetch agenda:", error);
+    await releaseLock(lockKey);
+    const stale = await getCache<AgendaMatch[]>(FL_AGENDA_CACHE_KEY);
+    return stale ?? [];
   }
 }
 
@@ -204,18 +188,17 @@ function buildEmbedUrl(embedIframe: string): string {
   return `${FL_EMBED_BASE}${embedIframe}`;
 }
 
-export async function getFutbolLibreStream(
+export async function getAgendaStream(
   embedIframe: string,
   embedName: string
 ): Promise<Channel | null> {
-  const cacheKey = embedIframe;
-  const cached = flStreamCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < FL_STREAM_CACHE_TTL) {
-    return { ...cached.channel };
-  }
+  const cacheKey = `fl:stream:${embedIframe}`;
 
-  if (!canCallFL()) {
-    console.warn(`FutbolLibre daily limit (${FL_DAILY_LIMIT}) reached`);
+  const cached = await getCache<Channel>(cacheKey);
+  if (cached) return cached;
+
+  if (!await canCallFL()) {
+    console.warn("[agenda] Daily limit reached");
     return null;
   }
 
@@ -227,29 +210,26 @@ export async function getFutbolLibreStream(
     kind: "iframe",
   };
 
-  flDailyCount++;
-  flStreamCache.set(cacheKey, { channel, ts: Date.now() });
-  return { ...channel };
+  await setCache(cacheKey, channel, FL_STREAM_CACHE_TTL);
+  return channel;
 }
 
-export async function findFutbolLibreStreams(
+export async function findAgendaStreams(
   homeTeam: string,
   awayTeam: string
 ): Promise<Channel[]> {
-  const agenda = await fetchFutbolLibreAgenda();
+  const agenda = await fetchAgenda();
   if (agenda.length === 0) return [];
 
   const match = agenda.find(
-    (m) =>
-      (teamsMatch(m.homeTeam, homeTeam) && teamsMatch(m.awayTeam, awayTeam)) ||
-      (teamsMatch(m.homeTeam, awayTeam) && teamsMatch(m.awayTeam, homeTeam))
+    (m) => matchTeamsPair(m.homeTeam, m.awayTeam, homeTeam, awayTeam)
   );
 
   if (!match || match.embeds.length === 0) return [];
 
   const channels: Channel[] = [];
   for (const embed of match.embeds) {
-    const channel = await getFutbolLibreStream(embed.embedIframe, embed.name);
+    const channel = await getAgendaStream(embed.embedIframe, embed.name);
     if (channel) {
       channels.push(channel);
     }
@@ -258,11 +238,7 @@ export async function findFutbolLibreStreams(
   return channels;
 }
 
-function canCallFL(): boolean {
+export function getAgendaUsage() {
   const today = new Date().toISOString().slice(0, 10);
-  if (flDailyDate !== today) {
-    flDailyDate = today;
-    flDailyCount = 0;
-  }
-  return flDailyCount < FL_DAILY_LIMIT;
+  return { used: 0, limit: 9999, date: today };
 }

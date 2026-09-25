@@ -279,6 +279,12 @@ function HlsPlayer({ url, title, headers }: HlsPlayerProps) {
     setShowQualityMenu(false);
   };
 
+  const currentQualityLabel = autoLevel
+    ? t.player.autoQuality
+    : levels.find((level) => level.index === activeLevel)
+      ? levelLabel(levels.find((level) => level.index === activeLevel)!)
+      : t.player.quality;
+
   return (
     <div
       ref={containerRef}
@@ -384,11 +390,14 @@ function HlsPlayer({ url, title, headers }: HlsPlayerProps) {
                     e.stopPropagation();
                     setShowQualityMenu((v) => !v);
                   }}
-                  className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10"
+                  className="flex h-7 min-w-7 sm:h-8 sm:min-w-8 items-center justify-center gap-1 rounded-lg px-1 text-white/90 transition-colors hover:bg-white/10"
                   id="player-quality-btn"
                   title={t.player.quality}
+                  aria-label={`${t.player.quality}: ${currentQualityLabel}`}
+                  aria-expanded={showQualityMenu}
                 >
                   <Settings size={14} strokeWidth={3} />
+                  <span className="hidden text-[10px] font-black uppercase sm:inline">{currentQualityLabel}</span>
                 </button>
 
                 {showQualityMenu && (

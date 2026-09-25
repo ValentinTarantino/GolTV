@@ -1,10 +1,9 @@
 import {
   stableStreamMatchId,
-  teamsMatch,
-  matchTeamsPair,
   unwrapNestedStreamUrl,
   isValidHlsManifest,
 } from "@/lib/streaming";
+import { teamsMatch, matchTeamsPair } from "@/lib/team-matching";
 
 describe("stableStreamMatchId", () => {
   it("returns a deterministic id in the synthetic range", () => {

@@ -1,22 +1,21 @@
 import { NextRequest } from "next/server";
 import { fetchLeagueStandings } from "@/lib/standings";
+import { validateQuery, createErrorResponse, standingsQuerySchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
-  const league = searchParams.get("league");
+  const validation = await validateQuery(request, standingsQuerySchema);
+  if ("error" in validation) return validation.error;
 
-  if (!league) {
-    return Response.json({ error: "Missing league parameter" }, { status: 400 });
+  const { leagueId } = validation.data;
+  const id = parseInt(leagueId, 10);
+
+  if (isNaN(id)) {
+    return createErrorResponse("Invalid league parameter", 400);
   }
 
-  const leagueId = parseInt(league, 10);
-  if (isNaN(leagueId)) {
-    return Response.json({ error: "Invalid league parameter" }, { status: 400 });
-  }
-
-  const data = await fetchLeagueStandings(leagueId);
+  const data = await fetchLeagueStandings(id);
 
   return Response.json(data);
 }

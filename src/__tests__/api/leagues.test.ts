@@ -1,11 +1,17 @@
 /**
  * @jest-environment node
  */
+import { NextRequest } from "next/server";
 import { GET } from "@/app/api/leagues/route";
+
+function makeRequest(url: string) {
+  return new NextRequest(url);
+}
 
 describe("/api/leagues", () => {
   it("returns 200 with array of leagues", async () => {
-    const res = await GET();
+    const req = makeRequest("http://localhost/api/leagues");
+    const res = await GET(req);
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -13,7 +19,8 @@ describe("/api/leagues", () => {
   });
 
   it("each league has required fields", async () => {
-    const res = await GET();
+    const req = makeRequest("http://localhost/api/leagues");
+    const res = await GET(req);
     const data = await res.json();
 
     for (const league of data.leagues) {

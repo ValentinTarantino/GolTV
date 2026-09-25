@@ -1,8 +1,8 @@
 /**
  * @jest-environment node
  */
-jest.mock("@/lib/futbollibre", () => ({
-  fetchFutbolLibreAgenda: jest.fn(),
+jest.mock("@/lib/agenda-source", () => ({
+  fetchAgenda: jest.fn(),
 }));
 
 jest.mock("@/lib/team-logos", () => ({
@@ -11,7 +11,7 @@ jest.mock("@/lib/team-logos", () => ({
 
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/matches/route";
-import { fetchFutbolLibreAgenda } from "@/lib/futbollibre";
+import { fetchAgenda } from "@/lib/agenda-source";
 
 function makeRequest(date?: string) {
   const url = date
@@ -41,7 +41,7 @@ describe("/api/matches", () => {
   });
 
   it("returns matches with correct structure", async () => {
-    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([flMatch()]);
+    (fetchAgenda as jest.Mock).mockResolvedValue([flMatch()]);
 
     const req = makeRequest(todayISO());
     const res = await GET(req);
@@ -60,7 +60,7 @@ describe("/api/matches", () => {
     const today = new Date().toISOString();
     const yesterday = new Date(Date.now() - 86400000).toISOString();
 
-    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([
+    (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ dateISO: today }),
       flMatch({ dateISO: yesterday, homeTeam: "San Lorenzo" }),
     ]);
@@ -74,7 +74,7 @@ describe("/api/matches", () => {
   });
 
   it("deduplicates matches with same teams", async () => {
-    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([
+    (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ slug: "boca-river-1" }),
       flMatch({ slug: "boca-river-2" }),
     ]);
@@ -87,7 +87,7 @@ describe("/api/matches", () => {
   });
 
   it("skips matches without embeds", async () => {
-    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([
+    (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ embeds: [] }),
     ]);
 
@@ -99,7 +99,7 @@ describe("/api/matches", () => {
   });
 
   it("skips matches with unrecognized league", async () => {
-    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([
+    (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ league: "Superliga de Irlanda del Norte" }),
     ]);
 
@@ -111,7 +111,7 @@ describe("/api/matches", () => {
   });
 
   it("keeps national-team matches (Nations League)", async () => {
-    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([
+    (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({
         league: "UEFA Nations League",
         homeTeam: "Portugal",
@@ -138,7 +138,7 @@ describe("/api/matches", () => {
   });
 
   it("returns empty array when agenda is empty", async () => {
-    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchAgenda as jest.Mock).mockResolvedValue([]);
 
     const req = makeRequest(todayISO());
     const res = await GET(req);
@@ -148,7 +148,7 @@ describe("/api/matches", () => {
   });
 
   it("sorts matches by timestamp ascending", async () => {
-    (fetchFutbolLibreAgenda as jest.Mock).mockResolvedValue([
+    (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ slug: "late-match", homeTeam: "Team A" }),
       flMatch({ slug: "early-match", homeTeam: "Team B" }),
     ]);

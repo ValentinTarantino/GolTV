@@ -23,7 +23,7 @@ describe("/api/standings", () => {
     const res = await GET(req);
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.error).toMatch(/missing/i);
+    expect(data.error).toMatch(/leagueId|validation/i);
   });
 
   it("returns 400 when league is not a number", async () => {
@@ -53,7 +53,7 @@ describe("/api/standings", () => {
     };
     (fetchLeagueStandings as jest.Mock).mockResolvedValue(mockData);
 
-    const req = makeRequest("http://localhost/api/standings?league=128");
+    const req = makeRequest("http://localhost/api/standings?leagueId=128");
     const res = await GET(req);
     const data = await res.json();
 
@@ -65,7 +65,7 @@ describe("/api/standings", () => {
   it("returns empty structure when league has no data", async () => {
     (fetchLeagueStandings as jest.Mock).mockResolvedValue({ tabs: [], brackets: [] });
 
-    const req = makeRequest("http://localhost/api/standings?league=99999");
+    const req = makeRequest("http://localhost/api/standings?leagueId=99999");
     const res = await GET(req);
     const data = await res.json();
 

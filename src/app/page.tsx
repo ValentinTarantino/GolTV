@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Zap, Filter } from "lucide-react";
+import { Zap, Filter, RefreshCw } from "lucide-react";
 import MatchList from "@/components/matches/MatchList";
 import { MatchSkeleton } from "@/components/ui/Skeleton";
 import { LIVE_STATUSES } from "@/lib/constants";
@@ -13,6 +13,8 @@ export default function HomePage() {
   const { language, t } = useLanguage();
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showLiveOnly, setShowLiveOnly] = useState(false);
 
   const currentDate = useMemo(() => {
@@ -28,6 +30,7 @@ export default function HomePage() {
         const res = await fetch(`/api/matches?date=${dateStr}`);
         const data = await res.json();
         setMatches(data.matches);
+        setLastUpdated(new Date());
       } catch {
         if (!isBackground) setMatches([]);
       } finally {
@@ -46,6 +49,21 @@ export default function HomePage() {
     });
   }, []);
 
+  const refreshMatches = async () => {
+    setIsRefreshing(true);
+    try {
+      const dateStr = formatDateISO(new Date());
+      const res = await fetch(`/api/matches?date=${dateStr}`, { cache: "no-store" });
+      const data = await res.json();
+      setMatches(data.matches);
+      setLastUpdated(new Date());
+    } catch {
+      // Keep the current matches when a manual refresh fails.
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     const hasLive = matches.some((m) => LIVE_STATUSES.includes(m.status.short));
     if (!hasLive) return;
@@ -55,7 +73,10 @@ export default function HomePage() {
         const dateStr = formatDateISO(new Date());
         fetch(`/api/matches?date=${dateStr}`)
           .then((r) => r.json())
-          .then((data) => setMatches(data.matches))
+          .then((data) => {
+            setMatches(data.matches);
+            setLastUpdated(new Date());
+          })
           .catch(() => {});
       }
     }, 30000);
@@ -65,7 +86,10 @@ export default function HomePage() {
       const dateStr = formatDateISO(new Date());
       fetch(`/api/matches?date=${dateStr}`)
         .then((r) => r.json())
-        .then((data) => setMatches(data.matches))
+        .then((data) => {
+          setMatches(data.matches);
+          setLastUpdated(new Date());
+        })
         .catch(() => {});
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -114,6 +138,21 @@ export default function HomePage() {
           <Filter size={14} strokeWidth={3} />
           {showLiveOnly ? t.home.seeAll : t.home.onlyLive}
         </button>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs font-bold text-black/70 uppercase">
+          <span>
+            {t.home.lastUpdated}: {lastUpdated ? lastUpdated.toLocaleTimeString(language === "es" ? "es-AR" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+          </span>
+          <button
+            onClick={refreshMatches}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 border-2 border-black bg-white px-2.5 py-1.5 text-xs font-black text-black transition-colors hover:bg-black hover:text-white disabled:cursor-wait disabled:opacity-60"
+            aria-label={t.home.refresh}
+          >
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+            {t.home.refresh}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:gap-10">

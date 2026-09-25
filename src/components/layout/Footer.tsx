@@ -10,10 +10,10 @@ export default function Footer() {
   return (
     <footer className="mt-12 sm:mt-20 border-t-4 border-white bg-black pt-8 sm:pt-12 pb-8 sm:pb-12">
       <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
-        <div className="grid grid-cols-1 gap-8 sm:gap-12 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 sm:gap-12 sm:grid-cols-2 md:grid-cols-4">
 
           {/* Brand */}
-          <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex flex-col gap-3 sm:gap-4 md:col-span-1">
             <Link
               href="/"
               className="inline-flex items-center gap-2 sm:gap-3 bg-accent-primary border-4 border-black px-3 sm:px-4 py-1.5 sm:py-2 shadow-brutal-white w-max transform transition-transform hover:-translate-y-1 hover:rotate-1"
@@ -29,7 +29,7 @@ export default function Footer() {
           </div>
 
           {/* Info */}
-          <div>
+          <div className="md:col-start-2 md:col-span-2 md:justify-self-center">
             <h3 className="mb-3 sm:mb-4 inline-block bg-white text-black px-2 sm:px-3 py-0.5 sm:py-1 text-lg sm:text-xl font-black uppercase border-2 border-white">
               <Flame size={16} strokeWidth={3} className="inline-block mr-1.5 sm:mr-2 text-accent-secondary" />
               {t.footer.featuresTitle}
@@ -44,10 +44,10 @@ export default function Footer() {
           </div>
 
           {/* Warning/Disclaimer */}
-          <div>
-            <div className="bg-accent-secondary border-4 border-black p-3 sm:p-4 shadow-brutal transform rotate-1">
-              <h3 className="text-lg sm:text-xl font-black text-black uppercase mb-1.5 sm:mb-2">{t.footer.legalTitle}</h3>
-              <p className="text-xs sm:text-sm font-bold text-black uppercase leading-tight">
+          <div className="md:col-start-4 md:col-span-1 md:justify-self-end w-full md:w-[24rem] md:max-w-[24rem]">
+            <div className="mx-auto w-full bg-accent-secondary border-4 border-black p-4 sm:p-5 shadow-brutal transform rotate-1">
+              <h3 className="text-xl font-black text-black uppercase mb-2">{t.footer.legalTitle}</h3>
+              <p className="text-xs sm:text-sm font-bold text-black uppercase leading-tight max-w-[22rem]">
                 {t.footer.legalText}
               </p>
             </div>

@@ -10,7 +10,10 @@ const config = {
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: "tsconfig.json" }],
   },
-  maxWorkers: 1, // Reduce number of workers to prevent process exceptions
+  transformIgnorePatterns: [
+    "/node_modules/(?!(uncrypto|@upstash|@noble|@scure|uuid)/)"
+  ],
+  maxWorkers: 1,
 };
 
 module.exports = config;

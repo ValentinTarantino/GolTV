@@ -44,7 +44,39 @@ const nextConfig: NextConfig = {
         hostname: "flagcdn.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "encrypted-tbn0.gstatic.com",
+        pathname: "/**",
+      },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-XSS-Protection", value: "1; mode=block" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "img-src 'self' data: https:",
+              "font-src 'self' https://fonts.gstatic.com",
+              "connect-src 'self' https://media.api-sports.io https://www.thesportsdb.com https://r2.thesportsdb.com https://images.football-live-stream.online https://cdn.freebiesupply.com https://upload.wikimedia.org https://api.promiedos.com.ar https://flagcdn.com https://encrypted-tbn0.gstatic.com",
+              "frame-src 'self' https://futbollibrefullhd.org https://pelotalibre.biz https://tvf90.com",
+              "base-uri 'self'",
+              "form-action 'self'",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
   },
 };
 

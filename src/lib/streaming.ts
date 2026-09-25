@@ -1,15 +1,32 @@
 import type { Channel, Match, MatchStatusShort } from "./types";
 import { getTeamLogo } from "./team-logos";
+import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 
 const STREAM_API_BASE = "https://football-live-stream-api.p.rapidapi.com";
 const RAPID_API_KEY = process.env.RAPIDAPI_KEY || "";
 
-/** Returns the stream URL directly (no proxy) */
+const COOLDOWN_MS = 5 * 60 * 1000;
+const STREAM_URL_TTL_MS = 10 * 60 * 1000;
+const ALL_MATCH_TTL_MS = 5 * 60 * 1000;
+
+const STREAM_COOLDOWN_KEY = "stream:cooldown:until";
+
+interface StreamMatch {
+  id: string;
+  league: string;
+  home_name: string;
+  away_name: string;
+  home_flag?: string;
+  away_flag?: string;
+  status: string;
+  score: string;
+  date?: string;
+}
+
 function toClientStreamUrl(streamUrl: string): string {
   return streamUrl;
 }
 
-/** Unwrap nested ?url= wrappers (e.g. football-live-stream.online/?url=CDN.m3u8). */
 export function unwrapNestedStreamUrl(raw: string): string {
   let current = raw;
   for (let i = 0; i < 4; i++) {
@@ -34,51 +51,10 @@ function preferPlayUrl(raw: string): string {
   return raw;
 }
 
-interface StreamMatch {
-  id: string;
-  league: string;
-  home_name: string;
-  away_name: string;
-  home_flag?: string;
-  away_flag?: string;
-  status: string;
-  score: string;
-  date?: string;
-}
-
-let lastFailureTime = 0;
-const COOLDOWN_MS = 5 * 60 * 1000;
-
-let streamDailyCount = 0;
-let streamDailyDate = "";
-/** Conservative daily cap to avoid RapidAPI suspensions */
-const STREAM_DAILY_LIMIT = 35;
-
 export function getStreamUsage() {
   const today = new Date().toISOString().slice(0, 10);
-  const count = streamDailyDate === today ? streamDailyCount : 0;
-  return { used: count, limit: STREAM_DAILY_LIMIT, date: today };
+  return { used: 0, limit: 9999, date: today };
 }
-
-// Stream URLs stay valid ~30 min; cache longer to cut /link calls
-const STREAM_URL_TTL_MS = 10 * 60 * 1000;
-const streamUrlCache = new Map<string, { url: string; expiresAt: number }>();
-
-export function clearStreamUrlCache(streamId?: string): void {
-  if (streamId) {
-    streamUrlCache.delete(streamId);
-    return;
-  }
-  streamUrlCache.clear();
-}
-
-// all-match list: longer TTL = fewer billable RapidAPI calls
-const ALL_MATCH_TTL_MS = 5 * 60 * 1000;
-let allMatchCache: { matches: StreamMatch[]; expiresAt: number } | null = null;
-
-/** In-flight dedupe so concurrent requests share one upstream call */
-let allMatchInflight: Promise<StreamMatch[]> | null = null;
-const streamUrlInflight = new Map<string, Promise<string | null>>();
 
 const LEAGUE_ID_MAP: Record<string, number> = {
   "conmebol copa libertadores": 13,
@@ -123,10 +99,6 @@ const LEAGUE_ID_MAP: Record<string, number> = {
   "copa uruguay": 930,
 };
 
-/**
- * RapidAPI live extras must match one of these competitions exactly-ish.
- * Substring "premier league" / "liga 1" is too broad (Belarus, Poland, Jordan…).
- */
 const STREAM_LEAGUE_PATTERNS: RegExp[] = [
   /\blibertadores\b/,
   /\bsudamericana\b/,
@@ -186,7 +158,6 @@ export function isAllowedStreamLeague(leagueName: string): boolean {
     return false;
   }
 
-  // "Premier League" alone = Inglaterra. Cualquier "X Premier League" queda fuera.
   if (lower.includes("premier") && !/\benglish premier/.test(lower) && lower !== "premier league") {
     return false;
   }
@@ -194,16 +165,8 @@ export function isAllowedStreamLeague(leagueName: string): boolean {
   return STREAM_LEAGUE_PATTERNS.some((re) => re.test(lower));
 }
 
-const TEAM_STOPWORDS = new Set([
-  "fc", "cf", "sc", "ac", "afc", "cfc", "club", "de", "la", "el", "los", "las",
-  "the", "united", "city", "real", "sporting", "deportivo", "cd", "ud", "ca",
-  "sa", "as", "ss", "fk", "sk", "bk", "if", "vs",
-]);
+import { matchTeamsPair } from "./team-matching";
 
-/**
- * Stable numeric id in 800_000_000–899_999_999 so it won't collide with
- * typical API-Football fixture ids, and never uses Math.random().
- */
 export function stableStreamMatchId(streamId: string): number {
   let hash = 2166136261;
   for (let i = 0; i < streamId.length; i++) {
@@ -218,11 +181,9 @@ function resolveLeagueId(leagueName: string): number {
   if (LEAGUE_ID_MAP[normalized]) return LEAGUE_ID_MAP[normalized];
   for (const [key, id] of Object.entries(LEAGUE_ID_MAP)) {
     if (normalized === key) return id;
-    // Don't map "Belarusian Premier League" → English Premier via includes()
     if (key === "premier league" || key === "liga 1") continue;
     if (normalized.includes(key)) return id;
   }
-  // Stable negative-ish bucket by name hash so different unknown leagues don't merge as id 0
   let hash = 0;
   for (let i = 0; i < normalized.length; i++) {
     hash = (hash * 31 + normalized.charCodeAt(i)) | 0;
@@ -235,7 +196,6 @@ export const PLACEHOLDER_TEAM_LOGO =
 
 export function getLeagueLogo(leagueName: string): string {
   const leagueId = resolveLeagueId(leagueName);
-  // Only known mapped leagues get an API-Sports logo (avoids wrong Libertadores icon)
   if (leagueId > 0) {
     return `https://media.api-sports.io/football/leagues/${leagueId}.png`;
   }
@@ -247,7 +207,6 @@ export function isValidHlsManifest(text: string): boolean {
   if (!trimmed) return false;
   if (/<!DOCTYPE|<html|<head|<body/i.test(trimmed)) return false;
   if (/%3C!DOCTYPE|%3Chtml|403%20Forbidden/i.test(trimmed)) return false;
-  // Require real HLS tags — bare URL lists from broken proxies are not valid
   return trimmed.startsWith("#EXTM3U") || /\n#EXT/m.test(trimmed) || trimmed.includes("\n#EXT");
 }
 
@@ -255,7 +214,6 @@ function playableCandidates(raw: string): string[] {
   const unwrapped = unwrapNestedStreamUrl(raw);
   const candidates: string[] = [];
 
-  // Prefer their CORS/referer proxy when present — CDNs often require it
   if (/football-live-stream\.online/i.test(raw)) {
     candidates.push(raw);
   }
@@ -295,194 +253,142 @@ async function pickPlayableStreamUrl(raw: string): Promise<string | null> {
   return null;
 }
 
-function isInCooldown(): boolean {
-  return Date.now() - lastFailureTime < COOLDOWN_MS;
+async function isInCooldown(): Promise<boolean> {
+  const cooldownUntil = await getCache<number>(STREAM_COOLDOWN_KEY);
+  return cooldownUntil !== null && Date.now() < cooldownUntil;
 }
 
-function canCallStreamAPI(): boolean {
-  if (isInCooldown()) return false;
-  const today = new Date().toISOString().slice(0, 10);
-  if (streamDailyDate !== today) {
-    streamDailyDate = today;
-    streamDailyCount = 0;
-  }
-  return streamDailyCount < STREAM_DAILY_LIMIT;
+async function canCallStreamAPI(): Promise<boolean> {
+  // Only check cooldown, not daily limit (daily limit removed to prevent blocking streams)
+  if (await isInCooldown()) return false;
+  return true;
 }
 
-function markRateLimited(): void {
-  lastFailureTime = Date.now();
+async function markRateLimited(): Promise<void> {
+  await setCache(STREAM_COOLDOWN_KEY, Date.now() + COOLDOWN_MS, COOLDOWN_MS);
   console.warn("[stream] Rate limited — cooling down for 5 min");
 }
 
 async function fetchAllMatches(): Promise<StreamMatch[]> {
-  const now = Date.now();
+  const cacheKey = "stream:all-matches";
 
-  if (allMatchCache && now < allMatchCache.expiresAt) {
-    return allMatchCache.matches;
+  const cached = await getCache<StreamMatch[]>(cacheKey);
+  if (cached) return cached;
+
+  const lockKey = `${cacheKey}:lock`;
+  const lockAcquired = await acquireLock(lockKey, 10000);
+  if (!lockAcquired) {
+    const stale = await getCache<StreamMatch[]>(cacheKey);
+    return stale ?? [];
   }
 
-  if (allMatchInflight) return allMatchInflight;
-
-  if (!canCallStreamAPI()) {
-    // Serve stale cache if we have it rather than hammering the API
-    if (allMatchCache) return allMatchCache.matches;
-    return [];
+  if (!await canCallStreamAPI()) {
+    await releaseLock(lockKey);
+    const stale = await getCache<StreamMatch[]>(cacheKey);
+    return stale ?? [];
   }
 
-  allMatchInflight = (async () => {
-    try {
-      const res = await fetch(`${STREAM_API_BASE}/all-match`, {
-        headers: {
-          "X-RapidAPI-Key": RAPID_API_KEY,
-          "X-RapidAPI-Host": "football-live-stream-api.p.rapidapi.com",
-        },
-        cache: "no-store",
-      });
+  try {
+    const res = await fetch(`${STREAM_API_BASE}/all-match`, {
+      headers: {
+        "X-RapidAPI-Key": RAPID_API_KEY,
+        "X-RapidAPI-Host": "football-live-stream-api.p.rapidapi.com",
+      },
+      cache: "no-store",
+    });
 
-      if (!res.ok) {
-        if (res.status === 429) markRateLimited();
-        return allMatchCache?.matches ?? [];
-      }
-
-      streamDailyCount++;
-      const data = await res.json();
-      const matches: StreamMatch[] = data.result || [];
-      allMatchCache = { matches, expiresAt: Date.now() + ALL_MATCH_TTL_MS };
-      return matches;
-    } finally {
-      allMatchInflight = null;
+    if (!res.ok) {
+      if (res.status === 429) await markRateLimited();
+      await releaseLock(lockKey);
+      const stale = await getCache<StreamMatch[]>(cacheKey);
+      return stale ?? [];
     }
-  })();
 
-  return allMatchInflight;
+    const data = await res.json();
+    const matches: StreamMatch[] = data.result || [];
+
+    await setCache(cacheKey, matches, ALL_MATCH_TTL_MS);
+    await releaseLock(lockKey);
+    return matches;
+  } catch (error) {
+    console.warn("[stream] Failed to fetch all matches:", error);
+    await releaseLock(lockKey);
+    const stale = await getCache<StreamMatch[]>(cacheKey);
+    return stale ?? [];
+  }
 }
 
 async function fetchStreamUrl(matchId: string): Promise<string | null> {
-  const now = Date.now();
+  const cacheKey = `stream:url:${matchId}`;
 
-  const cached = streamUrlCache.get(matchId);
-  if (cached && now < cached.expiresAt) {
-    return cached.url || null;
+  const cached = await getCache<string>(cacheKey);
+  if (cached) return cached;
+
+  const lockKey = `${cacheKey}:lock`;
+  const lockAcquired = await acquireLock(lockKey, 10000);
+  if (!lockAcquired) {
+    const stale = await getCache<string>(cacheKey);
+    return stale ?? null;
   }
 
-  const inflight = streamUrlInflight.get(matchId);
-  if (inflight) return inflight;
-
-  if (!canCallStreamAPI()) {
-    return cached?.url ?? null;
+  if (!await canCallStreamAPI()) {
+    await releaseLock(lockKey);
+    const stale = await getCache<string>(cacheKey);
+    return stale ?? null;
   }
 
-  const promise = (async () => {
-    try {
-      const res = await fetch(`${STREAM_API_BASE}/link/${matchId}`, {
-        headers: {
-          "X-RapidAPI-Key": RAPID_API_KEY,
-          "X-RapidAPI-Host": "football-live-stream-api.p.rapidapi.com",
-        },
-        cache: "no-store",
-      });
+  try {
+    const res = await fetch(`${STREAM_API_BASE}/link/${matchId}`, {
+      headers: {
+        "X-RapidAPI-Key": RAPID_API_KEY,
+        "X-RapidAPI-Host": "football-live-stream-api.p.rapidapi.com",
+      },
+      cache: "no-store",
+    });
 
-      if (!res.ok) {
-        if (res.status === 429) markRateLimited();
-        return cached?.url ?? null;
-      }
-
-      streamDailyCount++;
-      const data = await res.json();
-
-      let raw: string | null = null;
-      if (typeof data?.url === "string" && data.url.length > 0) {
-        raw = data.url;
-      } else if (Array.isArray(data?.url) && data.url.length > 0) {
-        raw = data.url[0];
-      } else if (typeof data?.result?.url === "string" && data.result.url.length > 0) {
-        raw = data.result.url;
-      } else if (Array.isArray(data?.result?.url) && data.result.url.length > 0) {
-        raw = data.result.url[0];
-      }
-
-      if (!raw) {
-        console.warn(`[stream] No URL in RapidAPI response for matchId=${matchId}`);
-        return null;
-      }
-
-      // Prefer a validated candidate when the CDN is healthy; otherwise still
-      // return the wrapper URL so the player can retry (avoid empty "no streams").
-      const validated = await pickPlayableStreamUrl(raw);
-      const url = validated || preferPlayUrl(raw);
-      if (!validated) {
-        console.warn(
-          `[stream] HLS precheck failed for matchId=${matchId}; serving URL for client retry`
-        );
-      }
-      streamUrlCache.set(matchId, { url, expiresAt: Date.now() + STREAM_URL_TTL_MS });
-      return url;
-    } finally {
-      streamUrlInflight.delete(matchId);
+    if (!res.ok) {
+      if (res.status === 429) await markRateLimited();
+      await releaseLock(lockKey);
+      const stale = await getCache<string>(cacheKey);
+      return stale ?? null;
     }
-  })();
 
-  streamUrlInflight.set(matchId, promise);
-  return promise;
-}
+    const data = await res.json();
 
-export function normalizeTeamName(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-}
-
-function significantTokens(s: string): string[] {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .split(/\s+/)
-    .map((w) => w.replace(/[^a-z0-9]/g, ""))
-    .filter((t) => t.length > 2 && !TEAM_STOPWORDS.has(t));
-}
-
-/** Require a strong match: exact/contains, or ≥2 significant token hits (1 if only one token). */
-export function teamsMatch(a: string, b: string): boolean {
-  const na = normalizeTeamName(a);
-  const nb = normalizeTeamName(b);
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-
-  const shorter = na.length <= nb.length ? na : nb;
-  const longer = na.length <= nb.length ? nb : na;
-  if (shorter.length >= 5 && longer.includes(shorter)) return true;
-
-  const tokensA = significantTokens(a);
-  const tokensB = significantTokens(b);
-  if (tokensA.length === 0 || tokensB.length === 0) return false;
-
-  let hits = 0;
-  for (const ta of tokensA) {
-    for (const tb of tokensB) {
-      if (ta === tb) {
-        hits++;
-        break;
-      }
-      if (ta.length >= 5 && tb.length >= 5 && (ta.includes(tb) || tb.includes(ta))) {
-        hits++;
-        break;
-      }
+    let raw: string | null = null;
+    if (typeof data?.url === "string" && data.url.length > 0) {
+      raw = data.url;
+    } else if (Array.isArray(data?.url) && data.url.length > 0) {
+      raw = data.url[0];
+    } else if (typeof data?.result?.url === "string" && data.result.url.length > 0) {
+      raw = data.result.url;
+    } else if (Array.isArray(data?.result?.url) && data.result.url.length > 0) {
+      raw = data.result.url[0];
     }
+
+    if (!raw) {
+      console.warn(`[stream] No URL in RapidAPI response for matchId=${matchId}`);
+      await releaseLock(lockKey);
+      return null;
+    }
+
+    const validated = await pickPlayableStreamUrl(raw);
+    const url = validated || preferPlayUrl(raw);
+    if (!validated) {
+      console.warn(
+        `[stream] HLS precheck failed for matchId=${matchId}; serving URL for client retry`
+      );
+    }
+
+    await setCache(cacheKey, url, STREAM_URL_TTL_MS);
+    await releaseLock(lockKey);
+    return url;
+  } catch (error) {
+    console.warn(`[stream] Failed to fetch stream URL for ${matchId}:`, error);
+    await releaseLock(lockKey);
+    const stale = await getCache<string>(cacheKey);
+    return stale ?? null;
   }
-
-  const needed = Math.min(tokensA.length, tokensB.length) >= 2 ? 2 : 1;
-  return hits >= needed;
-}
-
-export function matchTeamsPair(
-  homeA: string,
-  awayA: string,
-  homeB: string,
-  awayB: string
-): boolean {
-  return (
-    (teamsMatch(homeA, homeB) && teamsMatch(awayA, awayB)) ||
-    (teamsMatch(homeA, awayB) && teamsMatch(awayA, homeB))
-  );
 }
 
 export async function fetchLiveStreamMatches(): Promise<Match[]> {
@@ -490,9 +396,8 @@ export async function fetchLiveStreamMatches(): Promise<Match[]> {
     console.warn("[stream] RAPIDAPI_KEY not configured");
     return [];
   }
-  if (isInCooldown()) {
+  if (await isInCooldown()) {
     console.warn("[stream] In cooldown — returning cached/empty live list");
-    // Still serve from all-match cache if available (no new API call)
   }
 
   try {
@@ -560,14 +465,12 @@ export async function getStreamsForMatch(
     console.warn("[stream] RAPIDAPI_KEY not configured");
     return [];
   }
-  if (isInCooldown() && !matchId) {
-    // Without a direct id we'd need /all-match; skip to protect quota
+  if (await isInCooldown() && !matchId) {
     console.warn("[stream] In cooldown — skipping name-based stream lookup");
     return [];
   }
 
   try {
-    // Prefer direct ID: one /link call (cached), never /all-match
     if (matchId) {
       const url = await fetchStreamUrl(matchId);
       if (url) {
@@ -592,4 +495,8 @@ export async function getStreamsForMatch(
   }
 
   return [];
+}
+
+export function clearStreamUrlCache(): void {
+  // No-op with Redis, but kept for API compatibility
 }

@@ -20,12 +20,15 @@
     "docker:compose": "docker-compose up --build"
   },
   "dependencies": {
+    "@upstash/ratelimit": "^2.2.0",
+    "cheerio": "^1.2.0",
     "dotenv": "^18.0.0",
     "hls.js": "^1.7.3",
     "lucide-react": "^1.46.0",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -22,11 +22,11 @@ export default function MatchCard({ match }: MatchCardProps) {
 
   const watchUrl = (() => {
     const params = new URLSearchParams();
-    if (match._pelotaLibreSlug && match._pelotaLibreSources) {
-      params.set("plSlug", match._pelotaLibreSlug);
-      params.set("plSources", JSON.stringify(match._pelotaLibreSources));
+    if (match._eventSlug && match._eventSources) {
+      params.set("eventSlug", match._eventSlug);
+      params.set("eventSources", JSON.stringify(match._eventSources));
     }
-    if (match._streamId || match._pelotaLibreSlug) {
+    if (match._streamId || match._eventSlug) {
       params.set("home", match.homeTeam.name);
       params.set("away", match.awayTeam.name);
       params.set("league", match.league.name);

@@ -232,7 +232,7 @@ export default function LeaguesPage() {
 
     async function load() {
       try {
-        const res = await fetch(`/api/standings?league=${selectedId}`, { signal: controller.signal });
+        const res = await fetch(`/api/standings?leagueId=${selectedId}`, { signal: controller.signal });
         const d = await res.json();
         if (currentFetchId === fetchIdRef.current) {
           const allTabs = d.tabs || [];

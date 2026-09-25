@@ -1,88 +1,46 @@
 ﻿import type { Channel } from "./types";
+import { getCache, setCache, acquireLock, releaseLock } from "./cache";
+import { matchTeamsPair } from "./team-matching";
 
-const PL_BASE = "https://pelotalibre.biz";
-const PL_AGENDA_URL = `${PL_BASE}/agenda`;
-const PL_PLAYBACK_URL = `${PL_BASE}/api/direct-playback.php`;
+const PL_BASE = process.env.EVENT_SOURCE_BASE!;
+const PL_AGENDA_URL = process.env.EVENT_AGENDA_URL!;
+const PL_PLAYBACK_URL = process.env.EVENT_PLAYBACK_URL!;
 
-interface PelotaLibreSource {
+const PL_COOLDOWN_MS = 5 * 60 * 1000;
+const PL_STREAM_CACHE_TTL = 30 * 60 * 1000;
+const PL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
+
+const PL_COOLDOWN_KEY = "pl:cooldown:until";
+const PL_AGENDA_CACHE_KEY = "pl:agenda";
+
+interface EventEmbed {
   id: string;
   name: string;
 }
 
-export interface PelotaLibreMatch {
+export interface EventMatch {
   slug: string;
   homeTeam: string;
   awayTeam: string;
   league: string;
   dateISO: string;
-  sources: PelotaLibreSource[];
-}
-
-let lastPLFailureTime = 0;
-const PL_COOLDOWN_MS = 5 * 60 * 1000;
-
-let plDailyCount = 0;
-let plDailyDate = "";
-const PL_DAILY_LIMIT = 300;
-
-const plStreamCache = new Map<string, { channel: Channel; ts: number }>();
-const PL_STREAM_CACHE_TTL = 30 * 60 * 1000;
-
-export function getPLUsage() {
-  const today = new Date().toISOString().slice(0, 10);
-  const count = plDailyDate === today ? plDailyCount : 0;
-  return { used: count, limit: PL_DAILY_LIMIT, date: today };
-}
-
-function canCallPL(): boolean {
-  const today = new Date().toISOString().slice(0, 10);
-  if (plDailyDate !== today) {
-    plDailyDate = today;
-    plDailyCount = 0;
-  }
-  return plDailyCount < PL_DAILY_LIMIT;
+  sources: EventEmbed[];
 }
 
 function decodeHtmlEntities(str: string): string {
   return str
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&#039;/g, "'");
 }
 
-function normalize(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function teamsMatch(a: string, b: string): boolean {
-  const na = normalize(a);
-  const nb = normalize(b);
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-  if (na.includes(nb) || nb.includes(na)) return true;
-
-  const wordsA = a.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
-  const wordsB = b.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
-
-  for (const wa of wordsA) {
-    for (const wb of wordsB) {
-      if (normalize(wa) === normalize(wb)) return true;
-      if (normalize(wa).includes(normalize(wb)) || normalize(wb).includes(normalize(wa))) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-function parseAgendaHTML(html: string): PelotaLibreMatch[] {
-  const matches: PelotaLibreMatch[] = [];
+function parseAgendaHTML(html: string): EventMatch[] {
+  const matches: EventMatch[] = [];
 
   const eventRegex = /<div[^>]*class="[^"]*source-agenda-event[^"]*"[^>]*data-source-instant="([^"]*)"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*source-agenda-event[^"]*"|<div class="[^"]*channels-title)/g;
 
@@ -113,7 +71,7 @@ function parseAgendaHTML(html: string): PelotaLibreMatch[] {
     const slugMatch = block.match(/<a[^>]*class="[^"]*agenda-open-match[^"]*"[^>]*href="([^"]*)"/);
     const slug = slugMatch ? slugMatch[1].replace(/^\//, "").replace(/^match\//, "") : `${homeTeam.toLowerCase().replace(/\s+/g, "-")}-vs-${awayTeam.toLowerCase().replace(/\s+/g, "-")}`;
 
-    const sources: PelotaLibreSource[] = [];
+    const sources: EventEmbed[] = [];
     const sourceRegex = /<a[^>]*class="[^"]*agenda-source-button[^"]*"[^>]*href="[^"]*#source=(\d+)"[^>]*>[\s\S]*?<small>([^<]*)<\/small>/g;
     let sourceMatch;
     while ((sourceMatch = sourceRegex.exec(block)) !== null) {
@@ -136,8 +94,40 @@ function parseAgendaHTML(html: string): PelotaLibreMatch[] {
   return matches;
 }
 
-export async function fetchPelotaLibreAgenda(): Promise<PelotaLibreMatch[]> {
-  if (Date.now() - lastPLFailureTime < PL_COOLDOWN_MS) return [];
+async function isInCooldown(): Promise<boolean> {
+  const cooldownUntil = await getCache<number>(PL_COOLDOWN_KEY);
+  return cooldownUntil !== null && Date.now() < cooldownUntil;
+}
+
+async function canCallPL(): Promise<boolean> {
+  // Only check cooldown, not daily limit (daily limit removed to prevent blocking streams)
+  if (await isInCooldown()) return false;
+  return true;
+}
+
+async function markRateLimited(): Promise<void> {
+  await setCache(PL_COOLDOWN_KEY, Date.now() + PL_COOLDOWN_MS, PL_COOLDOWN_MS);
+  console.warn("[event-source] Rate limited — cooling down for 5 min");
+}
+
+export async function fetchEventAgenda(): Promise<EventMatch[]> {
+  if (await isInCooldown()) return [];
+
+  const cached = await getCache<EventMatch[]>(PL_AGENDA_CACHE_KEY);
+  if (cached) return cached;
+
+  const lockKey = `${PL_AGENDA_CACHE_KEY}:lock`;
+  const lockAcquired = await acquireLock(lockKey, 10000);
+  if (!lockAcquired) {
+    const stale = await getCache<EventMatch[]>(PL_AGENDA_CACHE_KEY);
+    return stale ?? [];
+  }
+
+  if (!await canCallPL()) {
+    await releaseLock(lockKey);
+    const stale = await getCache<EventMatch[]>(PL_AGENDA_CACHE_KEY);
+    return stale ?? [];
+  }
 
   try {
     const res = await fetch(PL_AGENDA_URL, {
@@ -147,41 +137,47 @@ export async function fetchPelotaLibreAgenda(): Promise<PelotaLibreMatch[]> {
         "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
       },
       signal: AbortSignal.timeout(15000),
-      next: { revalidate: 300 },
     });
 
     if (!res.ok) {
       console.warn(`Pelota Libre agenda error: ${res.status}`);
       if (res.status === 429 || res.status === 403) {
-        lastPLFailureTime = Date.now();
+        await markRateLimited();
       }
-      return [];
+      await releaseLock(lockKey);
+      const stale = await getCache<EventMatch[]>(PL_AGENDA_CACHE_KEY);
+      return stale ?? [];
     }
 
     const html = await res.text();
-    return parseAgendaHTML(html);
+    const matches = parseAgendaHTML(html);
+
+    await setCache(PL_AGENDA_CACHE_KEY, matches, PL_AGENDA_CACHE_TTL);
+    await releaseLock(lockKey);
+    return matches;
   } catch (error) {
     console.warn("Failed to fetch Pelota Libre agenda:", error);
-    return [];
+    await releaseLock(lockKey);
+    const stale = await getCache<EventMatch[]>(PL_AGENDA_CACHE_KEY);
+    return stale ?? [];
   }
 }
 
-export async function getPelotaLibreStream(
+export async function getEventStream(
   slug: string,
   sourceId: string
 ): Promise<Channel | null> {
-  const cacheKey = `${slug}:${sourceId}`;
-  const cached = plStreamCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < PL_STREAM_CACHE_TTL) {
-    return { ...cached.channel };
-  }
+  const cacheKey = `pl:stream:${slug}:${sourceId}`;
 
-  if (!canCallPL()) {
-    console.warn(`Pelota Libre daily limit (${PL_DAILY_LIMIT}) reached`);
+  const cached = await getCache<Channel>(cacheKey);
+  if (cached) return cached;
+
+  if (!await canCallPL()) {
+    console.warn("Pelota Libre daily limit reached");
     return null;
   }
 
-  if (Date.now() - lastPLFailureTime < PL_COOLDOWN_MS) return null;
+  if (await isInCooldown()) return null;
 
   try {
     const url = `${PL_PLAYBACK_URL}?type=event&slug=${encodeURIComponent(slug)}&source=${encodeURIComponent(sourceId)}`;
@@ -192,18 +188,15 @@ export async function getPelotaLibreStream(
         "Referer": `${PL_BASE}/match/${slug}`,
       },
       signal: AbortSignal.timeout(15000),
-      next: { revalidate: 600 },
     });
 
     if (!res.ok) {
       if (res.status === 429 || res.status === 403) {
-        lastPLFailureTime = Date.now();
-        console.warn(`Pelota Libre rate limited/blocked: ${res.status}`);
+        await markRateLimited();
       }
       return null;
     }
 
-    plDailyCount++;
     const data = await res.json();
 
     if (data.success && data.url) {
@@ -214,8 +207,8 @@ export async function getPelotaLibreStream(
         url: data.url,
         kind,
       };
-      plStreamCache.set(cacheKey, { channel, ts: Date.now() });
-      return { ...channel };
+      await setCache(cacheKey, channel, PL_STREAM_CACHE_TTL);
+      return channel;
     }
 
     return null;
@@ -225,24 +218,22 @@ export async function getPelotaLibreStream(
   }
 }
 
-export async function findPelotaLibreStreams(
+export async function findEventStreams(
   homeTeam: string,
   awayTeam: string
 ): Promise<Channel[]> {
-  const agenda = await fetchPelotaLibreAgenda();
+  const agenda = await fetchEventAgenda();
   if (agenda.length === 0) return [];
 
   const match = agenda.find(
-    (m) =>
-      (teamsMatch(m.homeTeam, homeTeam) && teamsMatch(m.awayTeam, awayTeam)) ||
-      (teamsMatch(m.homeTeam, awayTeam) && teamsMatch(m.awayTeam, homeTeam))
+    (m) => matchTeamsPair(m.homeTeam, m.awayTeam, homeTeam, awayTeam)
   );
 
   if (!match || match.sources.length === 0) return [];
 
   const channels: Channel[] = [];
   for (const source of match.sources) {
-    const channel = await getPelotaLibreStream(match.slug, source.id);
+    const channel = await getEventStream(match.slug, source.id);
     if (channel) {
       channel.name = `${source.name}`;
       channels.push(channel);
@@ -250,4 +241,9 @@ export async function findPelotaLibreStreams(
   }
 
   return channels;
+}
+
+export function getEventUsage() {
+  const today = new Date().toISOString().slice(0, 10);
+  return { used: 0, limit: 9999, date: today };
 }
