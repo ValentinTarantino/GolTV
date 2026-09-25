@@ -111,6 +111,10 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "republicadeirlanda": "Ireland",
   "república": "Ireland",
   "kosovo": "Kosovo",
+  "elsalvador": "El Salvador",
+  "el salvador": "El Salvador",
+  "martinica": "Martinique",
+  "martinique": "Martinique",
 };
 
 // Country flags mapping for national teams using flagcdn.com (more reliable)
@@ -164,6 +168,8 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "France": "https://flagcdn.com/w160/fr.png",
   "Francia": "https://flagcdn.com/w160/fr.png",
   "Kosovo": "https://flagcdn.com/w160/xk.png",
+  "El Salvador": "https://flagcdn.com/w160/sv.png",
+  "Martinique": "https://flagcdn.com/w160/mq.png",
 };
 
 const NATIONAL_TEAM_BADGES: Record<string, string> = {
@@ -206,6 +212,13 @@ const NATIONAL_TEAM_BADGES: Record<string, string> = {
   france: "https://flagcdn.com/w160/fr.png",
   francesnationalfootballteam: "https://flagcdn.com/w160/fr.png",
   francia: "https://flagcdn.com/w160/fr.png",
+  martinique: "https://flagcdn.com/w160/mq.png",
+  martiniqunationalfootballteam: "https://flagcdn.com/w160/mq.png",
+  martinica: "https://flagcdn.com/w160/mq.png",
+  kosovo: "https://flagcdn.com/w160/xk.png",
+  kosovonationalfootballteam: "https://flagcdn.com/w160/xk.png",
+  elsalvador: "https://flagcdn.com/w160/sv.png",
+  elsalvadornationalfootballteam: "https://flagcdn.com/w160/sv.png",
 };
 
 const LEAGUE_COUNTRY_FLAGS: Record<string, string> = {

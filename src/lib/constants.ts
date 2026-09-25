@@ -313,6 +313,7 @@ const ECUADOR_SERIE_A_TEAMS = [
   "guayaquil city", "libertad", "gualaceo", "orense", "tecnico universitario",
   "macará", "cumbayá", "imbabura", "leones del norte", "rc altoríz",
   "cuniburo", "vinotinto", "anta", "22 de julio", "politécnica",
+  "manta", "manta fc",
 ];
 
 const PANAMA_SERIE_A_TEAMS = [

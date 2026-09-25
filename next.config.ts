@@ -49,6 +49,21 @@ const nextConfig: NextConfig = {
         hostname: "encrypted-tbn0.gstatic.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "www.countryflags.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "football-logos.cc",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "assets.football-logos.cc",
+        pathname: "/**",
+      },
     ],
   },
   async headers() {
@@ -68,7 +83,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https:",
               "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://media.api-sports.io https://www.thesportsdb.com https://r2.thesportsdb.com https://images.football-live-stream.online https://cdn.freebiesupply.com https://upload.wikimedia.org https://api.promiedos.com.ar https://flagcdn.com https://encrypted-tbn0.gstatic.com",
+              "connect-src 'self' https://media.api-sports.io https://www.thesportsdb.com https://r2.thesportsdb.com https://images.football-live-stream.online https://cdn.freebiesupply.com https://upload.wikimedia.org https://api.promiedos.com.ar https://flagcdn.com https://encrypted-tbn0.gstatic.com https://www.countryflags.com https://football-logos.cc https://assets.football-logos.cc",
               "frame-src 'self' https://futbollibrefullhd.org https://pelotalibre.biz https://tvf90.com",
               "base-uri 'self'",
               "form-action 'self'",
