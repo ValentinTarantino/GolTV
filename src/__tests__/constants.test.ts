@@ -156,4 +156,25 @@ describe("matchPlLeague", () => {
     expect(matchPlLeague("Copa Libertadores")?.id).toBe(13);
     expect(matchPlLeague("Champions League")?.id).toBe(2);
   });
+
+  it("maps generic Serie A to Italy, even when Ecuadorian teams are present", () => {
+    const league = matchPlLeague("Serie A", "Barcelona SC", "LDU Quito");
+    expect(league).not.toBeNull();
+    expect(league?.id).toBe(135);
+    expect(league?.country).toBe("Italia");
+    expect(league?.name).toBe("Serie A");
+  });
+
+  it("ignores Panamanian Serie A matches from the fixture", () => {
+    const league = matchPlLeague("Serie A", "Academia Costa del Este", "Potros del Este");
+    expect(league).toBeNull();
+  });
+
+  it("still maps explicit Ecuador Serie A names to Liga Pro", () => {
+    const league = matchPlLeague("Serie A Ecuador", "Barcelona SC", "LDU Quito");
+    expect(league).not.toBeNull();
+    expect(league?.id).toBe(57);
+    expect(league?.country).toBe("Ecuador");
+    expect(league?.name).toBe("Liga Pro");
+  });
 });

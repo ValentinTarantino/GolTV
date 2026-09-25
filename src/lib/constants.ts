@@ -303,6 +303,8 @@ const PL_EXCLUDED_LEAGUES = [
   "liga de expansion mx",
   "división profesional",
   "division profesional",
+  "serie a panama",
+  "liga panama",
 ];
 
 const ECUADOR_SERIE_A_TEAMS = [
@@ -311,6 +313,12 @@ const ECUADOR_SERIE_A_TEAMS = [
   "guayaquil city", "libertad", "gualaceo", "orense", "tecnico universitario",
   "macará", "cumbayá", "imbabura", "leones del norte", "rc altoríz",
   "cuniburo", "vinotinto", "anta", "22 de julio", "politécnica",
+];
+
+const PANAMA_SERIE_A_TEAMS = [
+  "tauro", "san francisco fc", "plaza amador", "club deportivo del este", "academia costa del este",
+  "potros del este", "herrera", "arabe unido", "sporting san miguelito", "veraguas",
+  "cocle", "santa gema", "chorrillo", "umate", "caldense"
 ];
 
 const TEAM_DISPLAY_NAMES: Record<string, string> = {
@@ -351,31 +359,36 @@ export function shortenTeamName(name: string): string {
 }
 
 export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?: string): LeagueConfig | null {
-  const normalized = plLeagueName
+  const normalizeText = (value: string) => value
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 
+  const normalized = normalizeText(plLeagueName);
+
   for (const excluded of PL_EXCLUDED_LEAGUES) {
     if (normalized === excluded) return null;
   }
 
+  const combinedTeams = normalizeText(`${homeTeam ?? ""} ${awayTeam ?? ""}`);
+  const isPanamaSerieA = (homeTeam || awayTeam)
+    && PANAMA_SERIE_A_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
+
+  if (isPanamaSerieA) return null;
+
+  if (normalized === "serie a") {
+    return SUPPORTED_LEAGUES.find((l) => l.id === 135) ?? null;
+  }
+
   const leagueId = PL_LEAGUE_MAP[normalized];
   if (leagueId) {
-    if (leagueId === 135 && (homeTeam || awayTeam)) {
-      const combined = `${homeTeam ?? ""} ${awayTeam ?? ""}`.toLowerCase();
-      if (ECUADOR_SERIE_A_TEAMS.some((t) => combined.includes(t))) return null;
-    }
     return SUPPORTED_LEAGUES.find((l) => l.id === leagueId) ?? null;
   }
+
   for (const [key, id] of Object.entries(PL_LEAGUE_MAP)) {
     if (key.length > 3 && (normalized.includes(key) || key.includes(normalized))) {
-      if (id === 135 && (homeTeam || awayTeam)) {
-        const combined = `${homeTeam ?? ""} ${awayTeam ?? ""}`.toLowerCase();
-        if (ECUADOR_SERIE_A_TEAMS.some((t) => combined.includes(t))) return null;
-      }
       return SUPPORTED_LEAGUES.find((l) => l.id === id) ?? null;
     }
   }

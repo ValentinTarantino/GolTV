@@ -51,16 +51,16 @@ export default function Header() {
             <SearchBar />
             <Link
               href="/leagues"
-              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-brutal-sm font-black text-xs sm:text-sm text-white hover:text-accent-primary hover:border-accent-primary transition-colors uppercase"
+              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#38bdf8] bg-black shadow-[4px_4px_0px_0px_#38bdf8] font-black text-xs sm:text-sm text-white hover:text-[#38bdf8] hover:border-[#38bdf8] transition-colors uppercase"
             >
               <Trophy size={14} strokeWidth={3} />
               <span>{t.leagues?.title || "LIGAS"}</span>
             </Link>
-            <div className="flex items-center border-2 border-white bg-black shadow-brutal-sm font-black text-xs sm:text-sm">
+            <div className="flex items-center border-2 border-[#38bdf8] bg-black shadow-[4px_4px_0px_0px_#38bdf8] font-black text-xs sm:text-sm">
               <button
                 onClick={() => setLanguage('es')}
                 className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
-                  language === 'es' ? 'bg-white text-black' : 'text-white hover:text-accent-primary'
+                  language === 'es' ? 'bg-[#38bdf8] text-black' : 'text-white hover:text-[#38bdf8]'
                 }`}
               >
                 ES
@@ -68,7 +68,7 @@ export default function Header() {
               <button
                 onClick={() => setLanguage('en')}
                 className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
-                  language === 'en' ? 'bg-white text-black' : 'text-white hover:text-accent-primary'
+                  language === 'en' ? 'bg-[#38bdf8] text-black' : 'text-white hover:text-[#38bdf8]'
                 }`}
               >
                 EN

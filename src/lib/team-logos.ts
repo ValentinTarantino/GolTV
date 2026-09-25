@@ -129,6 +129,11 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "Nicaragua": "https://flagcdn.com/w160/ni.png",
   "Norway": "https://flagcdn.com/w160/no.png",
   "Denmark": "https://flagcdn.com/w160/dk.png",
+  "Italy": "https://flagcdn.com/w160/it.png",
+  "Italia": "https://flagcdn.com/w160/it.png",
+  "Belgium": "https://flagcdn.com/w160/be.png",
+  "Bélgica": "https://flagcdn.com/w160/be.png",
+  "Belgica": "https://flagcdn.com/w160/be.png",
   "Spain": "https://flagcdn.com/w160/es.png",
   "Andorra": "https://flagcdn.com/w160/ad.png",
   "Malta": "https://flagcdn.com/w160/mt.png",
@@ -140,6 +145,43 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "repdelirlanda": "https://flagcdn.com/w160/ie.png",
   "Kosovo": "https://flagcdn.com/w160/xk.png",
 };
+
+const NATIONAL_TEAM_BADGES: Record<string, string> = {
+  georgia: "https://upload.wikimedia.org/wikipedia/en/9/9c/Georgia_national_football_team_crest.svg",
+  georgianationalfootballteam: "https://upload.wikimedia.org/wikipedia/en/9/9c/Georgia_national_football_team_crest.svg",
+  northernireland: "https://upload.wikimedia.org/wikipedia/en/2/25/Irish_Football_Association_logo.svg",
+  irlandadelnorte: "https://upload.wikimedia.org/wikipedia/en/2/25/Irish_Football_Association_logo.svg",
+};
+
+const LEAGUE_COUNTRY_FLAGS: Record<string, string> = {
+  argentina: "https://flagcdn.com/w160/ar.png",
+  brasil: "https://flagcdn.com/w160/br.png",
+  brazil: "https://flagcdn.com/w160/br.png",
+  chile: "https://flagcdn.com/w160/cl.png",
+  colombia: "https://flagcdn.com/w160/co.png",
+  peru: "https://flagcdn.com/w160/pe.png",
+  "perú": "https://flagcdn.com/w160/pe.png",
+  ecuador: "https://flagcdn.com/w160/ec.png",
+  uruguay: "https://flagcdn.com/w160/uy.png",
+  paraguay: "https://flagcdn.com/w160/py.png",
+  italia: "https://flagcdn.com/w160/it.png",
+  italy: "https://flagcdn.com/w160/it.png",
+  espana: "https://flagcdn.com/w160/es.png",
+  españa: "https://flagcdn.com/w160/es.png",
+  spain: "https://flagcdn.com/w160/es.png",
+  inglaterra: "https://flagcdn.com/w160/gb-eng.png",
+  england: "https://flagcdn.com/w160/gb-eng.png",
+  alemania: "https://flagcdn.com/w160/de.png",
+  germany: "https://flagcdn.com/w160/de.png",
+  "estados unidos": "https://flagcdn.com/w160/us.png",
+  "united states": "https://flagcdn.com/w160/us.png",
+};
+
+function getCountryFlag(country?: string): string {
+  if (!country) return "";
+  const normalizedCountry = normalize(country);
+  return LEAGUE_COUNTRY_FLAGS[normalizedCountry] || "";
+}
 
 function getSearchVariations(name: string): string[] {
   const words = name.split(/\s+/);
@@ -177,12 +219,16 @@ async function searchTeam(query: string): Promise<SportsDBTeam[]> {
   return data.teams ?? [];
 }
 
-export async function getTeamLogo(teamName: string): Promise<string> {
+export async function getTeamLogo(teamName: string, country?: string): Promise<string> {
   const key = normalize(teamName);
-  if (!key) return "";
+  const fallbackFlag = getCountryFlag(country);
+  if (!key) return fallbackFlag;
+
+  const nationalTeamBadge = NATIONAL_TEAM_BADGES[key];
+  if (nationalTeamBadge) return nationalTeamBadge;
 
   // Direct country matching for Ireland - special case
-  if (key.includes("irland") || key.includes("ireland")) {
+  if (key === "irland" || key === "ireland" || key === "republicofireland") {
     return "https://flagcdn.com/w160/ie.png";
   }
 
@@ -190,12 +236,14 @@ export async function getTeamLogo(teamName: string): Promise<string> {
   const normalizedTeamName = teamName.toLowerCase();
   for (const [country, flagUrl] of Object.entries(COUNTRY_FLAGS)) {
     const countryLower = country.toLowerCase();
+    const normalizedCountry = normalize(country);
     // Check if team name contains country name or vice versa
-    if (normalizedTeamName.includes(countryLower) || countryLower.includes(normalizedTeamName)) {
+    if (normalizedTeamName.includes(countryLower) || countryLower.includes(normalizedTeamName)
+      || key === normalizedCountry || key.includes(normalizedCountry) || normalizedCountry.includes(key)) {
       return flagUrl;
     }
     // Check for more specific matches
-    if (normalizedTeamName === countryLower || key === countryLower) {
+    if (normalizedTeamName === countryLower || key === normalizedCountry) {
       return flagUrl;
     }
   }
@@ -205,7 +253,7 @@ export async function getTeamLogo(teamName: string): Promise<string> {
   if (promiedosUrl) return promiedosUrl;
 
   const cached = logoCache.get(key);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) return cached || fallbackFlag;
 
   const pending = pendingLookups.get(key);
   if (pending) return pending;
@@ -227,11 +275,11 @@ export async function getTeamLogo(teamName: string): Promise<string> {
         }
       }
 
-      logoCache.set(key, "");
-      return "";
+      logoCache.set(key, fallbackFlag);
+      return fallbackFlag;
     } catch {
-      logoCache.set(key, "");
-      return "";
+      logoCache.set(key, fallbackFlag);
+      return fallbackFlag;
     } finally {
       pendingLookups.delete(key);
     }

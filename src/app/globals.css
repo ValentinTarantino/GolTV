@@ -144,6 +144,12 @@
   .animate-marquee:hover {
     animation-play-state: paused;
   }
+
+  @media (max-width: 640px) {
+    .animate-marquee {
+      animation-duration: 10s;
+    }
+  }
   
   /* Stagger classes */
   .stagger-1 { animation-delay: 0.05s; }

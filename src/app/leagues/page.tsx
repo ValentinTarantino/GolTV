@@ -310,7 +310,7 @@ export default function LeaguesPage() {
           >
             <div className="bg-accent-primary border-b-4 border-black p-3 flex items-center justify-between sticky top-0 z-10">
               <span className="font-black text-black uppercase text-sm tracking-wider">{t.leagues.countries}</span>
-              <button onClick={() => setSidebarOpen(false)} className="flex items-center justify-center w-8 h-8 text-black border-2 border-pink-500 bg-white hover:bg-pink-500 hover:text-white font-black text-sm transition-colors">X</button>
+              <button onClick={() => setSidebarOpen(false)} className="flex items-center justify-center w-8 h-8 text-black border-2 border-sky-500 bg-white hover:bg-sky-500 hover:text-white font-black text-sm transition-colors">X</button>
             </div>
             <nav className="p-3 space-y-1">
               {COUNTRY_ORDER.map((country) => {

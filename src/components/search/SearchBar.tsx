@@ -79,7 +79,7 @@ export default function SearchBar() {
       {!isOpen ? (
         <button
           onClick={() => setIsOpen(true)}
-          className="flex h-8 w-8 items-center justify-center text-white border-2 border-white bg-black shadow-brutal-sm hover:bg-white hover:text-black transition-colors"
+          className="flex h-8 w-8 items-center justify-center text-white border-2 border-[#38bdf8] bg-black shadow-[4px_4px_0px_0px_#38bdf8] hover:bg-[#38bdf8] hover:text-black transition-colors"
           title={t.search.placeholder}
         >
           <Search size={14} strokeWidth={3} />
@@ -95,12 +95,12 @@ export default function SearchBar() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && (setIsOpen(false), setQuery(""))}
               placeholder={t.search.placeholder}
-              className="w-40 sm:w-56 pl-8 pr-2 py-1.5 bg-black text-white text-xs font-bold border-2 border-white shadow-brutal-sm focus:border-accent-primary focus:outline-none"
+              className="w-40 sm:w-56 pl-8 pr-2 py-1.5 bg-black text-white text-xs font-bold border-2 border-[#38bdf8] shadow-[4px_4px_0px_0px_#38bdf8] focus:border-[#7dd3fc] focus:outline-none"
             />
           </div>
           <button
             onClick={() => { setIsOpen(false); setQuery(""); }}
-            className="flex h-8 w-8 items-center justify-center text-white border-2 border-white bg-black shadow-brutal-sm hover:bg-white hover:text-black transition-colors"
+            className="flex h-8 w-8 items-center justify-center text-white border-2 border-[#38bdf8] bg-black shadow-[4px_4px_0px_0px_#38bdf8] hover:bg-[#38bdf8] hover:text-black transition-colors"
           >
             <X size={14} strokeWidth={3} />
           </button>

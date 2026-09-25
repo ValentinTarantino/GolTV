@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         name: league.name,
         country: league.country,
         logo: LEAGUE_LOGOS[league.id] || `https://media.api-sports.io/football/leagues/${league.id}.png`,
-        flag: "",
+        flag: league.countryFlag,
         slug: league.slug,
       },
       homeTeam: { id: 0, name: flMatch.homeTeam, logo: "" },
@@ -95,14 +95,17 @@ export async function GET(request: NextRequest) {
   matches.sort((a, b) => a.timestamp - b.timestamp);
 
   const teamNames = new Set<string>();
+  const teamCountries = new Map<string, string>();
   for (const m of matches) {
     teamNames.add(m.homeTeam.name);
     teamNames.add(m.awayTeam.name);
+    teamCountries.set(m.homeTeam.name, m.league.country);
+    teamCountries.set(m.awayTeam.name, m.league.country);
   }
 
   const logoEntries = await Promise.all(
     Array.from(teamNames).map(async (name) => {
-      const logo = await getTeamLogo(name);
+      const logo = await getTeamLogo(name, teamCountries.get(name));
       return [name, logo] as const;
     })
   );
