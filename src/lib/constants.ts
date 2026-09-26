@@ -85,6 +85,7 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   // Selecciones (solo para fixture, no se muestran en sección de ligas)
   { id: 5, name: "UEFA Nations League", country: "Internacional", countryFlag: "🌍", slug: "uefa-nations-league", season: 2026 },
   { id: 6, name: "CONCACAF Nations League", country: "Internacional", countryFlag: "🌎", slug: "concacaf-nations-league", season: 2026 },
+  { id: 10, name: "Amistosos Internacionales", country: "Internacional", countryFlag: "🌎", slug: "amistosos", season: 2026 },
 ];
 
 export const API_FOOTBALL_BASE = "https://v3.football.api-sports.io";
@@ -208,6 +209,7 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   18: ["Fox Sports", "TUDN", "ViX"],
   5: ["ESPN", "Fox Sports", "DAZN", "TNT Sports"],
   6: ["Fox Sports", "TUDN", "ViX"],
+  10: ["ESPN", "TyC Sports", "DSports", "Fox Sports"],
   431: ["Apple TV", "Fox Sports", "TUDN"],
 };
 
@@ -289,6 +291,12 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "liga de naciones de la concacaf": 6,
   "concacaf nations league": 6,
   "leagues cup": 431,
+  "amistosos": 10,
+  "amistoso": 10,
+  "amistosos internacionales": 10,
+  "amistosos de selecciones": 10,
+  "friendlies": 10,
+  "international friendlies": 10,
 };
 
 const PL_EXCLUDED_LEAGUES = [
@@ -460,6 +468,7 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "velez": "velezsarsfield",
   "wolves": "leedsunited",
   "xolos": "clubtijuana",
+  "celtadevigoii": "celtadevigo",
 };
 
 
@@ -731,4 +740,5 @@ export const PROMIEDOS_BADGES: Record<string, string> = {
   "uanltigres": "https://api.promiedos.com.ar/images/team/bcge/3",
   "santoslaguna": "https://api.promiedos.com.ar/images/team/bcfe/3",
   "juarez": "https://api.promiedos.com.ar/images/team/cfbej/3",
+  "fcandorra": "https://r2.thesportsdb.com/images/media/team/badge/eyaka21639481902.png",
 };

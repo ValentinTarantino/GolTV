@@ -139,6 +139,12 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "Bélgica": "https://flagcdn.com/w160/be.png",
   "Belgica": "https://flagcdn.com/w160/be.png",
   "Spain": "https://flagcdn.com/w160/es.png",
+  "España": "https://flagcdn.com/w160/es.png",
+  "Espana": "https://flagcdn.com/w160/es.png",
+  "Escocia": "https://flagcdn.com/w160/gb-sct.png",
+  "Scotland": "https://flagcdn.com/w160/gb-sct.png",
+  "Inglaterra": "https://flagcdn.com/w160/gb-eng.png",
+  "England": "https://flagcdn.com/w160/gb-eng.png",
   "Andorra": "https://flagcdn.com/w160/ad.png",
   "Malta": "https://flagcdn.com/w160/mt.png",
   "Ireland": "https://flagcdn.com/w160/ie.png",
@@ -219,6 +225,11 @@ const NATIONAL_TEAM_BADGES: Record<string, string> = {
   kosovonationalfootballteam: "https://flagcdn.com/w160/xk.png",
   elsalvador: "https://flagcdn.com/w160/sv.png",
   elsalvadornationalfootballteam: "https://flagcdn.com/w160/sv.png",
+  unitedstates: "https://r2.thesportsdb.com/images/media/team/badge/21f0oi1597948195.png",
+  usa: "https://r2.thesportsdb.com/images/media/team/badge/21f0oi1597948195.png",
+  eeuu: "https://r2.thesportsdb.com/images/media/team/badge/21f0oi1597948195.png",
+  estadosunidos: "https://r2.thesportsdb.com/images/media/team/badge/21f0oi1597948195.png",
+  unitedstatesnationalfootballteam: "https://r2.thesportsdb.com/images/media/team/badge/21f0oi1597948195.png",
 };
 
 const LEAGUE_COUNTRY_FLAGS: Record<string, string> = {
@@ -292,10 +303,9 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
   const fallbackFlag = getCountryFlag(country);
   if (!key) return fallbackFlag;
 
-  const explicitAudaxLogo = PROMIEDOS_BADGES["audaxitaliano"] || PROMIEDOS_BADGES["audax italiano"];
-  if (key === "audaxitaliano" || key === "audaxitaliano" || key === "audaxitaliano") {
-    return explicitAudaxLogo || fallbackFlag;
-  }
+  const aliasKey = PROMIEDOS_ALIASES[key];
+  const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key] || PROMIEDOS_BADGES[teamName.toLowerCase()];
+  if (promiedosUrl) return promiedosUrl;
 
   const nationalTeamBadge = NATIONAL_TEAM_BADGES[key];
   if (nationalTeamBadge) return nationalTeamBadge;
@@ -321,9 +331,7 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
     }
   }
 
-  const aliasKey = PROMIEDOS_ALIASES[key];
-  const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key];
-  if (promiedosUrl) return promiedosUrl;
+
 
   const cached = logoCache.get(key);
   if (cached !== undefined) return cached || fallbackFlag;

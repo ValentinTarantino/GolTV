@@ -34,6 +34,7 @@ export const leagueNames: Record<string, string> = {
   "Primera División": "First Division",
   "Liga Pro": "Liga Pro",
   "División de Honor": "Division of Honor",
+  "Amistosos Internacionales": "International Friendlies",
 };
 
 export const countryNames: Record<string, string> = {

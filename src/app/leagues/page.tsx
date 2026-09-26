@@ -389,7 +389,11 @@ export default function LeaguesPage() {
                               : "text-black hover:bg-black/10 border-transparent"
                           }`}
                         >
-                          <Image src={LEAGUE_LOGOS[league.id] || ""} alt={league.name} width={28} height={28} className="object-contain shrink-0" unoptimized />
+                          {LEAGUE_LOGOS[league.id] ? (
+                            <Image src={LEAGUE_LOGOS[league.id]} alt={league.name} width={28} height={28} className="object-contain shrink-0" unoptimized />
+                          ) : (
+                            <span className="text-lg shrink-0">⚽</span>
+                          )}
                           <span className="truncate">{league.name}</span>
                         </button>
                       ))}
