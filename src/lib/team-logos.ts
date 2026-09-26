@@ -204,6 +204,8 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "North Macedonia": "https://flagcdn.com/w160/mk.png",
   "Macedonia del Norte": "https://flagcdn.com/w160/mk.png",
   "Bulgaria": "https://flagcdn.com/w160/bg.png",
+  "Luxemburgo": "https://flagcdn.com/w160/lu.png",
+  "Luxembourg": "https://flagcdn.com/w160/lu.png",
   "Moldova": "https://flagcdn.com/w160/md.png",
   "Moldavia": "https://flagcdn.com/w160/md.png",
   "Belarus": "https://flagcdn.com/w160/by.png",
