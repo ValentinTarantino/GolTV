@@ -64,6 +64,11 @@ const nextConfig: NextConfig = {
         hostname: "assets.football-logos.cc",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "i.pinimg.com",
+        pathname: "/**",
+      },
     ],
   },
   async headers() {
@@ -81,9 +86,9 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "img-src 'self' data: https:",
+              "img-src 'self' data: https: http://i.pinimg.com https://i.pinimg.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://media.api-sports.io https://www.thesportsdb.com https://r2.thesportsdb.com https://images.football-live-stream.online https://cdn.freebiesupply.com https://upload.wikimedia.org https://api.promiedos.com.ar https://flagcdn.com https://encrypted-tbn0.gstatic.com https://www.countryflags.com https://football-logos.cc https://assets.football-logos.cc",
+              "connect-src 'self' https://media.api-sports.io https://www.thesportsdb.com https://r2.thesportsdb.com https://images.football-live-stream.online https://cdn.freebiesupply.com https://upload.wikimedia.org https://api.promiedos.com.ar https://flagcdn.com https://encrypted-tbn0.gstatic.com https://www.countryflags.com https://football-logos.cc https://assets.football-logos.cc https://i.pinimg.com",
               "frame-src 'self' https://futbollibrefullhd.org https://pelotalibre.biz https://tvf90.com",
               "base-uri 'self'",
               "form-action 'self'",

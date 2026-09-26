@@ -74,7 +74,7 @@ export default function MatchList({ matches }: MatchListProps) {
                     src={group.leagueLogo}
                     alt={group.leagueName}
                     fill
-                    className="object-contain"
+                    className={`object-contain ${group.leagueId === 1034 ? 'mix-blend-multiply' : ''}`}
                     sizes="40px"
                   />
                 </div>

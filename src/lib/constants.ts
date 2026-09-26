@@ -4,6 +4,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   57: "https://media.api-sports.io/football/leagues/57.png",
   128: "https://media.api-sports.io/football/leagues/128.png",
   1032: "https://media.api-sports.io/football/leagues/1032.png",
+  1034: "https://i.pinimg.com/236x/86/c9/45/86c945abdba6c19321de0f20120c8c36.jpg",
   130: "https://media.api-sports.io/football/leagues/130.png",
   265: "https://media.api-sports.io/football/leagues/265.png",
   267: "https://media.api-sports.io/football/leagues/267.png",
@@ -14,7 +15,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   503: "https://media.api-sports.io/football/leagues/503.png",
   504: "https://media.api-sports.io/football/leagues/504.png",
   501: "https://media.api-sports.io/football/leagues/501.png",
-  268: "https://media.api-sports.io/football/leagues/268.png",
+  268: "https://r2.thesportsdb.com/images/media/league/badge/3p98xv1740672448.png",
   930: "https://media.api-sports.io/football/leagues/930.png",
   13: "https://media.api-sports.io/football/leagues/13.png",
   11: "https://media.api-sports.io/football/leagues/11.png",
@@ -53,13 +54,14 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   // Argentina
   { id: 128, name: "Liga Profesional", country: "Argentina", countryFlag: "🇦🇷", slug: "liga-argentina", season: 2026 },
   { id: 130, name: "Copa Argentina", country: "Argentina", countryFlag: "🇦🇷", slug: "copa-argentina", season: 2026 },
+  { id: 1034, name: "Supercopa Argentina", country: "Argentina", countryFlag: "🇦🇷", slug: "supercopa-argentina", season: 2026 },
   // Brasil
   { id: 71, name: "Brasileirão Serie A", country: "Brasil", countryFlag: "🇧🇷", slug: "brasileirao", season: 2026 },
   { id: 73, name: "Copa do Brasil", country: "Brasil", countryFlag: "🇧🇷", slug: "copa-do-brasil", season: 2026 },
   // Uruguay
   { id: 268, name: "Liga AUF Uruguaya", country: "Uruguay", countryFlag: "🇺🇾", slug: "liga-auf-uruguaya", season: 2026 },
   // Chile
-  { id: 265, name: "Liga de Primera", country: "Chile", countryFlag: "🇨🇱", slug: "liga-de-primera", season: 2026 },
+  { id: 265, name: "Campeonato Nacional", country: "Chile", countryFlag: "🇨🇱", slug: "liga-de-primera", season: 2026 },
   { id: 267, name: "Copa Chile", country: "Chile", countryFlag: "🇨🇱", slug: "copa-chile", season: 2026 },
   // Colombia
   { id: 239, name: "Liga BetPlay", country: "Colombia", countryFlag: "🇨🇴", slug: "liga-betplay", season: 2026 },
@@ -225,11 +227,19 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "copa de la liga": 1032,
   "copa de la liga profesional": 1032,
   "copa argentina": 130,
+  "supercopa argentina": 1034,
+  "supercopa": 1034,
   "liga de primera": 265,
+  "campeonato nacional": 265,
   "liga de primera chile": 265,
   "primera division chile": 265,
   "chilean primera division": 265,
-  "campeonato nacional": 265,
+  "primera division de uruguay": 268,
+  "primera division uruguay": 268,
+  "clausura uruguay": 268,
+  "apertura uruguay": 268,
+  "campeonato uruguayo": 268,
+  "primera division profesional de uruguay": 268,
   "copa chile": 267,
   "liga betplay": 239,
   "betplay": 239,
@@ -330,6 +340,15 @@ const PANAMA_SERIE_A_TEAMS = [
   "cocle", "santa gema", "chorrillo", "umate", "caldense"
 ];
 
+const URUGUAY_TEAMS = [
+  "peñarol", "penarol", "nacional", "club nacional", "danubio", "defensor sporting",
+  "montevideo wanderers", "wanderers", "river plate", "progreso", "racing",
+  "racing club", "racing montevideo", "liverpool", "cerro", "cerro largo",
+  "fénix", "fenix", "rentistas", "juventud", "plaza colonia",
+  "montevideo city torque", "boston river", "albion", "sud america",
+  "rampla juniors", "central español", "deportivo maldonado",
+];
+
 const TEAM_DISPLAY_NAMES: Record<string, string> = {
   "brighton & hove albion": "Brighton",
   "brighton & hove albion fc": "Brighton",
@@ -387,6 +406,16 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
 
   if (isPanamaSerieA) return null;
 
+  // If league name is "liga de primera" but teams are Uruguayan → Liga AUF Uruguaya
+  const AMBIGUOUS_URUGUAY_LEAGUES = ["liga de primera", "primera division", "primera division profesional"];
+  const isAmbiguousLeague = AMBIGUOUS_URUGUAY_LEAGUES.some(l => normalized.includes(l));
+  if (isAmbiguousLeague && (homeTeam || awayTeam)) {
+    const isUruguayMatch = URUGUAY_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
+    if (isUruguayMatch) {
+      return SUPPORTED_LEAGUES.find((l) => l.id === 268) ?? null;
+    }
+  }
+
   if (normalized === "serie a") {
     return SUPPORTED_LEAGUES.find((l) => l.id === 135) ?? null;
   }
@@ -396,7 +425,9 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
     return SUPPORTED_LEAGUES.find((l) => l.id === leagueId) ?? null;
   }
 
-  for (const [key, id] of Object.entries(PL_LEAGUE_MAP)) {
+  // Sort keys by length descending to match longer, more specific names first (e.g. "supercopa argentina" before "copa argentina")
+  const sortedMapEntries = Object.entries(PL_LEAGUE_MAP).sort((a, b) => b[0].length - a[0].length);
+  for (const [key, id] of sortedMapEntries) {
     if (key.length > 3 && (normalized.includes(key) || key.includes(normalized))) {
       return SUPPORTED_LEAGUES.find((l) => l.id === id) ?? null;
     }
@@ -451,7 +482,8 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "porto": "fcporto",
   "psv": "psveindhoven",
   "queretaro": "queretarofc",
-  "racing": "racingclub",
+  "racingclub": "racingclub",
+  "racingavellaneda": "racingclub",
   "rayados": "monterrey",
   "river": "riverplate",
   "rosariocentral": "rosariocentral",
@@ -558,7 +590,9 @@ export const PROMIEDOS_BADGES: Record<string, string> = {
   "cerro": "https://api.promiedos.com.ar/images/team/hehh/3",
   "penarol": "https://api.promiedos.com.ar/images/team/hhgg/3",
   "juventud": "https://api.promiedos.com.ar/images/team/babjc/3",
-  "racingclubmontevideo": "https://api.promiedos.com.ar/images/team/haih/3",
+  "racingclubmontevideo": "https://r2.thesportsdb.com/images/media/team/badge/rtsusv1473541178.png",
+  "racingmontevideo": "https://r2.thesportsdb.com/images/media/team/badge/rtsusv1473541178.png",
+  "racing": "https://r2.thesportsdb.com/images/media/team/badge/rtsusv1473541178.png",
   "deportivomaldonado": "https://api.promiedos.com.ar/images/team/beagc/3",
   "montevideowanderers": "https://api.promiedos.com.ar/images/team/igbe/3",
   "progreso": "https://api.promiedos.com.ar/images/team/babjb/3",
