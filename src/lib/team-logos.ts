@@ -213,9 +213,14 @@ const COUNTRY_FLAGS: Record<string, string> = {
   "Estonia": "https://flagcdn.com/w160/ee.png",
   "Azerbaijan": "https://flagcdn.com/w160/az.png",
   "Azerbaiyán": "https://flagcdn.com/w160/az.png",
+  "Trinidad and Tobago": "https://flagcdn.com/w160/tt.png",
+  "Trinidad y Tobago": "https://flagcdn.com/w160/tt.png",
 };
 
 const NATIONAL_TEAM_BADGES: Record<string, string> = {
+  trinidadandtobago: "https://r2.thesportsdb.com/images/media/team/badge/x0uq8u1598135774.png",
+  trinidadytobago: "https://r2.thesportsdb.com/images/media/team/badge/x0uq8u1598135774.png",
+  trinidad: "https://r2.thesportsdb.com/images/media/team/badge/x0uq8u1598135774.png",
   georgia: "https://upload.wikimedia.org/wikipedia/en/9/9c/Georgia_national_football_team_crest.svg",
   georgianationalfootballteam: "https://upload.wikimedia.org/wikipedia/en/9/9c/Georgia_national_football_team_crest.svg",
   northernireland: "https://upload.wikimedia.org/wikipedia/en/2/25/Irish_Football_Association_logo.svg",
@@ -384,6 +389,13 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
   const fallbackFlag = getCountryFlag(country);
   if (!key) return fallbackFlag;
 
+  const cacheKey = country ? `${key}-${normalize(country)}` : key;
+
+  // Hardcoded disambiguation: Liverpool Montevideo vs Liverpool FC (England)
+  if (key === "liverpool" && (country === "Uruguay" || country === "Uruguay" )) {
+    return "https://r2.thesportsdb.com/images/media/team/badge/0xat6f1678717839.png";
+  }
+
   const aliasKey = PROMIEDOS_ALIASES[key];
   const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key] || PROMIEDOS_BADGES[teamName.toLowerCase()];
   if (promiedosUrl) return promiedosUrl;
@@ -396,11 +408,20 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
     return "https://flagcdn.com/w160/ie.png";
   }
 
+  // Club teams that get incorrectly matched to country flags due to substring matching
+  const CLUB_OVERRIDES: Record<string, string> = {
+    "antofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
+    "deportesantofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
+    "roma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
+    "asroma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
+  };
+  if (CLUB_OVERRIDES[key]) return CLUB_OVERRIDES[key];
+
   // Check if it's a national team first - improved matching
   const normalizedTeamName = teamName.toLowerCase();
-  for (const [country, flagUrl] of Object.entries(COUNTRY_FLAGS)) {
-    const countryLower = country.toLowerCase();
-    const normalizedCountry = normalize(country);
+  for (const [c, flagUrl] of Object.entries(COUNTRY_FLAGS)) {
+    const countryLower = c.toLowerCase();
+    const normalizedCountry = normalize(c);
     // Check if team name contains country name or vice versa
     if (normalizedTeamName.includes(countryLower) || countryLower.includes(normalizedTeamName)
       || key === normalizedCountry || key.includes(normalizedCountry) || normalizedCountry.includes(key)) {
@@ -414,39 +435,45 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
 
 
 
-  const cached = logoCache.get(key);
+  const cached = logoCache.get(cacheKey);
   if (cached !== undefined) return cached || fallbackFlag;
 
-  const pending = pendingLookups.get(key);
+  const pending = pendingLookups.get(cacheKey);
   if (pending) return pending;
 
   const promise = (async () => {
     try {
-      const aliasKey = TEAM_SEARCH_ALIASES[key];
-      const searchName = aliasKey || teamName;
+      const mappedAliasKey = TEAM_SEARCH_ALIASES[key];
+      let searchName = mappedAliasKey || teamName;
+
+      // Disambiguate Liverpool
+      if (key === "liverpool" && country === "Uruguay") {
+        searchName = "Liverpool Montevideo";
+      }
+
       const variations = getSearchVariations(searchName);
 
       for (const query of variations) {
         const teams = await searchTeam(query);
         if (teams.length === 0) continue;
 
-        const match = findBestMatch(teams, teamName) || (aliasKey ? findBestMatch(teams, aliasKey) : null);
+        const match = findBestMatch(teams, teamName) || (mappedAliasKey ? findBestMatch(teams, mappedAliasKey) : null) || (key === "liverpool" ? findBestMatch(teams, "Liverpool Montevideo") : null);
         if (match?.strBadge) {
-          logoCache.set(key, match.strBadge);
+          logoCache.set(cacheKey, match.strBadge);
           return match.strBadge;
         }
       }
 
-      logoCache.set(key, fallbackFlag);
+      logoCache.set(cacheKey, fallbackFlag);
       return fallbackFlag;
     } catch {
-      logoCache.set(key, fallbackFlag);
+      logoCache.set(cacheKey, fallbackFlag);
       return fallbackFlag;
     } finally {
-      pendingLookups.delete(key);
+      pendingLookups.delete(cacheKey);
     }
   })();
 
-  pendingLookups.set(key, promise);
+  pendingLookups.set(cacheKey, promise);
   return promise;
 }
