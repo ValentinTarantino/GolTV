@@ -22,7 +22,7 @@ const COUNTRY_ORDER = [
   { name: "Estados Unidos", flag: "🇺🇸" },
 ];
 
-const LEAGUES_PAGE_EXCLUDED_IDS = new Set([281, 5, 6, 1034]);
+const LEAGUES_PAGE_EXCLUDED_IDS = new Set([281, 5, 6, 10, 1034]);
 
 function groupByCountry() {
   const groups: Record<string, typeof SUPPORTED_LEAGUES> = {};
@@ -63,22 +63,22 @@ function StandingsTable({
   const rows = table.standings;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
+    <div className="overflow-x-auto -mx-2 sm:mx-0">
+      <table className="w-full text-left border-collapse" style={{ minWidth: '280px' }}>
         <thead>
           <tr className="bg-white/5 border-b-2 border-white/20">
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 w-8 text-center">#</th>
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400">{t.leagues.team}</th>
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-8">{t.leagues.gp}</th>
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-8 hidden sm:table-cell">{t.leagues.g}</th>
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-8 hidden sm:table-cell">{t.leagues.e}</th>
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-8 hidden sm:table-cell">{t.leagues.p}</th>
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-12 hidden md:table-cell">{t.leagues.gol}</th>
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-8 hidden md:table-cell">{t.leagues.gd}</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 w-6 sm:w-8 text-center">#</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400">{t.leagues.team}</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-6 sm:w-8">{t.leagues.gp}</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-6 sm:w-8 hidden sm:table-cell">{t.leagues.g}</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-6 sm:w-8 hidden sm:table-cell">{t.leagues.e}</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-6 sm:w-8 hidden sm:table-cell">{t.leagues.p}</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-10 sm:w-12 hidden md:table-cell">{t.leagues.gol}</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-6 sm:w-8 hidden md:table-cell">{t.leagues.gd}</th>
             {showTrend && (
-              <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-16 hidden lg:table-cell">{t.leagues.form}</th>
+              <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-16 hidden lg:table-cell">{t.leagues.form}</th>
             )}
-            <th className="px-2 py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-10 bg-white/5">{t.leagues.pts}</th>
+            <th className="px-1 sm:px-2 py-2 sm:py-3 text-xs font-black uppercase tracking-wider text-gray-400 text-center w-8 sm:w-10 bg-white/5">{t.leagues.pts}</th>
           </tr>
         </thead>
         <tbody>
@@ -90,9 +90,9 @@ function StandingsTable({
               }`}
               style={row.destinationColor ? { borderLeftColor: row.destinationColor } : undefined}
             >
-              <td className="px-2 py-2.5 text-center">
+              <td className="px-1 sm:px-2 py-2 text-center">
                 <span
-                  className={`inline-flex items-center justify-center w-6 h-6 text-xs font-black ${
+                  className={`inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 text-xs font-black ${
                     row.rank <= 3
                       ? "bg-accent-primary text-black"
                       : row.rank >= rows.length - 2
@@ -103,28 +103,28 @@ function StandingsTable({
                   {row.rank}
                 </span>
               </td>
-              <td className="px-2 py-2.5">
-                <span className="font-bold text-white text-sm truncate block">{row.team.name}</span>
+              <td className="px-1 sm:px-2 py-2 max-w-[120px] sm:max-w-none">
+                <span className="font-bold text-white text-xs sm:text-sm truncate block leading-tight">{row.team.name}</span>
               </td>
-              <td className="px-2 py-2.5 text-center text-sm text-gray-300 font-bold">{row.played}</td>
-              <td className="px-2 py-2.5 text-center text-sm text-green-400 font-bold hidden sm:table-cell">{row.won}</td>
-              <td className="px-2 py-2.5 text-center text-sm text-yellow-400 font-bold hidden sm:table-cell">{row.drawn}</td>
-              <td className="px-2 py-2.5 text-center text-sm text-red-400 font-bold hidden sm:table-cell">{row.lost}</td>
-              <td className="px-2 py-2.5 text-center text-sm text-gray-300 font-bold hidden md:table-cell">
+              <td className="px-1 sm:px-2 py-2 text-center text-xs sm:text-sm text-gray-300 font-bold">{row.played}</td>
+              <td className="px-1 sm:px-2 py-2 text-center text-xs sm:text-sm text-green-400 font-bold hidden sm:table-cell">{row.won}</td>
+              <td className="px-1 sm:px-2 py-2 text-center text-xs sm:text-sm text-yellow-400 font-bold hidden sm:table-cell">{row.drawn}</td>
+              <td className="px-1 sm:px-2 py-2 text-center text-xs sm:text-sm text-red-400 font-bold hidden sm:table-cell">{row.lost}</td>
+              <td className="px-1 sm:px-2 py-2 text-center text-xs sm:text-sm text-gray-300 font-bold hidden md:table-cell">
                 {row.goalsFor}:{row.goalsAgainst}
               </td>
-              <td className="px-2 py-2.5 text-center text-sm font-bold hidden md:table-cell">
+              <td className="px-1 sm:px-2 py-2 text-center text-xs sm:text-sm font-bold hidden md:table-cell">
                 <span className={row.goalsDiff > 0 ? "text-green-400" : row.goalsDiff < 0 ? "text-red-400" : "text-gray-400"}>
                   {row.goalsDiff > 0 ? "+" : ""}{row.goalsDiff}
                 </span>
               </td>
               {showTrend && (
-                <td className="px-2 py-2.5 text-center hidden lg:table-cell">
+                <td className="px-1 sm:px-2 py-2 text-center hidden lg:table-cell">
                   <TrendDots trend={row.trend} />
                 </td>
               )}
-              <td className="px-2 py-2.5 text-center bg-white/5">
-                <span className="font-black text-white text-sm">{row.points}</span>
+              <td className="px-1 sm:px-2 py-2 text-center bg-white/5">
+                <span className="font-black text-white text-xs sm:text-sm">{row.points}</span>
               </td>
             </tr>
           ))}
@@ -145,31 +145,50 @@ function BracketView({ rounds, t }: { rounds: BracketRound[]; t: ReturnType<type
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {rounds.map((round) => (
         <div key={round.name} className="border-2 border-white/20">
-          <div className="bg-white/5 px-4 py-2 border-b-2 border-white/20">
-            <h3 className="font-black text-accent-primary uppercase text-sm tracking-wider">{round.name}</h3>
+          <div className="bg-white/5 px-3 sm:px-4 py-2 border-b-2 border-white/20">
+            <h3 className="font-black text-accent-primary uppercase text-xs sm:text-sm tracking-wider">{round.name}</h3>
           </div>
           <div className="divide-y divide-white/10">
             {round.matches.map((match, i) => (
-              <div key={i} className="px-4 py-3 flex items-center justify-between gap-3">
-                <div className="flex-1 text-right">
-                  <span className="font-bold text-white text-sm">{match.homeTeam}</span>
+              <div key={i} className="px-2 sm:px-4 py-2 sm:py-3">
+                {/* Mobile: stacked layout */}
+                <div className="flex sm:hidden items-center gap-2">
+                  <span className="font-bold text-white text-xs flex-1 truncate">{match.homeTeam}</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {match.homeScore !== "" ? (
+                      <>
+                        <span className="font-black text-white text-sm bg-white/10 px-2 py-0.5 min-w-[1.5rem] text-center">{match.homeScore}</span>
+                        <span className="text-gray-500 font-bold text-xs">-</span>
+                        <span className="font-black text-white text-sm bg-white/10 px-2 py-0.5 min-w-[1.5rem] text-center">{match.awayScore}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-500 font-bold text-xs px-1">vs</span>
+                    )}
+                  </div>
+                  <span className="font-bold text-white text-xs flex-1 truncate text-right">{match.awayTeam}</span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {match.homeScore !== "" ? (
-                    <>
-                      <span className="font-black text-white text-lg bg-white/10 px-3 py-1 min-w-[2rem] text-center">{match.homeScore}</span>
-                      <span className="text-gray-500 font-bold">-</span>
-                      <span className="font-black text-white text-lg bg-white/10 px-3 py-1 min-w-[2rem] text-center">{match.awayScore}</span>
-                    </>
-                  ) : (
-                    <span className="text-gray-500 font-bold text-sm px-2">vs</span>
-                  )}
-                </div>
-                <div className="flex-1 text-left">
-                  <span className="font-bold text-white text-sm">{match.awayTeam}</span>
+                {/* Desktop: side-by-side layout */}
+                <div className="hidden sm:flex items-center justify-between gap-3">
+                  <div className="flex-1 text-right">
+                    <span className="font-bold text-white text-sm">{match.homeTeam}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {match.homeScore !== "" ? (
+                      <>
+                        <span className="font-black text-white text-lg bg-white/10 px-3 py-1 min-w-[2rem] text-center">{match.homeScore}</span>
+                        <span className="text-gray-500 font-bold">-</span>
+                        <span className="font-black text-white text-lg bg-white/10 px-3 py-1 min-w-[2rem] text-center">{match.awayScore}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-500 font-bold text-sm px-2">vs</span>
+                    )}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="font-bold text-white text-sm">{match.awayTeam}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -333,7 +352,7 @@ export default function LeaguesPage() {
                             : "text-black hover:bg-black/10 border-transparent"
                         }`}
                       >
-                        <Image src={LEAGUE_LOGOS[league.id] || ""} alt={league.name} width={28} height={28} className="object-contain shrink-0" unoptimized />
+                        <Image src={LEAGUE_LOGOS[league.id] || ""} alt={league.name} width={28} height={28} className="object-contain shrink-0 max-w-7 max-h-7" unoptimized />
                         <span className="truncate">{league.name}</span>
                       </button>
                     ))}
@@ -390,7 +409,7 @@ export default function LeaguesPage() {
                           }`}
                         >
                           {LEAGUE_LOGOS[league.id] ? (
-                            <Image src={LEAGUE_LOGOS[league.id]} alt={league.name} width={28} height={28} className="object-contain shrink-0" unoptimized />
+                            <Image src={LEAGUE_LOGOS[league.id]} alt={league.name} width={28} height={28} className="object-contain shrink-0 max-w-7 max-h-7" unoptimized />
                           ) : (
                             <span className="text-lg shrink-0">⚽</span>
                           )}
@@ -406,10 +425,9 @@ export default function LeaguesPage() {
             <main className="flex-1 min-w-0">
             {selectedLeague && (
               <div className="bg-accent-primary border-4 border-black shadow-brutal p-4 sm:p-5 mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4">
-                <Image src={LEAGUE_LOGOS[selectedLeague.id] || ""} alt={selectedLeague.name} width={48} height={48} className="object-contain shrink-0" unoptimized />
+                <Image src={LEAGUE_LOGOS[selectedLeague.id] || ""} alt={selectedLeague.name} width={48} height={48} className="object-contain shrink-0 max-w-12 max-h-12" unoptimized priority />
                 <div>
                   <h1 className="font-black text-black uppercase text-lg sm:text-xl tracking-tight">{selectedLeague.name}</h1>
-                  <p className="text-black/70 text-xs sm:text-sm font-bold">{selectedLeague.countryFlag} {selectedLeague.country}</p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                   <Trophy size={20} className="text-black/40" />
@@ -417,7 +435,7 @@ export default function LeaguesPage() {
               </div>
             )}
 
-            <div className="border-4 border-white bg-bg-card overflow-hidden">
+            <div className="border-4 border-white bg-bg-card overflow-x-auto">
               {isLoading ? (
                 <div className="p-8 text-center">
                   <div className="animate-spin inline-block w-8 h-8 border-4 border-accent-primary border-t-transparent rounded-full mb-3" />
@@ -436,7 +454,7 @@ export default function LeaguesPage() {
                     <TabButtons tabs={data.tabs} activeTab={activeTab} onSelect={setActiveTab} generalLabel={t.leagues.general} tabNames={t.leagues.tabNames} />
                   )}
 
-                  <div className="p-2 sm:p-4">
+                  <div className="p-1 sm:p-4 pb-20 lg:pb-4">
                     {/* Standings tables for current tab */}
                     {hasStandings && (
                       <div className="space-y-6">

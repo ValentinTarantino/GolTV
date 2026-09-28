@@ -5,7 +5,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   128: "https://media.api-sports.io/football/leagues/128.png",
   1032: "https://media.api-sports.io/football/leagues/1032.png",
   1034: "https://i.pinimg.com/236x/86/c9/45/86c945abdba6c19321de0f20120c8c36.jpg",
-  130: "https://media.api-sports.io/football/leagues/130.png",
+  130: "https://r2.thesportsdb.com/images/media/league/badge/welbig1655924428.png",
   265: "https://media.api-sports.io/football/leagues/265.png",
   267: "https://media.api-sports.io/football/leagues/267.png",
   239: "https://media.api-sports.io/football/leagues/239.png",
@@ -30,7 +30,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   332: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Major_League_Soccer_logo.svg/250px-Major_League_Soccer_logo.svg.png",
   235: "https://media.api-sports.io/football/leagues/235.png",
   5: "https://media.api-sports.io/football/leagues/5.png",
-  18: "https://media.api-sports.io/football/leagues/18.png",
+  18: "https://upload.wikimedia.org/wikipedia/commons/d/da/CONCACAF_Champions_Cup.png",
   6: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRekCc8DUZqEyM2shv_jyJrNoJ65Ao6ybVRgZQ1-sn6Q&s",
   431: "https://media.api-sports.io/football/leagues/431.png",
 };

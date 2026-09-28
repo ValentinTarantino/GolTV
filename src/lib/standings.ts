@@ -238,8 +238,8 @@ export async function fetchLeagueStandings(
     const totalStandings = tabs.reduce((sum, t) => sum + t.tables.reduce((s, tbl) => s + tbl.standings.length, 0), 0);
     logStandingsDebug(`[standings] League ${leagueId} - parsed ${tabs.length} tabs, ${totalStandings} total standings`);
 
-    // If Promiedos returns empty, fall back to API-Football
-    if (totalStandings === 0) {
+    // If Promiedos returns empty standings AND no brackets, fall back to API-Football
+    if (totalStandings === 0 && brackets.length === 0) {
       throw new Error("Empty standings from Promiedos");
     }
 
