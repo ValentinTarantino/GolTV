@@ -414,6 +414,8 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
     "deportesantofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
     "roma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
     "asroma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
+    "deportivorecoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
+    "recoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
   };
   if (CLUB_OVERRIDES[key]) return CLUB_OVERRIDES[key];
 

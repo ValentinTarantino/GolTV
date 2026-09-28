@@ -34,6 +34,7 @@ export const PROMIEDOS_LEAGUES: Record<number, PromiedosLeague> = {
   137: { urlName: "coppa-italia", id: "bhc" },
   235: { urlName: "liga-mx", id: "gbf" },
   431: { urlName: "leagues-cup", id: "bgf" },
+  255: { urlName: "copa-de-primera", id: "gcb" },
   // National teams - unlikely to have Promiedos standings
   // 5: UEFA Nations League
   // 6: CONCACAF Nations League
@@ -85,16 +86,23 @@ function parseStandingRow(row: any): Standing {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseTablesGroups(tablesGroups: any[]): StandingsTab[] {
-  return tablesGroups.map((group) => ({
-    name: group.name || "General",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tables: (group.tables || []).map((table: any): StandingsTable => ({
-      name: table.name || "General",
-      standings: (table.table?.rows || []).map(parseStandingRow),
-    })),
-  }));
+  return tablesGroups.map((group) => {
+    const rawGroupName = (group.name || "").trim();
+    // If the group has no name, use the first table's name as the tab label
+    const tables = group.tables || [];
+    const firstTableName = tables.length > 0 ? (tables[0].name || "").trim() : "";
+    const groupName = rawGroupName || firstTableName || "General";
+    
+    return {
+      name: groupName,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tables: tables.map((table: any): StandingsTable => ({
+        name: (table.name || "").trim() || "General",
+        standings: (table.table?.rows || []).map(parseStandingRow),
+      })),
+    };
+  });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

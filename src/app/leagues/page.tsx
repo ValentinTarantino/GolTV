@@ -20,6 +20,7 @@ const COUNTRY_ORDER = [
   { name: "Alemania", flag: "🇩🇪" },
   { name: "Italia", flag: "🇮🇹" },
   { name: "Estados Unidos", flag: "🇺🇸" },
+  { name: "Paraguay", flag: "🇵🇾" },
 ];
 
 const LEAGUES_PAGE_EXCLUDED_IDS = new Set([281, 5, 6, 10, 1034]);
@@ -254,11 +255,31 @@ export default function LeaguesPage() {
         const res = await fetch(`/api/standings?leagueId=${selectedId}`, { signal: controller.signal });
         const d = await res.json();
         if (currentFetchId === fetchIdRef.current) {
-          const allTabs = d.tabs || [];
-          const namedTabs = allTabs.filter((tab: { name: string }) => tab.name !== "General");
-          const generalTabs = allTabs.filter((tab: { name: string }) => tab.name === "General");
-          const anualTab = generalTabs.length > 0 ? [{ ...generalTabs[generalTabs.length - 1], name: t.leagues.anual }] : [];
-          setData({ tabs: [...namedTabs, ...anualTab], brackets: d.brackets || [] });
+          let allTabs = d.tabs || [];
+          
+          // Process all tabs: translate "anual" and filter out "promedio"
+          allTabs = allTabs
+            .map((tab: { name: string; tables: { name: string }[] }) => {
+              let name = tab.name;
+              // Some tabs might be named "General" but have a specific table name inside
+              if (name === "General" && tab.tables?.[0]?.name) {
+                name = tab.tables[0].name;
+              }
+              // Translate anual tabs
+              if (name.toLowerCase().includes("anual")) {
+                name = t.leagues.anual;
+              }
+              return { ...tab, name };
+            })
+            // Filter out relegation average tables
+            .filter((tab: { name: string }) => !tab.name.toLowerCase().includes("promedio"));
+
+          // If we end up with a single generic "General" tab (e.g. Argentina), rename it to Anual
+          if (allTabs.length === 1 && allTabs[0].name === "General") {
+            allTabs[0].name = t.leagues.anual;
+          }
+          
+          setData({ tabs: allTabs, brackets: d.brackets || [] });
           setActiveTab(0);
           setIsLoading(false);
         }

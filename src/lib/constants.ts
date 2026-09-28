@@ -6,6 +6,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   1032: "https://media.api-sports.io/football/leagues/1032.png",
   1034: "https://i.pinimg.com/236x/86/c9/45/86c945abdba6c19321de0f20120c8c36.jpg",
   130: "https://r2.thesportsdb.com/images/media/league/badge/welbig1655924428.png",
+  255: "/copa-primera-oficial.png",
   265: "https://media.api-sports.io/football/leagues/265.png",
   267: "https://media.api-sports.io/football/leagues/267.png",
   239: "https://media.api-sports.io/football/leagues/239.png",
@@ -70,6 +71,8 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   // Ecuador
   { id: 57, name: "Liga Pro", country: "Ecuador", countryFlag: "🇪🇨", slug: "liga-pro-ecuador", season: 2026 },
   { id: 504, name: "Copa Ecuador", country: "Ecuador", countryFlag: "🇪🇨", slug: "copa-ecuador", season: 2026 },
+  // Paraguay
+  { id: 255, name: "Copa de Primera", country: "Paraguay", countryFlag: "🇵🇾", slug: "copa-de-primera", season: 2026 },
   // CONMEBOL
   { id: 13, name: "Copa Libertadores", country: "Internacional", countryFlag: "🌎", slug: "copa-libertadores", season: 2026 },
   { id: 11, name: "Copa Sudamericana", country: "Internacional", countryFlag: "🌎", slug: "copa-sudamericana", season: 2026 },
@@ -213,6 +216,7 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   6: ["Fox Sports", "TUDN", "ViX"],
   10: ["ESPN", "TyC Sports", "DSports", "Fox Sports"],
   431: ["Apple TV", "Fox Sports", "TUDN"],
+  255: ["Tigo Sports", "ESPN"],
 };
 
 export function getBroadcastChannels(leagueId: number): string[] {
@@ -265,6 +269,9 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "copa perú": 503,
   "copa peru": 503,
   "copa ecuador": 504,
+  "copa de primera": 255,
+  "primera division paraguay": 255,
+  "primera division de paraguay": 255,
   "copa paraguay": 501,
   "liga auf uruguaya": 268,
   "liga uruguaya": 268,
@@ -349,6 +356,15 @@ const URUGUAY_TEAMS = [
   "rampla juniors", "central español", "deportivo maldonado",
 ];
 
+const PARAGUAY_TEAMS = [
+  "cerro porteño", "cerro porteno", "olimpia", "libertad", "guaraní", "guarani",
+  "nacional (p)", "nacional de paraguay", "sportivo luqueño", "luqueno",
+  "sportivo ameliano", "tacuary", "general caballero", "sportivo trinidense",
+  "2 de mayo", "sol de américa", "sol de america", "sportivo san lorenzo",
+  "deportivo recoleta", "rubio ñu", "rubio nu", "carapegua", "tembetary",
+  "12 de octubre", "resistencia", "san lorenzo"
+];
+
 const TEAM_DISPLAY_NAMES: Record<string, string> = {
   "brighton & hove albion": "Brighton",
   "brighton & hove albion fc": "Brighton",
@@ -406,10 +422,16 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
 
   if (isPanamaSerieA) return null;
 
-  // If league name is "liga de primera" but teams are Uruguayan → Liga AUF Uruguaya
-  const AMBIGUOUS_URUGUAY_LEAGUES = ["liga de primera", "primera division", "primera division profesional"];
-  const isAmbiguousLeague = AMBIGUOUS_URUGUAY_LEAGUES.some(l => normalized.includes(l));
+  // If league name is ambiguous like "primera division", check teams to disambiguate
+  const AMBIGUOUS_PRIMERA_LEAGUES = ["liga de primera", "primera division", "primera division profesional", "copa de primera"];
+  const isAmbiguousLeague = AMBIGUOUS_PRIMERA_LEAGUES.some(l => normalized.includes(l));
+  
   if (isAmbiguousLeague && (homeTeam || awayTeam)) {
+    const isParaguayMatch = PARAGUAY_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
+    if (isParaguayMatch) {
+      return SUPPORTED_LEAGUES.find((l) => l.id === 255) ?? null;
+    }
+    
     const isUruguayMatch = URUGUAY_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
     if (isUruguayMatch) {
       return SUPPORTED_LEAGUES.find((l) => l.id === 268) ?? null;
