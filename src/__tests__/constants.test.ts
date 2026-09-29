@@ -35,7 +35,7 @@ describe("SUPPORTED_LEAGUES", () => {
     const chile = SUPPORTED_LEAGUES.find((l) => l.id === 265);
     const colombia = SUPPORTED_LEAGUES.find((l) => l.id === 239);
     expect(chile).toBeDefined();
-    expect(chile?.name).toBe("Liga de Primera");
+    expect(chile?.name).toBe("Campeonato Nacional");
     expect(chile?.country).toBe("Chile");
     expect(SUPPORTED_LEAGUES.some((l) => l.id === 267)).toBe(true);
     expect(SUPPORTED_LEAGUES.find((l) => l.id === 267)?.name).toBe("Copa Chile");

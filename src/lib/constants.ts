@@ -332,7 +332,7 @@ const PL_EXCLUDED_LEAGUES = [
   "liga panama",
 ];
 
-const ECUADOR_SERIE_A_TEAMS = [
+export const ECUADOR_SERIE_A_TEAMS = [
   "ldu quito", "barcelona sc", "emelec", "el nacional", "independiente del valle",
   "universidad católica", "aucas", "delfín", "mushuc runa", "deportivo cuenca",
   "guayaquil city", "libertad", "gualaceo", "orense", "tecnico universitario",

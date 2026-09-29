@@ -86,7 +86,17 @@ function parseStandingRow(row: any): Standing {
   };
 }
 
-function parseTablesGroups(tablesGroups: any[]): StandingsTab[] {
+interface RawStandingsTable {
+  name?: string;
+  table?: { rows?: unknown[] };
+}
+
+interface RawTablesGroup {
+  name?: string;
+  tables?: RawStandingsTable[];
+}
+
+function parseTablesGroups(tablesGroups: RawTablesGroup[]): StandingsTab[] {
   return tablesGroups.map((group) => {
     const rawGroupName = (group.name || "").trim();
     // If the group has no name, use the first table's name as the tab label
@@ -96,10 +106,9 @@ function parseTablesGroups(tablesGroups: any[]): StandingsTab[] {
     
     return {
       name: groupName,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tables: tables.map((table: any): StandingsTable => ({
+      tables: tables.map((table): StandingsTable => ({
         name: (table.name || "").trim() || "General",
-        standings: (table.table?.rows || []).map(parseStandingRow),
+        standings: (table.table?.rows || []).map((row) => parseStandingRow(row)),
       })),
     };
   });

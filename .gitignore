@@ -41,6 +41,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# agent docs (local only)
+/AGENTS.md
+/MEMORY.md
+/CLAUDE.md
+
 # scratch
 /promiedos.html
 /scratch_fetch.js

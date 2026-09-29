@@ -3,6 +3,7 @@ export const leagueNames: Record<string, string> = {
   "Copa de la Liga": "League Cup",
   "Copa Argentina": "Argentina Cup",
   "Liga de Primera": "First Division",
+  "Campeonato Nacional": "First Division",
   "Copa Chile": "Chile Cup",
   "Brasileirão Serie A": "Serie A",
   "Copa do Brasil": "Brazil Cup",

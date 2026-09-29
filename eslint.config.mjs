@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "scratch_fetch.js",
+    "promiedos.html",
   ]),
   {
     files: ["cypress/**/*.ts"],
