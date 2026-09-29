@@ -78,5 +78,42 @@ describe("/api/viewers", () => {
       const data = await res.json();
       expect(data.count).toBe(0);
     });
+
+    it("action leave removes the viewer immediately", async () => {
+      await POST(makePostRequest({ matchId: "900007", viewerId: "viewer-eeee" }));
+      const res = await POST(
+        makePostRequest({ matchId: "900007", viewerId: "viewer-eeee", action: "leave" })
+      );
+      const data = await res.json();
+      expect(res.status).toBe(200);
+      expect(data.count).toBe(0);
+    });
+
+    it("GET after leave returns 0", async () => {
+      await POST(makePostRequest({ matchId: "900008", viewerId: "viewer-ffff" }));
+      await POST(
+        makePostRequest({ matchId: "900008", viewerId: "viewer-ffff", action: "leave" })
+      );
+      const res = await GET(makeGetRequest("http://localhost/api/viewers?matchId=900008"));
+      const data = await res.json();
+      expect(data.count).toBe(0);
+    });
+
+    it("leave of an unknown viewer does not break and keeps others", async () => {
+      await POST(makePostRequest({ matchId: "900009", viewerId: "viewer-gggg" }));
+      const res = await POST(
+        makePostRequest({ matchId: "900009", viewerId: "viewer-hhhh", action: "leave" })
+      );
+      const data = await res.json();
+      expect(res.status).toBe(200);
+      expect(data.count).toBe(1);
+    });
+
+    it("returns 400 for an invalid action", async () => {
+      const res = await POST(
+        makePostRequest({ matchId: "900010", viewerId: "viewer-iiii", action: "bye" })
+      );
+      expect(res.status).toBe(400);
+    });
   });
 });

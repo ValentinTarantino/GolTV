@@ -30,6 +30,7 @@ export const chatPostSchema = z.object({
 export const viewerHeartbeatSchema = z.object({
   matchId: z.string().regex(/^\d+$/, "Invalid match ID"),
   viewerId: z.string().min(8).max(64).regex(/^[a-zA-Z0-9_-]+$/),
+  action: z.enum(["heartbeat", "leave"]).optional(),
 });
 
 export const standingsQuerySchema = z.object({

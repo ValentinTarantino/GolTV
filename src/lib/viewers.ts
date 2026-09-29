@@ -1,7 +1,7 @@
 import { getViewersCollection } from "./mongo";
 
 const ACTIVE_WINDOW_MS = 45_000; // viewer counted if heartbeat < 45s ago
-const HEARTBEAT_INTERVAL_MS = 15_000;
+const HEARTBEAT_INTERVAL_MS = 5_000;
 
 // In-memory fallback (no MONGODB_URI): matchId:viewerId -> lastSeen
 const memoryViewers = new Map<string, number>();
@@ -74,5 +74,30 @@ export async function getViewerCount(matchId: string): Promise<number> {
     }
   }
 
+  return memoryCount(matchId);
+}
+
+/**
+ * Removes a viewer immediately (player closed / navigated away) and returns
+ * the remaining active-viewer count for that match.
+ * Falls back to the in-memory map without MONGODB_URI (tests / local dev).
+ */
+export async function removeViewer(matchId: string, viewerId: string): Promise<number> {
+  const now = Date.now();
+  const collection = await getViewersCollection();
+
+  if (collection) {
+    try {
+      await collection.deleteOne({ matchId, viewerId });
+      return await collection.countDocuments({
+        matchId,
+        lastSeen: { $gte: now - ACTIVE_WINDOW_MS },
+      });
+    } catch {
+      // fall through to the in-memory fallback
+    }
+  }
+
+  memoryViewers.delete(memoryKey(matchId, viewerId));
   return memoryCount(matchId);
 }

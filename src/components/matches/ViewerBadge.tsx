@@ -6,7 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 // Keep in sync with VIEWER_HEARTBEAT_MS in src/lib/viewers.ts
 // (duplicated here so the client bundle never pulls in the mongodb driver)
-const HEARTBEAT_MS = 15_000;
+const HEARTBEAT_MS = 5_000;
 
 const VIEWER_ID_KEY = "goltv-viewer-id";
 
@@ -37,10 +37,11 @@ export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps
     if (!active) return;
 
     let cancelled = false;
+    let left = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const heartbeat = async () => {
-      if (cancelled) return;
+      if (cancelled || left) return;
       try {
         if (!viewerIdRef.current) viewerIdRef.current = getViewerId();
         const res = await fetch("/api/viewers", {
@@ -54,15 +55,41 @@ export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps
       } catch {
         // transient network error — keep the last known count
       } finally {
-        if (!cancelled) timer = setTimeout(heartbeat, HEARTBEAT_MS);
+        if (!cancelled && !left) timer = setTimeout(heartbeat, HEARTBEAT_MS);
       }
     };
 
+    const sendLeave = () => {
+      if (left || !viewerIdRef.current) return;
+      left = true;
+      cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      // keepalive lets the request survive a tab close / page unload
+      void fetch("/api/viewers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matchId,
+          viewerId: viewerIdRef.current,
+          action: "leave",
+        }),
+        keepalive: true,
+      }).catch(() => {
+        // the 45s active window will expire this viewer anyway
+      });
+    };
+
+    const onPageHide = () => sendLeave();
+
     heartbeat();
+    window.addEventListener("pagehide", onPageHide);
 
     return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
+      window.removeEventListener("pagehide", onPageHide);
+      sendLeave();
     };
   }, [matchId, active]);
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { heartbeatViewer, getViewerCount } from "@/lib/viewers";
+import { heartbeatViewer, getViewerCount, removeViewer } from "@/lib/viewers";
 import {
   validateQuery,
   validateBody,
@@ -24,7 +24,10 @@ export async function POST(request: Request) {
   const validation = await validateBody(request, viewerHeartbeatSchema);
   if ("error" in validation) return validation.error;
 
-  const { matchId, viewerId } = validation.data;
-  const count = await heartbeatViewer(matchId, viewerId);
+  const { matchId, viewerId, action } = validation.data;
+  const count =
+    action === "leave"
+      ? await removeViewer(matchId, viewerId)
+      : await heartbeatViewer(matchId, viewerId);
   return Response.json({ count });
 }
