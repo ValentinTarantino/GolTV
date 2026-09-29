@@ -13,11 +13,11 @@ GolTV Libre es una plataforma web gratuita para seguir y ver partidos de futbol 
 ### Caracteristicas
 
 - Agenda de partidos en vivo agrupada por ligas y competiciones
-- 19 ligas cubiertas: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Liga de Primera Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Liga 1 Perú, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
+- 19 ligas cubiertas: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Campeonato Nacional Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Liga 1 Perú, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
 - Tablas de posiciones y brackets de copa en la pagina de ligas (scraping de Promiedos)
 - Estados en tiempo real: En Vivo, Proximo, Finalizado con marcadores y tiempos
-- Reproductor HLS integrado con selector de canales y reload
-- Chat en vivo por partido con smart scroll (scrollea automaticamente si estas cerca del fondo, te deja leer si scrolleaste arriba)
+- Reproductor HLS integrado con selector de canales, selector de calidad y reload
+- Chat en vivo por partido con smart scroll (scrollea automaticamente si estas cerca del fondo, te deja leer si scrolleaste arriba); mensajes persistentes 24h via MongoDB
 - Busqueda de equipos en el header
 - Logos de equipos via TheSportsDB con fuzzy matching y aliases
 - Navegacion por fechas para ver partidos de otros dias
@@ -35,6 +35,7 @@ GolTV Libre es una plataforma web gratuita para seguir y ver partidos de futbol 
 - **Lenguaje:** TypeScript
 - **Estilos:** Tailwind CSS v4
 - **Video:** Hls.js
+- **Base de datos:** MongoDB (Atlas Free) — chat persistente
 - **Iconos:** Lucide React
 - **Testing:** Jest 30, React Testing Library, Cypress 16
 - **CI/CD:** GitHub Actions
@@ -49,6 +50,14 @@ GolTV Libre es una plataforma web gratuita para seguir y ver partidos de futbol 
 - **Promiedos:** Tablas de posiciones y bracket de copas. Scraping de __NEXT_DATA__. Cache 10 min
 - **TheSportsDB:** Logos de equipos y ligas con busqueda fuzzy
 
+### Base de Datos
+
+- **MongoDB Atlas (Free tier)** — persistencia del chat en vivo
+- Coleccion `chat_messages` con TTL automatico: los mensajes se borran a las 24 horas
+- Indices: `{ matchId, ts }` para historial por partido y `ts` para el TTL
+- Rate limit del chat por nick consultado en la base (consistente entre instancias serverless)
+- **Fallback en memoria:** si `MONGODB_URI` no esta definida, el chat funciona con un `Map` en memoria (usado por los tests y dev local sin DB)
+
 ### Variables de Entorno
 
 Archivo `.env.local` en la raiz del proyecto:
@@ -56,6 +65,8 @@ Archivo `.env.local` en la raiz del proyecto:
 ```
 API_FOOTBALL_KEY=clave_api_football
 RAPIDAPI_KEY=clave_rapidapi
+MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster0.example.mongodb.net/?appName=Cluster0
+MONGODB_DB=goltv
 ```
 
 ### Uso Cuidadoso de Cuotas
@@ -74,13 +85,13 @@ RAPIDAPI_KEY=clave_rapidapi
 
 | Tipo | Tests | Descripcion |
 |------|-------|-------------|
-| Unit (Jest) | 49 | Constantes, utilidades, streaming, tipos, API routes |
-| API Routes (Jest) | 34 | matches, match-by-id, standings, leagues, chat, health |
+| Unit (Jest) | 62 | Constantes, utilidades, streaming, tipos |
+| API Routes (Jest) | 35 | matches, match-by-id, standings, leagues, chat, health |
 | E2E (Cypress) | 32 | Home, navegacion, busqueda, ligas, responsive, idioma |
-| **Total** | **115** | **Cobertura completa de stack** |
+| **Total** | **129** | **Cobertura completa de stack** |
 
 ```bash
-npm test                          # 83 tests Jest
+npm test                          # 97 tests Jest
 npx cypress run                   # 32 tests E2E
 npm run validate                  # Lint + TypeScript + Jest + Build
 ```
@@ -92,7 +103,7 @@ npm run validate                  # Lint + TypeScript + Jest + Build
 | `npm run dev` | Servidor de desarrollo |
 | `npm run build` | Build de produccion |
 | `npm run lint` | Linter ESLint |
-| `npm test` | Ejecutar tests Jest (83 tests) |
+| `npm test` | Ejecutar tests Jest (97 tests) |
 | `npm run cypress` | Abrir Cypress E2E (browser) |
 | `npm run cypress:run` | Ejecutar Cypress headless |
 | `npm run test:e2e` | Abrir Cypress |
@@ -129,7 +140,7 @@ goltv-libre/
       ui/                   # Skeleton, FootballLoader
     contexts/               # LanguageContext
     i18n/                   # Diccionarios ES/EN
-    lib/                    # Logica: API clients, tipos, constantes, utils
+    lib/                    # Logica: API clients, tipos, constantes, utils, mongo
     __tests__/              # Tests unitarios y de API routes (Jest)
   cypress/                  # Tests E2E (Cypress)
     e2e/                    # Specs: home, navigation, search, leagues, responsive...
@@ -155,11 +166,11 @@ GolTV Libre is a free web platform for watching live football matches. It featur
 ### Features
 
 - Live match schedule grouped by leagues and competitions
-- 19 leagues covered: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Liga de Primera Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Liga 1 Peru, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
+- 19 leagues covered: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Campeonato Nacional Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Liga 1 Peru, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
 - League standings and cup brackets on the leagues page (scraped from Promiedos)
 - Real-time statuses: Live, Upcoming, Finished with scores and timers
-- Integrated HLS player with channel selector and reload
-- Live chat per match with smart scroll (auto-scrolls near the bottom, lets you read if you scrolled up)
+- Integrated HLS player with channel selector, quality selector and reload
+- Live chat per match with smart scroll (auto-scrolls near the bottom, lets you read if you scrolled up); messages persisted for 24h via MongoDB
 - Team search in the header
 - Team logos via TheSportsDB with fuzzy matching and aliases
 - Date navigation to view matches from other days
@@ -177,6 +188,7 @@ GolTV Libre is a free web platform for watching live football matches. It featur
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS v4
 - **Video:** Hls.js
+- **Database:** MongoDB (Atlas Free) — persistent chat
 - **Icons:** Lucide React
 - **Testing:** Jest 30, React Testing Library, Cypress 16
 - **CI/CD:** GitHub Actions
@@ -191,6 +203,14 @@ GolTV Libre is a free web platform for watching live football matches. It featur
 - **Promiedos:** League standings and cup brackets. __NEXT_DATA__ scraping. 10 min cache
 - **TheSportsDB:** Team and league logos with fuzzy search
 
+### Database
+
+- **MongoDB Atlas (Free tier)** — live chat persistence
+- `chat_messages` collection with automatic TTL: messages are deleted after 24 hours
+- Indexes: `{ matchId, ts }` for per-match history and `ts` for the TTL
+- Per-nick chat rate limit queried from the database (consistent across serverless instances)
+- **In-memory fallback:** when `MONGODB_URI` is not set, chat runs on an in-memory `Map` (used by tests and local dev without a DB)
+
 ### Environment Variables
 
 File `.env.local` in the project root:
@@ -198,6 +218,8 @@ File `.env.local` in the project root:
 ```
 API_FOOTBALL_KEY=your_api_football_key
 RAPIDAPI_KEY=your_rapidapi_key
+MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster0.example.mongodb.net/?appName=Cluster0
+MONGODB_DB=goltv
 ```
 
 ### Rate Limit Management
@@ -216,13 +238,13 @@ RAPIDAPI_KEY=your_rapidapi_key
 
 | Type | Tests | Description |
 |------|-------|-------------|
-| Unit (Jest) | 49 | Constants, utilities, streaming, types, API routes |
-| API Routes (Jest) | 34 | matches, match-by-id, standings, leagues, chat, health |
+| Unit (Jest) | 62 | Constants, utilities, streaming, types |
+| API Routes (Jest) | 35 | matches, match-by-id, standings, leagues, chat, health |
 | E2E (Cypress) | 32 | Home, navigation, search, leagues, responsive, language |
-| **Total** | **115** | **Full stack coverage** |
+| **Total** | **129** | **Full stack coverage** |
 
 ```bash
-npm test                          # 83 Jest tests
+npm test                          # 97 Jest tests
 npx cypress run                   # 32 E2E tests
 npm run validate                  # Lint + TypeScript + Jest + Build
 ```
@@ -234,7 +256,7 @@ npm run validate                  # Lint + TypeScript + Jest + Build
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint linter |
-| `npm test` | Run Jest tests (83 tests) |
+| `npm test` | Run Jest tests (97 tests) |
 | `npm run cypress` | Open Cypress E2E (browser) |
 | `npm run cypress:run` | Run Cypress headless |
 | `npm run test:e2e` | Open Cypress |
@@ -271,7 +293,7 @@ goltv-libre/
       ui/                   # Skeleton, FootballLoader
     contexts/               # LanguageContext
     i18n/                   # Translation dictionaries (ES/EN)
-    lib/                    # Logic: API clients, types, constants, utils
+    lib/                    # Logic: API clients, types, constants, utils, mongo
     __tests__/              # Unit and API route tests (Jest)
   cypress/                  # E2E tests (Cypress)
     e2e/                    # Specs: home, navigation, search, leagues, responsive...

@@ -1,4 +1,5 @@
 ﻿import { getCache, setCache, incrementCounter } from "./cache";
+import { getChatCollection } from "./mongo";
 
 export interface ChatMessage {
   id: string;
@@ -46,6 +47,20 @@ function validateMatchId(matchId: string): string | null {
 }
 
 async function canSend(nick: string): Promise<boolean> {
+  const collection = await getChatCollection();
+  if (collection) {
+    // Global check across instances: last message from this nick must be
+    // older than the rate limit window.
+    try {
+      const last = await collection
+        .findOne({ nick }, { sort: { ts: -1 }, projection: { ts: 1 } });
+      if (last && Date.now() - last.ts < RATE_LIMIT_MS) return false;
+      return true;
+    } catch {
+      // fall through to the in-memory limiter
+    }
+  }
+
   const key = `${CHAT_RATE_LIMIT_KEY}:${nick}`;
   const count = await incrementCounter(key, RATE_LIMIT_MS);
   return count === 1;
@@ -61,6 +76,25 @@ async function saveMessagesToCache(matchId: string, messages: ChatMessage[]): Pr
 }
 
 export async function getChatMessages(matchId: string, offset: number): Promise<ChatMessage[]> {
+  const collection = await getChatCollection();
+  if (collection) {
+    try {
+      const messages = await collection
+        .find({ matchId, ts: { $gte: offset } })
+        .sort({ ts: 1 })
+        .toArray();
+      return messages.map(({ id, matchId: mid, nick, text, ts }) => ({
+        id,
+        matchId: mid,
+        nick,
+        text,
+        ts,
+      }));
+    } catch {
+      // fall through to the in-memory history
+    }
+  }
+
   const messages = await getMessagesFromCache(matchId);
   return messages.filter((m) => m.ts >= offset);
 }
@@ -83,15 +117,26 @@ export async function addChatMessage(
     return { ok: false, error: "Rate limited" };
   }
 
-  const messages = await getMessagesFromCache(validId);
-
   const msg: ChatMessage = {
-    id: `${validId}-${++msgCounter}-${Date.now()}`,
+    // Include randomness: ids must stay unique across serverless instances
+    id: `${validId}-${++msgCounter}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     matchId: validId,
     nick: validNick,
     text: validText,
     ts: Date.now(),
   };
+
+  const collection = await getChatCollection();
+  if (collection) {
+    try {
+      await collection.insertOne(msg);
+      return { ok: true };
+    } catch {
+      // fall through to the in-memory history
+    }
+  }
+
+  const messages = await getMessagesFromCache(validId);
 
   messages.push(msg);
 
