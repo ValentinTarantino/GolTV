@@ -241,6 +241,7 @@ export const dictionaries = {
       noStreamsDesc:
         "El proveedor de streaming no tiene señal usable ahora (a menudo por bloqueo del CDN). Probá de nuevo en unos minutos.",
       retryStream: "Reintentar",
+      viewers: "viendo",
     },
     player: {
       playerOne: "REPRODUCTOR 1",
@@ -370,6 +371,7 @@ export const dictionaries = {
       noStreamsDesc:
         "The streaming provider has no usable signal right now (often a CDN block). Try again in a few minutes.",
       retryStream: "Retry",
+      viewers: "watching",
     },
     player: {
       playerOne: "PLAYER 1",

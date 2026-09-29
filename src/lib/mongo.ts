@@ -7,6 +7,15 @@ const MONGODB_DB = process.env.MONGODB_DB || "goltv";
 export const CHAT_COLLECTION = "chat_messages";
 export const CHAT_TTL_SECONDS = 24 * 60 * 60;
 
+export const VIEWERS_COLLECTION = "viewers";
+export const VIEWERS_TTL_SECONDS = 60;
+
+export interface ViewerDoc {
+  matchId: string;
+  viewerId: string;
+  lastSeen: number;
+}
+
 interface CachedClient {
   client: MongoClient;
   ready: Promise<Db>;
@@ -47,15 +56,25 @@ function connect(uri: string): CachedClient {
 }
 
 async function ensureIndexes(db: Db): Promise<void> {
-  const collection = db.collection(CHAT_COLLECTION);
+  const chat = db.collection(CHAT_COLLECTION);
+  const viewers = db.collection(VIEWERS_COLLECTION);
   await Promise.all([
-    collection.createIndex({ matchId: 1, ts: 1 }),
+    chat.createIndex({ matchId: 1, ts: 1 }),
     // Auto-delete messages older than 24h
-    collection.createIndex({ ts: 1 }, { expireAfterSeconds: CHAT_TTL_SECONDS }),
+    chat.createIndex({ ts: 1 }, { expireAfterSeconds: CHAT_TTL_SECONDS }),
+    // One live entry per viewer per match (heartbeat upsert)
+    viewers.createIndex({ matchId: 1, viewerId: 1 }, { unique: true }),
+    // Safety cleanup: entries stop being relevant long before this
+    viewers.createIndex({ lastSeen: 1 }, { expireAfterSeconds: VIEWERS_TTL_SECONDS }),
   ]);
 }
 
-export async function getChatCollection(): Promise<Collection<ChatMessage> | null> {
+/**
+ * Returns the db, or `null` when MONGODB_URI is not set (tests / local dev
+ * without a database fall back to the in-memory store) or when the
+ * connection fails — callers fall back instead of failing the request.
+ */
+async function getDb(): Promise<Db | null> {
   if (!isMongoConfigured()) return null;
 
   if (!globalRef.__goltvMongo) {
@@ -63,9 +82,20 @@ export async function getChatCollection(): Promise<Collection<ChatMessage> | nul
   }
 
   try {
-    const db = await globalRef.__goltvMongo.ready;
-    return db.collection<ChatMessage>(CHAT_COLLECTION);
+    return await globalRef.__goltvMongo.ready;
   } catch {
     return null;
   }
+}
+
+/** Chat collection, or `null` to signal "use the in-memory fallback". */
+export async function getChatCollection(): Promise<Collection<ChatMessage> | null> {
+  const db = await getDb();
+  return db ? db.collection<ChatMessage>(CHAT_COLLECTION) : null;
+}
+
+/** Viewers collection, or `null` to signal "use the in-memory fallback". */
+export async function getViewersCollection(): Promise<Collection<ViewerDoc> | null> {
+  const db = await getDb();
+  return db ? db.collection<ViewerDoc>(VIEWERS_COLLECTION) : null;
 }

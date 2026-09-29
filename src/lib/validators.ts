@@ -27,6 +27,11 @@ export const chatPostSchema = z.object({
   text: z.string().min(1).max(500),
 });
 
+export const viewerHeartbeatSchema = z.object({
+  matchId: z.string().regex(/^\d+$/, "Invalid match ID"),
+  viewerId: z.string().min(8).max(64).regex(/^[a-zA-Z0-9_-]+$/),
+});
+
 export const standingsQuerySchema = z.object({
   leagueId: z.string().regex(/^\d+$/, "Invalid league ID"),
   season: z.string().regex(/^\d{4}$/).optional(),
@@ -44,6 +49,7 @@ export type MatchesQuery = z.infer<typeof matchesQuerySchema>;
 export type MatchIdParams = z.infer<typeof matchIdParamsSchema>;
 export type MatchIdQuery = z.infer<typeof matchIdQuerySchema>;
 export type ChatPost = z.infer<typeof chatPostSchema>;
+export type ViewerHeartbeat = z.infer<typeof viewerHeartbeatSchema>;
 export type StandingsQuery = z.infer<typeof standingsQuerySchema>;
 export type LeaguesQuery = z.infer<typeof leaguesQuerySchema>;
 export type HealthQuery = z.infer<typeof healthQuerySchema>;

@@ -9,6 +9,7 @@ import VideoPlayer from "@/components/player/VideoPlayer";
 import ChannelSelector from "@/components/player/ChannelSelector";
 import ChatBox from "@/components/chat/ChatBox";
 import LiveBadge from "@/components/matches/LiveBadge";
+import ViewerBadge from "@/components/matches/ViewerBadge";
 import { PlayerSkeleton } from "@/components/ui/Skeleton";
 import { isLive, isUpcoming, isViewable, isFinished } from "@/lib/utils";
 import type { Match, Channel } from "@/lib/types";
@@ -149,7 +150,10 @@ function WatchPageInner({
                 {translateLeague(match.league.name, language)}
               </h2>
             </div>
-            {live && <LiveBadge />}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <ViewerBadge matchId={matchId} active={live} />
+              {live && <LiveBadge />}
+            </div>
           </div>
 
           <div className="animate-fade-in">
