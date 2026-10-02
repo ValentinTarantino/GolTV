@@ -11,16 +11,23 @@ jest.mock("@/lib/streaming", () => ({
 
 jest.mock("@/lib/agenda-source", () => ({
   getAgendaStream: jest.fn(),
+  findAgendaStreams: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/event-source", () => ({
   findEventStreams: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock("@/lib/secondary-source", () => ({
+  findSecondaryStreams: jest.fn().mockResolvedValue([]),
+}));
+
 import { GET } from "@/app/api/matches/[matchId]/route";
 import { getMatchById } from "@/lib/api-football";
 import { getStreamsForMatch } from "@/lib/streaming";
+import { findAgendaStreams } from "@/lib/agenda-source";
 import { findEventStreams } from "@/lib/event-source";
+import { findSecondaryStreams } from "@/lib/secondary-source";
 import type { Match } from "@/lib/types";
 
 function makeMatch(overrides: Partial<Match> = {}): Match {
@@ -139,5 +146,43 @@ describe("/api/matches/[matchId]", () => {
 
     expect(res.status).toBe(200);
     expect(findEventStreams).toHaveBeenCalledWith("Boca", "River");
+  });
+
+  it("uses the secondary source when player=3", async () => {
+    (getMatchById as jest.Mock).mockResolvedValue(null);
+    (findSecondaryStreams as jest.Mock).mockResolvedValue([
+      { id: "secondary-1", name: "TyC Sports", url: "https://example.com/eventos.html?r=ABC", kind: "iframe" },
+    ]);
+
+    const req = makeRequest(
+      "http://localhost/api/matches/99999?player=3&home=Platense&away=Estudiantes&league=Copa%20Argentina"
+    );
+    const res = await GET(req, {
+      params: Promise.resolve({ matchId: "99999" }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(findSecondaryStreams).toHaveBeenCalledWith("Platense", "Estudiantes");
+    expect(data.match.channels[0].kind).toBe("iframe");
+  });
+
+  it("resolves primary-agenda channels for secondary-only matches (player=1)", async () => {
+    (getMatchById as jest.Mock).mockResolvedValue(null);
+    (findAgendaStreams as jest.Mock).mockResolvedValue([
+      { id: "a1", name: "Canal", url: "https://example.com/embed" },
+    ]);
+
+    const req = makeRequest(
+      "http://localhost/api/matches/99999?home=Platense&away=Estudiantes&league=Copa%20Argentina"
+    );
+    const res = await GET(req, {
+      params: Promise.resolve({ matchId: "99999" }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(findAgendaStreams).toHaveBeenCalledWith("Platense", "Estudiantes");
+    expect(data.match.channels.length).toBeGreaterThan(0);
   });
 });

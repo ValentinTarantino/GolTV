@@ -122,6 +122,21 @@ describe("isAllowedStreamLeague", () => {
 });
 
 describe("getTeamLogo", () => {
+  it("uses South Korea's official national team crest for Spanish and English names", async () => {
+    const southKoreaCrest =
+      "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png";
+
+    for (const team of [
+      "Corea del Sur",
+      "COREA DEL SUR",
+      "South Korea",
+      "Korea Republic",
+      "South Korea National Football Team",
+    ]) {
+      await expect(getTeamLogo(team)).resolves.toBe(southKoreaCrest);
+    }
+  });
+
   it("returns visible badges for remaining national teams", async () => {
     const expected = {
       Armenia: "https://flagcdn.com/w160/am.png",
@@ -149,6 +164,26 @@ describe("getTeamLogo", () => {
   it("uses the Chilean crest for Audax Italiano", async () => {
     await expect(getTeamLogo("Audax Italiano", "Chile")).resolves.toBe("https://audax.dwos.cl/uploads/otros/escudos/2022.svg");
     await expect(getTeamLogo("audaxitaliano")).resolves.toBe("https://audax.dwos.cl/uploads/otros/escudos/2022.svg");
+  });
+
+  it("uses the original Estudiantes de La Plata crest for Estudiantes LP", async () => {
+    const estudiantesCrest = "https://api.promiedos.com.ar/images/team/igh/3";
+
+    await expect(getTeamLogo("Estudiantes LP", "Argentina")).resolves.toBe(estudiantesCrest);
+    await expect(getTeamLogo("Estudiantes LP")).resolves.toBe(estudiantesCrest);
+    await expect(getTeamLogo("Estudiantes de La Plata", "Argentina")).resolves.toBe(estudiantesCrest);
+  });
+
+  it("uses Universidad de Concepción's crest for its common aliases", async () => {
+    const universidadDeConcepcionCrest = "https://api.promiedos.com.ar/images/team/bceh/3";
+
+    for (const team of ["Univ. Concepción", "Universidad de Concepción", "UdeC"]) {
+      await expect(getTeamLogo(team, "Chile")).resolves.toBe(universidadDeConcepcionCrest);
+    }
+  });
+
+  it("still maps Platense to its promiedos badge", async () => {
+    await expect(getTeamLogo("Platense", "Argentina")).resolves.toBe("https://api.promiedos.com.ar/images/team/hcah/3");
   });
 });
 

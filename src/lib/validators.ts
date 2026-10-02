@@ -15,7 +15,7 @@ export const matchIdQuerySchema = z.object({
   streamId: z.string().optional(),
   eventSlug: z.string().optional(),
   eventSources: z.string().optional(),
-  player: z.enum(["1", "2"]).optional(),
+  player: z.enum(["1", "2", "3"]).optional(),
   home: z.string().min(1).max(100).optional(),
   away: z.string().min(1).max(100).optional(),
   league: z.string().min(1).max(100).optional(),

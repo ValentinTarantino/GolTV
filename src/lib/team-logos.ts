@@ -218,6 +218,12 @@ const COUNTRY_FLAGS: Record<string, string> = {
 };
 
 const NATIONAL_TEAM_BADGES: Record<string, string> = {
+  southkorea: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
+  southkoreanationalfootballteam: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
+  korearepublic: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
+  korearepublicnationalfootballteam: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
+  coreadelsur: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
+  coreadelsurnationalfootballteam: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
   trinidadandtobago: "https://r2.thesportsdb.com/images/media/team/badge/x0uq8u1598135774.png",
   trinidadytobago: "https://r2.thesportsdb.com/images/media/team/badge/x0uq8u1598135774.png",
   trinidad: "https://r2.thesportsdb.com/images/media/team/badge/x0uq8u1598135774.png",

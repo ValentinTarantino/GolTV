@@ -17,6 +17,8 @@ GolTV Libre es una plataforma web gratuita para seguir y ver partidos de futbol 
 - Tablas de posiciones y brackets de copa en la pagina de ligas (scraping de Promiedos)
 - Estados en tiempo real: En Vivo, Proximo, Finalizado con marcadores y tiempos
 - Reproductor HLS integrado con selector de canales, selector de calidad y reload
+- 3 reproductores: Reproductor 1 (HLS con control total), Reproductor 2 (embeds de eventos) y Reproductor 3 (embeds del fixture secundario)
+- Fixture secundario: scraping de un agenda HTML alternativo que solo agrega los partidos que faltan en la agenda principal (la fuente principal siempre tiene prioridad)
 - Chat en vivo por partido con smart scroll (scrollea automaticamente si estas cerca del fondo, te deja leer si scrolleaste arriba); mensajes persistentes 24h via MongoDB
 - Contador de espectadores en vivo por partido, actualizado en tiempo real: heartbeat cada 5s y salida instantanea al cerrar/navegar (via MongoDB)
 - Busqueda de equipos en el header
@@ -44,8 +46,9 @@ GolTV Libre es una plataforma web gratuita para seguir y ver partidos de futbol 
 
 ### Fuentes de Datos
 
-- **FutbolLibre:** Fuente principal. JSON estatico en Bunny CDN (Strapi v4),解析 de partidos, resolucion de embeds. Cache 30 min
+- **FutbolLibre:** Fuente principal. JSON estatico en Bunny CDN (Strapi v4), resolucion de partidos, resolucion de embeds. Cache 30 min
 - **PelotaLibre:** Fuente secundaria. Scraping del agenda HTML, multiples fuentes por partido. Cache 30 min
+- **Pelota Libre (pl):** Fixture secundario. Scraping de `agenda.html`; solo agrega partidos que la agenda principal no tiene (nunca duplica). Las fuentes de aqui alimentan al Reproductor 3 via iframe, decodificadas al server para ir directo al player (sin el chrome del sitio scrapeado). Cache 5 min
 - **API-Football (API-Sports):** Fixtures, ligas, escudos, marcadores. Multi-key rotation, limite ~70 llamadas/key/dia, cache 90s-2min
 - **RapidAPI (football-live-stream-api):** Partidos en vivo y URLs HLS. Limite ~35 llamadas/dia, cache 5-10 min
 - **Promiedos:** Tablas de posiciones y bracket de copas. Scraping de __NEXT_DATA__. Cache 10 min
@@ -87,13 +90,13 @@ MONGODB_DB=goltv
 
 | Tipo | Tests | Descripcion |
 |------|-------|-------------|
-| Unit (Jest) | 62 | Constantes, utilidades, streaming, tipos |
-| API Routes (Jest) | 47 | matches, match-by-id, standings, leagues, chat, viewers, health |
+| Unit (Jest) | 72 | Constantes, utilidades, streaming, tipos, parser del fixture secundario |
+| API Routes (Jest) | 53 | matches, match-by-id, standings, leagues, chat, viewers, health |
 | E2E (Cypress) | 32 | Home, navegacion, busqueda, ligas, responsive, idioma |
-| **Total** | **141** | **Cobertura completa de stack** |
+| **Total** | **157** | **Cobertura completa de stack** |
 
 ```bash
-npm test                          # 109 tests Jest
+npm test                          # 125 tests Jest
 npx cypress run                   # 32 tests E2E
 npm run validate                  # Lint + TypeScript + Jest + Build
 ```
@@ -105,7 +108,7 @@ npm run validate                  # Lint + TypeScript + Jest + Build
 | `npm run dev` | Servidor de desarrollo |
 | `npm run build` | Build de produccion |
 | `npm run lint` | Linter ESLint |
-| `npm test` | Ejecutar tests Jest (109 tests) |
+| `npm test` | Ejecutar tests Jest (125 tests) |
 | `npm run cypress` | Abrir Cypress E2E (browser) |
 | `npm run cypress:run` | Ejecutar Cypress headless |
 | `npm run test:e2e` | Abrir Cypress |
@@ -172,6 +175,8 @@ GolTV Libre is a free web platform for watching live football matches. It featur
 - League standings and cup brackets on the leagues page (scraped from Promiedos)
 - Real-time statuses: Live, Upcoming, Finished with scores and timers
 - Integrated HLS player with channel selector, quality selector and reload
+- 3 players: Player 1 (HLS with full control), Player 2 (event embeds) and Player 3 (secondary-fixture embeds)
+- Secondary fixture: scrapes an alternative HTML agenda and only adds matches the primary agenda is missing (the primary source always wins)
 - Live chat per match with smart scroll (auto-scrolls near the bottom, lets you read if you scrolled up); messages persisted for 24h via MongoDB
 - Live viewer counter per match, updated in real time: 5s heartbeat plus instant leave on close/navigate (via MongoDB)
 - Team search in the header
@@ -201,6 +206,7 @@ GolTV Libre is a free web platform for watching live football matches. It featur
 
 - **FutbolLibre:** Primary source. Static JSON on Bunny CDN (Strapi v4), match parsing, embed resolution. 30 min cache
 - **PelotaLibre:** Secondary source. HTML agenda scraping, multiple sources per match. 30 min cache
+- **Pelota Libre (pl):** Secondary fixture. Scrapes `agenda.html`; only adds matches the primary agenda lacks (never duplicates). Its sources feed Player 3 via iframe, decoded server-side so the bare player loads (no scraped-site chrome). 5 min cache
 - **API-Football (API-Sports):** Fixtures, leagues, crests, scores. Multi-key rotation, ~70 calls/key/day limit, 90s-2min cache
 - **RapidAPI (football-live-stream-api):** Live matches and HLS URLs. ~35 calls/day limit, 5-10 min cache
 - **Promiedos:** League standings and cup brackets. __NEXT_DATA__ scraping. 10 min cache
@@ -242,13 +248,13 @@ MONGODB_DB=goltv
 
 | Type | Tests | Description |
 |------|-------|-------------|
-| Unit (Jest) | 62 | Constants, utilities, streaming, types |
-| API Routes (Jest) | 47 | matches, match-by-id, standings, leagues, chat, viewers, health |
+| Unit (Jest) | 72 | Constants, utilities, streaming, types, secondary fixture parser |
+| API Routes (Jest) | 53 | matches, match-by-id, standings, leagues, chat, viewers, health |
 | E2E (Cypress) | 32 | Home, navigation, search, leagues, responsive, language |
-| **Total** | **141** | **Full stack coverage** |
+| **Total** | **157** | **Full stack coverage** |
 
 ```bash
-npm test                          # 109 Jest tests
+npm test                          # 125 Jest tests
 npx cypress run                   # 32 E2E tests
 npm run validate                  # Lint + TypeScript + Jest + Build
 ```
@@ -260,7 +266,7 @@ npm run validate                  # Lint + TypeScript + Jest + Build
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint linter |
-| `npm test` | Run Jest tests (109 tests) |
+| `npm test` | Run Jest tests (125 tests) |
 | `npm run cypress` | Open Cypress E2E (browser) |
 | `npm run cypress:run` | Run Cypress headless |
 | `npm run test:e2e` | Open Cypress |

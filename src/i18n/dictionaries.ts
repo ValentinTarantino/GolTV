@@ -246,6 +246,7 @@ export const dictionaries = {
     player: {
       playerOne: "REPRODUCTOR 1",
       playerTwo: "REPRODUCTOR 2",
+      playerThree: "REPRODUCTOR 3",
       availableChannels: "CANALES DISPONIBLES",
       noChannels: "No hay canales disponibles para este partido.",
       loadingStream: "Cargando stream...",
@@ -376,6 +377,7 @@ export const dictionaries = {
     player: {
       playerOne: "PLAYER 1",
       playerTwo: "PLAYER 2",
+      playerThree: "PLAYER 3",
       availableChannels: "AVAILABLE CHANNELS",
       noChannels: "No channels available for this match.",
       loadingStream: "Loading stream...",

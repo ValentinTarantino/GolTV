@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
+import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS } from "@/lib/constants";
 import { getTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
@@ -44,7 +45,10 @@ export async function GET(request: NextRequest) {
   if ("error" in validation) return validation.error;
 
   const requestedDate = validation.data.date;
-  const flAgenda = await fetchAgenda();
+  const [flAgenda, secondaryAgenda] = await Promise.all([
+    fetchAgenda(),
+    fetchSecondaryAgenda(),
+  ]);
 
   const date = requestedDate || getArgentinaToday();
   const filteredAgenda = flAgenda.filter(
@@ -89,6 +93,45 @@ export async function GET(request: NextRequest) {
       broadcastChannels: getBroadcastChannels(league.id),
       _eventSlug: flMatch.slug,
       _eventSources: flMatch.embeds.map((e) => ({ id: e.id, name: e.name, embedIframe: e.embedIframe })),
+    });
+  }
+
+  // Secondary fixture: only contributes matches the primary fixture is missing.
+  for (const secMatch of secondaryAgenda) {
+    const dedupKey = `${normalize(secMatch.homeTeam)}-${normalize(secMatch.awayTeam)}`;
+    if (seenTeams.has(dedupKey)) continue;
+    if (secMatch.sources.length === 0) continue;
+    if (!(toArgentinaDate(secMatch.dateISO) === date || isNearNow(secMatch.dateISO))) continue;
+
+    const league = matchPlLeague(secMatch.league, secMatch.homeTeam, secMatch.awayTeam);
+    if (!league) continue;
+    seenTeams.add(dedupKey);
+
+    const status = inferStatus(secMatch.dateISO);
+
+    matches.push({
+      id: hashSlug(secMatch.slug),
+      league: {
+        id: league.id,
+        name: league.name,
+        country: league.country,
+        logo: LEAGUE_LOGOS[league.id] || `https://media.api-sports.io/football/leagues/${league.id}.png`,
+        flag: league.countryFlag,
+        slug: league.slug,
+      },
+      homeTeam: { id: 0, name: secMatch.homeTeam, logo: "" },
+      awayTeam: { id: 0, name: secMatch.awayTeam, logo: "" },
+      date: secMatch.dateISO,
+      timestamp: Math.floor(new Date(secMatch.dateISO).getTime() / 1000),
+      status: {
+        short: status,
+        long: status === "NS" ? "Próximamente" : status === "FT" ? "Finalizado" : "En Juego",
+        elapsed: null,
+      },
+      score: { home: null, away: null },
+      channels: [],
+      broadcastChannels: getBroadcastChannels(league.id),
+      _eventSlug: secMatch.slug,
     });
   }
 
