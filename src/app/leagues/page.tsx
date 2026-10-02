@@ -153,46 +153,64 @@ function BracketView({ rounds, t }: { rounds: BracketRound[]; t: ReturnType<type
             <h3 className="font-black text-accent-primary uppercase text-xs sm:text-sm tracking-wider">{round.name}</h3>
           </div>
           <div className="divide-y divide-white/10">
-            {round.matches.map((match, i) => (
-              <div key={i} className="px-2 sm:px-4 py-2 sm:py-3">
-                {/* Mobile: stacked layout */}
-                <div className="flex sm:hidden items-center gap-2">
-                  <span className="font-bold text-white text-xs flex-1 truncate">{match.homeTeam}</span>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {match.homeScore !== "" ? (
-                      <>
-                        <span className="font-black text-white text-sm bg-white/10 px-2 py-0.5 min-w-[1.5rem] text-center">{match.homeScore}</span>
-                        <span className="text-gray-500 font-bold text-xs">-</span>
-                        <span className="font-black text-white text-sm bg-white/10 px-2 py-0.5 min-w-[1.5rem] text-center">{match.awayScore}</span>
-                      </>
-                    ) : (
-                      <span className="text-gray-500 font-bold text-xs px-1">vs</span>
-                    )}
+            {round.matches.map((match, i) => {
+              const isTied = match.homeScore !== "" && match.awayScore !== "" && Number(match.homeScore) === Number(match.awayScore);
+              const winnerName =
+                match.winner === "home"
+                  ? match.homeTeam
+                  : match.winner === "away"
+                    ? match.awayTeam
+                    : null;
+
+              return (
+                <div key={i} className="px-2 sm:px-4 py-2 sm:py-3">
+                  {/* Mobile: stacked layout */}
+                  <div className="flex sm:hidden items-center gap-2">
+                    <span className="font-bold text-white text-xs flex-1 truncate">{match.homeTeam}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {match.homeScore !== "" ? (
+                        <>
+                          <span className="font-black text-white text-sm bg-white/10 px-2 py-0.5 min-w-[1.5rem] text-center">{match.homeScore}</span>
+                          <span className="text-gray-500 font-bold text-xs">-</span>
+                          <span className="font-black text-white text-sm bg-white/10 px-2 py-0.5 min-w-[1.5rem] text-center">{match.awayScore}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-500 font-bold text-xs px-1">vs</span>
+                      )}
+                    </div>
+                    <span className="font-bold text-white text-xs flex-1 truncate text-right">{match.awayTeam}</span>
                   </div>
-                  <span className="font-bold text-white text-xs flex-1 truncate text-right">{match.awayTeam}</span>
+                  {/* Desktop: side-by-side layout */}
+                  <div className="hidden sm:flex items-center justify-between gap-3">
+                    <div className="flex-1 text-right">
+                      <span className="font-bold text-white text-sm">{match.homeTeam}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {match.homeScore !== "" ? (
+                        <>
+                          <span className="font-black text-white text-lg bg-white/10 px-3 py-1 min-w-[2rem] text-center">{match.homeScore}</span>
+                          <span className="text-gray-500 font-bold">-</span>
+                          <span className="font-black text-white text-lg bg-white/10 px-3 py-1 min-w-[2rem] text-center">{match.awayScore}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-500 font-bold text-sm px-2">vs</span>
+                      )}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <span className="font-bold text-white text-sm">{match.awayTeam}</span>
+                    </div>
+                  </div>
+                  {isTied && (match.penalties || winnerName) && (
+                    <div className="mt-2 flex flex-wrap gap-x-3 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-accent-primary">
+                      {match.penalties && (
+                        <span>{t.leagues.penalties}: {match.penalties.home ?? "-"}-{match.penalties.away ?? "-"}</span>
+                      )}
+                      {winnerName && <span>{t.leagues.winner}: {winnerName}</span>}
+                    </div>
+                  )}
                 </div>
-                {/* Desktop: side-by-side layout */}
-                <div className="hidden sm:flex items-center justify-between gap-3">
-                  <div className="flex-1 text-right">
-                    <span className="font-bold text-white text-sm">{match.homeTeam}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {match.homeScore !== "" ? (
-                      <>
-                        <span className="font-black text-white text-lg bg-white/10 px-3 py-1 min-w-[2rem] text-center">{match.homeScore}</span>
-                        <span className="text-gray-500 font-bold">-</span>
-                        <span className="font-black text-white text-lg bg-white/10 px-3 py-1 min-w-[2rem] text-center">{match.awayScore}</span>
-                      </>
-                    ) : (
-                      <span className="text-gray-500 font-bold text-sm px-2">vs</span>
-                    )}
-                  </div>
-                  <div className="flex-1 text-left">
-                    <span className="font-bold text-white text-sm">{match.awayTeam}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}

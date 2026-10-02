@@ -8,6 +8,7 @@ import { shortenTeamName } from "@/lib/constants";
 import { isLive, isFinished, isUpcoming, isViewable, formatTime, getStatusLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translateCountryName } from "@/i18n/dictionaries";
+import { useTimeZone } from "@/contexts/TimeZoneContext";
 
 interface MatchCardProps {
   match: Match;
@@ -15,6 +16,7 @@ interface MatchCardProps {
 
 export default function MatchCard({ match }: MatchCardProps) {
   const { t, language } = useLanguage();
+  const { timeZone } = useTimeZone();
   const live = isLive(match.status.short);
   const finished = isFinished(match.status.short);
   const upcoming = isUpcoming(match.status.short);
@@ -88,13 +90,13 @@ export default function MatchCard({ match }: MatchCardProps) {
 
           {(live || upcoming) && (
             <span className={`text-sm sm:text-lg font-black tabular-nums bg-black px-1.5 sm:px-2 py-0.5 sm:py-1 border-2 ${live ? "text-accent-primary border-accent-primary" : "text-accent-primary border-accent-primary"}`}>
-              {formatTime(match.date, language)}
+              {formatTime(match.date, language, timeZone)}
             </span>
           )}
 
           {finished && (
             <span className="text-sm sm:text-lg font-black tabular-nums text-white/60 bg-black px-1.5 sm:px-2 py-0.5 sm:py-1 border-2 border-white/30">
-              {formatTime(match.date, language)}
+              {formatTime(match.date, language, timeZone)}
             </span>
           )}
 

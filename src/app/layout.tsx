@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { TimeZoneProvider } from "@/contexts/TimeZoneContext";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -65,9 +66,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className={`${spaceGrotesk.variable} h-full`}>
       <body className="min-h-full flex flex-col font-sans antialiased">
         <LanguageProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <TimeZoneProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </TimeZoneProvider>
         </LanguageProvider>
       </body>
     </html>

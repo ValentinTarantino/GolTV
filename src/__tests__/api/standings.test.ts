@@ -73,4 +73,21 @@ describe("/api/standings", () => {
     expect(data.tabs).toHaveLength(0);
     expect(data.brackets).toHaveLength(0);
   });
+
+  it("keeps the winner when a knockout match is tied after 90 or 120 minutes", () => {
+    const { normalizeBracketMatch } = jest.requireActual("@/lib/standings") as typeof import("@/lib/standings");
+
+    const match = normalizeBracketMatch({
+      teams: [{ name: "River Plate" }, { name: "Boca Juniors" }],
+      scores: [1, 1],
+      winner: 1,
+      penalties: [4, 2],
+      status: { short_name: "PEN" },
+    });
+
+    expect(match.homeScore).toBe("1");
+    expect(match.awayScore).toBe("1");
+    expect(match.winner).toBe("away");
+    expect(match.penalties).toEqual({ home: 4, away: 2 });
+  });
 });

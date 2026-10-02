@@ -4,6 +4,7 @@ import {
   getBroadcastChannels,
   CHANNEL_SETS,
   matchPlLeague,
+  isFootballLeagueName,
 } from "@/lib/constants";
 import { getTeamLogo } from "@/lib/team-logos";
 import { isAllowedStreamLeague } from "@/lib/streaming";
@@ -137,6 +138,20 @@ describe("getTeamLogo", () => {
     }
   });
 
+  it("uses Bermuda's official football association crest", async () => {
+    const bermudaCrest = "https://upload.wikimedia.org/wikipedia/en/b/bb/Bermuda_FA_logo.svg";
+
+    for (const team of [
+      "Bermuda",
+      "Bermudas",
+      "Bermuda National Team",
+      "Bermuda National Football Team",
+      "Bermuda Football Association",
+    ]) {
+      await expect(getTeamLogo(team)).resolves.toBe(bermudaCrest);
+    }
+  });
+
   it("returns visible badges for remaining national teams", async () => {
     const expected = {
       Armenia: "https://flagcdn.com/w160/am.png",
@@ -243,5 +258,16 @@ describe("matchPlLeague", () => {
     expect(league?.id).toBe(57);
     expect(league?.country).toBe("Ecuador");
     expect(league?.name).toBe("Liga Pro");
+  });
+
+  it("rejects non-football sports such as NHL", () => {
+    expect(isFootballLeagueName("Sports:")).toBe(false);
+    expect(isFootballLeagueName("NHL")).toBe(false);
+    expect(isFootballLeagueName("NBA")).toBe(false);
+    expect(isFootballLeagueName("MLB")).toBe(false);
+    expect(isFootballLeagueName("Champions League")).toBe(true);
+    expect(matchPlLeague("NHL", "Detroit Red Wings", "New York Rangers")).toBeNull();
+    expect(matchPlLeague("NBA", "Los Angeles Lakers", "Boston Celtics")).toBeNull();
+    expect(matchPlLeague("MLB", "Yankees", "Red Sox")).toBeNull();
   });
 });

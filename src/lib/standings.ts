@@ -114,6 +114,96 @@ function parseTablesGroups(tablesGroups: RawTablesGroup[]): StandingsTab[] {
   });
 }
 
+function normalizeScoreValue(value: unknown): string {
+  if (value == null || value === "") return "";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    const asNumber = Number(trimmed);
+    if (!Number.isNaN(asNumber)) return String(asNumber);
+    const match = trimmed.match(/(-?\d+)/);
+    return match ? match[1] : trimmed;
+  }
+  return String(value);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readPenaltyScore(game: any): { home: number | null; away: number | null } | null {
+  const raw =
+    game.penalties ??
+    game.penalty_score ??
+    game.penalty_scores ??
+    game.score_penalties ??
+    game.penalty?.score ??
+    game.result?.penalties ??
+    game.result?.score_penalties ??
+    game.penalty_shootout ??
+    null;
+
+  if (!raw) return null;
+
+  if (Array.isArray(raw)) {
+    const [home, away] = raw.map((v) => Number(v));
+    if (Number.isFinite(home) || Number.isFinite(away)) {
+      return { home: Number.isFinite(home) ? home : null, away: Number.isFinite(away) ? away : null };
+    }
+  }
+
+  if (typeof raw === "string") {
+    const [home, away] = raw.split("-").map((part) => Number(part.trim()));
+    if (Number.isFinite(home) || Number.isFinite(away)) {
+      return { home: Number.isFinite(home) ? home : null, away: Number.isFinite(away) ? away : null };
+    }
+  }
+
+  if (typeof raw === "object") {
+    const home = Number(raw.home ?? raw.home_pen ?? raw[0] ?? raw.score_home ?? raw.homeScore ?? raw.home_team);
+    const away = Number(raw.away ?? raw.away_pen ?? raw[1] ?? raw.score_away ?? raw.awayScore ?? raw.away_team);
+    if (Number.isFinite(home) || Number.isFinite(away)) {
+      return {
+        home: Number.isFinite(home) ? home : null,
+        away: Number.isFinite(away) ? away : null,
+      };
+    }
+  }
+
+  return null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizeBracketMatch(game: any): BracketMatch {
+  const home = game.teams?.[0];
+  const away = game.teams?.[1];
+  const homeScore = normalizeScoreValue(game.scores?.[0] ?? game.score?.home ?? game.home_score ?? game.homeScore ?? "");
+  const awayScore = normalizeScoreValue(game.scores?.[1] ?? game.score?.away ?? game.away_score ?? game.awayScore ?? "");
+  const penalties = readPenaltyScore(game);
+  const winningTeam =
+    game.winner ??
+    game.winner_team ??
+    game.winnerTeam ??
+    game.result?.winner ??
+    game.result?.winner_team ??
+    game.winner_side ??
+    null;
+
+  let winner: BracketMatch["winner"] = undefined;
+  if (winningTeam === 0 || winningTeam === "0" || winningTeam === home?.name) winner = "home";
+  else if (winningTeam === 1 || winningTeam === "1" || winningTeam === away?.name) winner = "away";
+  else if (winningTeam === "draw" || winningTeam === "tie" || winningTeam === "empatado") winner = "draw";
+
+  return {
+    homeTeam: home?.name || "",
+    awayTeam: away?.name || "",
+    homeScore,
+    awayScore,
+    round: "",
+    status: game.status?.short_name || game.status || game.game_time_status_to_display || "",
+    winner,
+    penalties,
+  };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseBrackets(brackets: any): BracketRound[] {
   if (!brackets?.stages) return [];
@@ -125,16 +215,8 @@ function parseBrackets(brackets: any): BracketRound[] {
     matches: (stage.groups || []).flatMap((group: any): BracketMatch[] => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (group.games || []).map((game: any): BracketMatch => {
-        const home = game.teams?.[0];
-        const away = game.teams?.[1];
-        return {
-          homeTeam: home?.name || "",
-          awayTeam: away?.name || "",
-          homeScore: game.scores?.[0] != null ? String(game.scores[0]) : "",
-          awayScore: game.scores?.[1] != null ? String(game.scores[1]) : "",
-          round: stage.name || "",
-          status: game.status?.short_name || game.game_time_status_to_display || "",
-        };
+        const match = normalizeBracketMatch(game);
+        return { ...match, round: stage.name || "" };
       });
     }),
   }));

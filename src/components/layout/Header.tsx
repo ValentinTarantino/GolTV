@@ -5,6 +5,7 @@ import { Tv, Zap, Trophy } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SearchBar from "@/components/search/SearchBar";
 import MobileMenu from "@/components/search/MobileMenu";
+import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
 
 export default function Header() {
   const { language, setLanguage, t } = useLanguage();
@@ -56,6 +57,7 @@ export default function Header() {
               <Trophy size={14} strokeWidth={3} />
               <span>{t.leagues?.title || "LIGAS"}</span>
             </Link>
+            <TimeZoneSelect />
             <div className="flex items-center border-2 border-[#38bdf8] bg-black shadow-[4px_4px_0px_0px_#38bdf8] font-black text-xs sm:text-sm">
               <button
                 onClick={() => setLanguage('es')}

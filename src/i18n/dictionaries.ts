@@ -190,6 +190,8 @@ export function translateLeague(name: string, language: string = "es"): string {
 export const dictionaries = {
   es: {
     header: {
+      timeZone: "ZONA HORARIA",
+      utcOffset: "HUSO HORARIO",
       ticker: [
         "TRANSMISIONES EN VIVO",
         "SEÑALES HD SIN CORTES",
@@ -283,6 +285,8 @@ export const dictionaries = {
       noStandings: "SIN POSICIONES DISPONIBLES",
       noStandingsDesc: "Este torneo no tiene tabla de posiciones disponible.",
       noBracket: "SIN LLAVES DISPONIBLES",
+      winner: "GANADOR",
+      penalties: "PENALES",
       team: "EQUIPO",
       gp: "PJ",
       g: "G",
@@ -321,6 +325,8 @@ export const dictionaries = {
   },
   en: {
     header: {
+      timeZone: "TIME ZONE",
+      utcOffset: "UTC OFFSET",
       ticker: [
         "LIVE STREAMING",
         "HD SIGNALS WITHOUT INTERRUPTIONS",
@@ -414,6 +420,8 @@ export const dictionaries = {
       noStandings: "NO STANDINGS AVAILABLE",
       noStandingsDesc: "This tournament does not have standings available.",
       noBracket: "NO BRACKET AVAILABLE",
+      winner: "WINNER",
+      penalties: "PENALTIES",
       team: "TEAM",
       gp: "GP",
       g: "W",

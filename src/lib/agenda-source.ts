@@ -1,6 +1,9 @@
 import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
+import { isFootballLeagueName } from "./constants";
 import { matchTeamsPair } from "./team-matching";
+
+const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
 
 const FL_AGENDA_URL = process.env.AGENDA_SOURCE_URL!;
 const FL_EMBED_BASE = process.env.EMBED_SOURCE_BASE!;
@@ -115,6 +118,7 @@ function parseStrapiAgenda(data: StrapiDiary[]): AgendaMatch[] {
 
     const { league, homeTeam, awayTeam } = parseDescription(desc);
     if (!homeTeam || !awayTeam) continue;
+    if (!isFootballLeagueName(league) || NON_FOOTBALL_TEXT.test(`${league} ${homeTeam} ${awayTeam}`)) continue;
 
     const dateISO = limaToArgentinaISO(date, hour);
     const embeds = parseStrapiEmbeds(item.embeds);

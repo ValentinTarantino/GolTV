@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Match } from "@/lib/types";
+import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
 
 function formatDateISO(date: Date): string {
   return date.toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 10);
@@ -125,6 +126,10 @@ export default function MobileMenu() {
                 EN
               </button>
             </div>
+          </div>
+
+          <div className="px-4 py-3 border-b-2 border-white">
+            <TimeZoneSelect mobile />
           </div>
 
           <div className="px-4 py-3 border-b-2 border-white">

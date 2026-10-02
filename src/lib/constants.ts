@@ -330,6 +330,26 @@ const PL_EXCLUDED_LEAGUES = [
   "division profesional",
   "serie a panama",
   "liga panama",
+  "sports",
+  "sport",
+  "nhl",
+  "nba",
+  "nfl",
+  "mlb",
+  "basketball",
+  "baseball",
+  "american football",
+  "ice hockey",
+  "tennis",
+  "rugby",
+  "cricket",
+  "volleyball",
+  "handball",
+  "csgo",
+  "valorant",
+  "lol",
+  "league of legends",
+  "ufc",
 ];
 
 export const ECUADOR_SERIE_A_TEAMS = [
@@ -402,6 +422,66 @@ export function shortenTeamName(name: string): string {
   return TEAM_DISPLAY_NAMES[name.toLowerCase()] ?? name;
 }
 
+export function isFootballLeagueName(plLeagueName: string): boolean {
+  const normalizeText = (value: string) => value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const normalized = normalizeText(plLeagueName ?? "");
+
+  if (!normalized) return false;
+
+  for (const excluded of PL_EXCLUDED_LEAGUES) {
+    if (normalized === excluded || normalized.includes(excluded)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function containsNonFootballSignal(value?: string): boolean {
+  const normalizeText = (input: string) => input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const text = normalizeText(value ?? "");
+  if (!text) return false;
+
+  const blocked = [
+    "nhl",
+    "nba",
+    "nfl",
+    "mlb",
+    "sports",
+    "sport",
+    "basketball",
+    "baseball",
+    "american football",
+    "ice hockey",
+    "tennis",
+    "rugby",
+    "cricket",
+    "volleyball",
+    "handball",
+    "csgo",
+    "valorant",
+    "lol",
+    "league of legends",
+    "ufc",
+  ];
+
+  return blocked.some((token) => text.includes(token));
+}
+
 export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?: string): LeagueConfig | null {
   const normalizeText = (value: string) => value
     .toLowerCase()
@@ -410,7 +490,12 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
     .replace(/\s+/g, " ")
     .trim();
 
+  const combinedText = `${plLeagueName ?? ""} ${homeTeam ?? ""} ${awayTeam ?? ""}`;
+  if (containsNonFootballSignal(combinedText)) return null;
+
   const normalized = normalizeText(plLeagueName);
+
+  if (!isFootballLeagueName(plLeagueName)) return null;
 
   for (const excluded of PL_EXCLUDED_LEAGUES) {
     if (normalized === excluded) return null;

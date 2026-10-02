@@ -7,6 +7,7 @@ import {
   getStatusLabel,
   getCountdown,
 } from "@/lib/utils";
+import { getTimeZoneOffsetMinutes, TIME_ZONE_OPTIONS } from "@/lib/time-zones";
 
 describe("isLive", () => {
   it("returns true for live statuses", () => {
@@ -78,6 +79,31 @@ describe("formatTime", () => {
   it("formats ISO date string to time", () => {
     const result = formatTime("2026-09-17T14:30:00+00:00");
     expect(result).toMatch(/\d{2}:\d{2}/);
+  });
+
+  it("formats match time in the selected time zone", () => {
+    expect(formatTime("2026-09-17T14:30:00Z", "en", "America/Los_Angeles")).toBe("07:30 AM");
+    expect(formatTime("2026-09-17T14:30:00Z", "es", "America/Argentina/Buenos_Aires")).toBe("11:30");
+  });
+});
+
+describe("timezone options", () => {
+  it("includes Mexico's distinct regional time zones", () => {
+    const values = new Set(TIME_ZONE_OPTIONS.map((option) => option.value));
+    const mexicoZones = [
+      "America/Tijuana",
+      "America/Hermosillo",
+      "America/Chihuahua",
+      "America/Mexico_City",
+      "America/Cancun",
+    ];
+
+    for (const timeZone of mexicoZones) expect(values.has(timeZone)).toBe(true);
+
+    const date = new Date("2026-10-02T12:00:00Z");
+    expect(getTimeZoneOffsetMinutes("America/Tijuana", date)).toBe(-420);
+    expect(getTimeZoneOffsetMinutes("America/Mexico_City", date)).toBe(-360);
+    expect(getTimeZoneOffsetMinutes("America/Cancun", date)).toBe(-300);
   });
 });
 

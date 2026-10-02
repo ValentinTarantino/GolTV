@@ -20,12 +20,13 @@ export function isViewable(status: MatchStatusShort, timestamp: number): boolean
   return Date.now() / 1000 >= timestamp - 30 * 60;
 }
 
-export function formatTime(dateStr: string, lang: Language = "es"): string {
+export function formatTime(dateStr: string, lang: Language = "es", timeZone?: string): string {
   const d = new Date(dateStr);
   return d.toLocaleTimeString(lang === "es" ? "es-AR" : "en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: lang === "en",
+    ...(timeZone ? { timeZone } : {}),
   });
 }
 

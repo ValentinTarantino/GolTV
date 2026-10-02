@@ -99,6 +99,8 @@ export interface BracketMatch {
   awayScore: string;
   round: string;
   status: string;
+  winner?: "home" | "away" | "draw";
+  penalties?: { home: number | null; away: number | null } | null;
 }
 
 export interface BracketRound {

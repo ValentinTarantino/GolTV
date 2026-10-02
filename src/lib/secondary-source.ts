@@ -1,6 +1,9 @@
 import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
+import { isFootballLeagueName } from "./constants";
 import { matchTeamsPair } from "./team-matching";
+
+const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
 
 function agendaUrl(): string {
   return process.env.SECONDARY_AGENDA_URL ?? "";
@@ -133,6 +136,7 @@ export function parseSecondaryAgenda(html: string): SecondaryMatch[] {
 
     const { league, homeTeam, awayTeam } = parseDescription(token.text);
     if (!homeTeam || !awayTeam) continue;
+    if (!isFootballLeagueName(league) || NON_FOOTBALL_TEXT.test(`${league} ${homeTeam} ${awayTeam}`)) continue;
 
     const dateISO = toArgentinaISO(currentDay.year, currentDay.month, currentDay.day, token.time);
     if (!dateISO) continue;

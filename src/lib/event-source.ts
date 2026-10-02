@@ -1,6 +1,9 @@
 ﻿import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
+import { isFootballLeagueName } from "./constants";
 import { matchTeamsPair } from "./team-matching";
+
+const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
 
 const PL_BASE = process.env.EVENT_SOURCE_BASE!;
 const PL_AGENDA_URL = process.env.EVENT_AGENDA_URL!;
@@ -51,9 +54,11 @@ function parseAgendaHTML(html: string): EventMatch[] {
 
     const competitionMatch = block.match(/<span[^>]*class="[^"]*source-agenda-competition[^"]*"[^>]*>([^<]*)<\/span>/);
     const league = decodeHtmlEntities(competitionMatch ? competitionMatch[1].trim().replace(/:$/, "") : "Desconocido");
-
     const textMatch = block.match(/<span[^>]*class="[^"]*source-agenda-eventtext[^"]*"[^>]*>\s*<strong[^>]*>([\s\S]*?)<\/strong>/);
     if (!textMatch) continue;
+    const titleText = decodeHtmlEntities((textMatch[1] || "").replace(/<[^>]*>/g, " "));
+    const titleSignal = `${league} ${titleText}`;
+    if (!isFootballLeagueName(league) || NON_FOOTBALL_TEXT.test(titleSignal)) continue;
 
     const strongHTML = textMatch[1];
     const teamsText = decodeHtmlEntities(

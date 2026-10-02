@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
-import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS } from "@/lib/constants";
+import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isFootballLeagueName } from "@/lib/constants";
 import { getTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
@@ -59,6 +59,8 @@ export async function GET(request: NextRequest) {
   const matches: Match[] = [];
 
   for (const flMatch of filteredAgenda) {
+    if (!isFootballLeagueName(flMatch.league)) continue;
+
     const dedupKey = `${normalize(flMatch.homeTeam)}-${normalize(flMatch.awayTeam)}`;
     if (seenTeams.has(dedupKey)) continue;
     seenTeams.add(dedupKey);
@@ -98,6 +100,8 @@ export async function GET(request: NextRequest) {
 
   // Secondary fixture: only contributes matches the primary fixture is missing.
   for (const secMatch of secondaryAgenda) {
+    if (!isFootballLeagueName(secMatch.league)) continue;
+
     const dedupKey = `${normalize(secMatch.homeTeam)}-${normalize(secMatch.awayTeam)}`;
     if (seenTeams.has(dedupKey)) continue;
     if (secMatch.sources.length === 0) continue;
