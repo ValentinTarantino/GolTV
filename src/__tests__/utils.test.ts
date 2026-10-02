@@ -105,6 +105,16 @@ describe("timezone options", () => {
     expect(getTimeZoneOffsetMinutes("America/Mexico_City", date)).toBe(-360);
     expect(getTimeZoneOffsetMinutes("America/Cancun", date)).toBe(-300);
   });
+
+  it("includes Paraguay and Chile time zones", () => {
+    const values = new Set(TIME_ZONE_OPTIONS.map((option) => option.value));
+    const date = new Date("2026-10-02T12:00:00Z");
+
+    expect(values.has("America/Santiago")).toBe(true);
+    expect(values.has("America/Asuncion")).toBe(true);
+    expect(getTimeZoneOffsetMinutes("America/Asuncion", date)).toBe(-180);
+    expect(getTimeZoneOffsetMinutes("America/Santiago", date)).toBe(-180);
+  });
 });
 
 describe("getStatusLabel", () => {

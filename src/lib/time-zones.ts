@@ -19,6 +19,7 @@ export const TIME_ZONE_OPTIONS: TimeZoneOption[] = [
   { value: "America/Bogota", labelEs: "Bogotá · Colombia, Perú y Ecuador", labelEn: "Bogota · Colombia, Peru and Ecuador" },
   { value: "America/Caracas", labelEs: "Caracas · Venezuela y Bolivia", labelEn: "Caracas · Venezuela and Bolivia" },
   { value: "America/Santiago", labelEs: "Santiago · Chile", labelEn: "Santiago · Chile" },
+  { value: "America/Asuncion", labelEs: "Asunción · Paraguay", labelEn: "Asuncion · Paraguay" },
   { value: "America/Argentina/Buenos_Aires", labelEs: "Buenos Aires · Argentina", labelEn: "Buenos Aires · Argentina" },
   { value: "America/Montevideo", labelEs: "Montevideo · Uruguay", labelEn: "Montevideo · Uruguay" },
   { value: "America/Sao_Paulo", labelEs: "São Paulo · Brasil", labelEn: "Sao Paulo · Brazil" },
