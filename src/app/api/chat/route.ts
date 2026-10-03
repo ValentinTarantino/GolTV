@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { getChatMessages, addChatMessage } from "@/lib/chat";
+import { CHAT_STORAGE_UNAVAILABLE, getChatMessages, addChatMessage } from "@/lib/chat";
+import { isMongoConfigured } from "@/lib/mongo";
 import { validateQuery, validateBody, createErrorResponse, chatPostSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +16,12 @@ export async function GET(request: Request) {
 
   const { matchId, offset } = validation.data;
   const offsetNum = offset ? parseInt(offset, 10) : 0;
-  const messages = await getChatMessages(matchId, isNaN(offsetNum) ? 0 : offsetNum);
-  return Response.json({ messages });
+  try {
+    const messages = await getChatMessages(matchId, isNaN(offsetNum) ? 0 : offsetNum);
+    return Response.json({ messages, persistent: isMongoConfigured() });
+  } catch {
+    return createErrorResponse(CHAT_STORAGE_UNAVAILABLE, 503);
+  }
 }
 
 export async function POST(request: Request) {
@@ -27,8 +32,9 @@ export async function POST(request: Request) {
   const result = await addChatMessage(matchId, nick, text);
 
   if (!result.ok) {
-    return createErrorResponse(result.error!, 400);
+    const status = result.error === CHAT_STORAGE_UNAVAILABLE ? 503 : 400;
+    return createErrorResponse(result.error!, status);
   }
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, persistent: result.persistent });
 }

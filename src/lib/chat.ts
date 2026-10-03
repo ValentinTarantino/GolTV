@@ -1,5 +1,5 @@
 ﻿import { getCache, setCache, incrementCounter } from "./cache";
-import { getChatCollection } from "./mongo";
+import { getChatCollection, isMongoConfigured } from "./mongo";
 
 export interface ChatMessage {
   id: string;
@@ -13,6 +13,7 @@ const MAX_MESSAGES_PER_MATCH = 200;
 const RATE_LIMIT_MS = 3000;
 const CHAT_RATE_LIMIT_KEY = "chat:ratelimit";
 const CHAT_MESSAGES_KEY = "chat:messages";
+export const CHAT_STORAGE_UNAVAILABLE = "Chat storage unavailable";
 
 let msgCounter = 0;
 
@@ -76,7 +77,10 @@ async function saveMessagesToCache(matchId: string, messages: ChatMessage[]): Pr
 }
 
 export async function getChatMessages(matchId: string, offset: number): Promise<ChatMessage[]> {
+  const mongoConfigured = isMongoConfigured();
   const collection = await getChatCollection();
+  if (mongoConfigured && !collection) throw new Error(CHAT_STORAGE_UNAVAILABLE);
+
   if (collection) {
     try {
       const messages = await collection
@@ -91,7 +95,7 @@ export async function getChatMessages(matchId: string, offset: number): Promise<
         ts,
       }));
     } catch {
-      // fall through to the in-memory history
+      if (mongoConfigured) throw new Error(CHAT_STORAGE_UNAVAILABLE);
     }
   }
 
@@ -103,7 +107,7 @@ export async function addChatMessage(
   matchId: string,
   nick: string,
   text: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; persistent?: boolean }> {
   const validId = validateMatchId(matchId);
   if (!validId) return { ok: false, error: "Invalid match ID" };
 
@@ -130,11 +134,13 @@ export async function addChatMessage(
   if (collection) {
     try {
       await collection.insertOne(msg);
-      return { ok: true };
+      return { ok: true, persistent: true };
     } catch {
-      // fall through to the in-memory history
+      if (isMongoConfigured()) return { ok: false, error: CHAT_STORAGE_UNAVAILABLE };
     }
   }
+
+  if (isMongoConfigured()) return { ok: false, error: CHAT_STORAGE_UNAVAILABLE };
 
   const messages = await getMessagesFromCache(validId);
 
@@ -146,5 +152,5 @@ export async function addChatMessage(
 
   await saveMessagesToCache(validId, messages);
 
-  return { ok: true };
+  return { ok: true, persistent: false };
 }

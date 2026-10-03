@@ -270,6 +270,11 @@ export const dictionaries = {
       placeholder: "Escribí un mensaje...",
       sendButton: "Enviar",
       messagesEmpty: "No hay mensajes todavía. ¡Sé el primero!",
+      temporaryStorageWarning: "El chat está en modo temporal: estos mensajes pueden perderse al salir. Revisá la configuración de MongoDB.",
+      storageUnavailable: "No se pudo acceder al historial del chat. Probá de nuevo en unos segundos.",
+      loadError: "No se pudo cargar el chat. Revisá tu conexión e intentá de nuevo.",
+      sendError: "No se pudo enviar el mensaje. Revisá tu conexión e intentá de nuevo.",
+      rateLimit: "Esperá unos segundos antes de enviar otro mensaje.",
     },
     search: {
       placeholder: "Buscar equipo...",
@@ -405,6 +410,11 @@ export const dictionaries = {
       placeholder: "Type a message...",
       sendButton: "Send",
       messagesEmpty: "No messages yet. Be the first!",
+      temporaryStorageWarning: "Chat is in temporary mode: messages may be lost when you leave. Check the MongoDB configuration.",
+      storageUnavailable: "Chat history is unavailable. Try again in a few seconds.",
+      loadError: "Could not load chat. Check your connection and try again.",
+      sendError: "Could not send the message. Check your connection and try again.",
+      rateLimit: "Wait a few seconds before sending another message.",
     },
     search: {
       placeholder: "Search team...",

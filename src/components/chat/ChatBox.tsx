@@ -22,6 +22,7 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [persistent, setPersistent] = useState<boolean | null>(null);
   const offsetRef = useRef<number>(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -42,8 +43,13 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
       const res = await fetch(
         `/api/chat?matchId=${matchId}&offset=${offsetRef.current}`
       );
-      if (!res.ok) return;
       const data = await res.json();
+      if (!res.ok) {
+        setError(res.status === 503 ? t.chat.storageUnavailable : t.chat.loadError);
+        return;
+      }
+      setPersistent(data.persistent !== false);
+      setError(null);
       if (data.messages?.length) {
         setMessages((prev) => {
           const existingIds = new Set(prev.map((m) => m.id));
@@ -60,12 +66,12 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
     } catch {
       // silently ignore
     }
-  }, [matchId]);
+  }, [matchId, t.chat.loadError, t.chat.storageUnavailable]);
 
   useEffect(() => {
     if (!nick) return;
 
-    fetchMessages();
+    const initialFetch = window.setTimeout(() => void fetchMessages(), 0);
     pollRef.current = setInterval(fetchMessages, POLL_INTERVAL);
 
     const handleVisibility = () => {
@@ -80,6 +86,7 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
+      clearTimeout(initialFetch);
       if (pollRef.current) clearInterval(pollRef.current);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
@@ -114,11 +121,19 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error === "Rate limited" ? "Esperá unos segundos..." : "Error al enviar");
+        setError(
+          data.error === "Rate limited"
+            ? t.chat.rateLimit
+            : res.status === 503
+              ? t.chat.storageUnavailable
+              : t.chat.sendError
+        );
         setInput(text);
+      } else {
+        setPersistent(data.persistent !== false);
       }
     } catch {
-      setError("Error de conexión");
+      setError(t.chat.sendError);
       setInput(text);
     }
   };
@@ -163,6 +178,11 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 min-h-0 break-words">
+        {persistent === false && (
+          <p role="status" className="border-2 border-accent-primary bg-accent-primary/10 px-2 py-1.5 text-[10px] font-bold text-accent-primary">
+            {t.chat.temporaryStorageWarning}
+          </p>
+        )}
         {messages.length === 0 ? (
           <p className="text-xs text-text-muted text-center mt-8">{t.chat.messagesEmpty}</p>
         ) : (

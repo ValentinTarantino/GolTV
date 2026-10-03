@@ -30,11 +30,13 @@ describe("/api/chat", () => {
 
       expect(res.status).toBe(200);
       expect(Array.isArray(data.messages)).toBe(true);
+      expect(typeof data.persistent).toBe("boolean");
     });
 
     it("returns messages after POST", async () => {
       const postReq = makePostRequest({ matchId: "11111", nick: "TestUser", text: "Hello!" });
-      await POST(postReq);
+      const postRes = await POST(postReq);
+      const postData = await postRes.json();
 
       const getReq = makeGetRequest("http://localhost/api/chat?matchId=11111");
       const res = await GET(getReq);
@@ -43,6 +45,7 @@ describe("/api/chat", () => {
       expect(data.messages.length).toBe(1);
       expect(data.messages[0].text).toBe("Hello!");
       expect(data.messages[0].nick).toBe("TestUser");
+      expect(typeof postData.persistent).toBe("boolean");
     });
 
     it("respects offset parameter", async () => {
