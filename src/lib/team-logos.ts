@@ -318,9 +318,9 @@ const NATIONAL_TEAM_BADGES: Record<string, string> = {
   czechrepublic: "https://r2.thesportsdb.com/images/media/team/badge/1o0cx31654205806.png",
   republicacheca: "https://r2.thesportsdb.com/images/media/team/badge/1o0cx31654205806.png",
   republicacheca2: "https://r2.thesportsdb.com/images/media/team/badge/1o0cx31654205806.png",
-  // Croatia
-  croatia: "https://www.thesportsdb.com/images/media/team/badge/84cfeg1789271106.png",
-  croacia: "https://www.thesportsdb.com/images/media/team/badge/84cfeg1789271106.png",
+  // Croatia: use the valid country flag until the official crest URL is available again.
+  croatia: "https://flagcdn.com/w160/hr.png",
+  croacia: "https://flagcdn.com/w160/hr.png",
   // San Marino
   sanmarino: "/san-marino.png",
   // Other missing European teams

@@ -156,6 +156,8 @@ describe("getTeamLogo", () => {
     const expected = {
       Armenia: "https://flagcdn.com/w160/am.png",
       Poland: "https://flagcdn.com/w160/pl.png",
+      Croatia: "https://flagcdn.com/w160/hr.png",
+      "Croacia": "https://flagcdn.com/w160/hr.png",
       "Bosnia and Herzegovina": "https://flagcdn.com/w160/ba.png",
       Montenegro: "https://flagcdn.com/w160/me.png",
       Cyprus: "https://flagcdn.com/w160/cy.png",
