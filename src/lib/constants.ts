@@ -385,6 +385,15 @@ const PARAGUAY_TEAMS = [
   "12 de octubre", "resistencia", "san lorenzo"
 ];
 
+// Saudi Pro League teams — used to prevent Saudi matches being categorized as Argentine Liga Profesional
+const SAUDI_PRO_LEAGUE_TEAMS = [
+  "al hilal", "al nassr", "al ittihad", "al ahli", "al shabab", "al ettifaq",
+  "al qadsiah", "al quadisiya", "al qadisiyah", "al kholood", "al khaleej",
+  "al feiha", "al fateh", "al wahda", "al hazem", "damac", "abha",
+  "al riyadh", "al okhdood", "al orubah", "al akhdoud", "al taawoun",
+  "al raed", "al batin", "al wehda", "al ittifaq", "al hamriyah",
+];
+
 const TEAM_DISPLAY_NAMES: Record<string, string> = {
   "brighton & hove albion": "Brighton",
   "brighton & hove albion fc": "Brighton",
@@ -506,6 +515,12 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
     && PANAMA_SERIE_A_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
 
   if (isPanamaSerieA) return null;
+
+  // Reject any match where teams are Saudi Pro League clubs — they must never appear under Argentine Liga Profesional
+  if (homeTeam || awayTeam) {
+    const isSaudiMatch = SAUDI_PRO_LEAGUE_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
+    if (isSaudiMatch) return null;
+  }
 
   // If league name is ambiguous like "primera division", check teams to disambiguate
   const AMBIGUOUS_PRIMERA_LEAGUES = ["liga de primera", "primera division", "primera division profesional", "copa de primera"];
