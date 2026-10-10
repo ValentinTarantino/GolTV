@@ -376,6 +376,20 @@ const URUGUAY_TEAMS = [
   "rampla juniors", "central español", "deportivo maldonado",
 ];
 
+const CHILE_TEAMS = [
+  "audax italiano", "cobresal", "colo colo", "coquimbo unido", "deportes concepcion",
+  "deportes iquique", "deportes la serena", "deportes limache", "everton", "huachipato",
+  "nublense", "o'higgins", "ohiggins", "palestino", "union la calera", "union espanola",
+  "universidad catolica", "universidad de chile", "universidad de concepcion", "santiago wanderers",
+];
+
+const BOLIVIA_TEAMS = [
+  "abb", "always ready", "aurora", "blooming", "bolivar", "club blooming", "guabira",
+  "gv san jose", "independiente petrolero", "jorge wilstermann", "nacional potosi",
+  "oriente petrolero", "real oruro", "real tomayapo", "royal pari", "san antonio bulo bulo",
+  "the strongest", "totora real oruro", "universitario de vinto", "vaca diez", "wilstermann",
+];
+
 const PARAGUAY_TEAMS = [
   "cerro porteño", "cerro porteno", "olimpia", "libertad", "guaraní", "guarani",
   "nacional (p)", "nacional de paraguay", "sportivo luqueño", "luqueno",
@@ -431,6 +445,25 @@ export function shortenTeamName(name: string): string {
   return TEAM_DISPLAY_NAMES[name.toLowerCase()] ?? name;
 }
 
+function containsWomensFootballSignal(value: string): boolean {
+  const normalized = value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return /\b(women|woman|female|females|femenil|femeniles|femenino|femenina|femeninos|femeninas|feminino|feminina|feminine|femmes|femme|femminile|frauen|damen|ladies|lady|nwsl|wsl)\b/.test(normalized)
+    || /\bliga\s+f\b/.test(normalized)
+    || /\b(?:u\d{2,3}\s+w|w\s+u\d{2,3}|[a-z]{2,}\s+w)\b/.test(normalized);
+}
+
+export function isMenFootballMatch(leagueName: string, homeTeam = "", awayTeam = ""): boolean {
+  return isFootballLeagueName(leagueName)
+    && !containsWomensFootballSignal(leagueName + " " + homeTeam + " " + awayTeam);
+}
+
 export function isFootballLeagueName(plLeagueName: string): boolean {
   const normalizeText = (value: string) => value
     .toLowerCase()
@@ -442,7 +475,7 @@ export function isFootballLeagueName(plLeagueName: string): boolean {
 
   const normalized = normalizeText(plLeagueName ?? "");
 
-  if (!normalized) return false;
+  if (!normalized || containsWomensFootballSignal(normalized)) return false;
 
   for (const excluded of PL_EXCLUDED_LEAGUES) {
     if (normalized === excluded || normalized.includes(excluded)) {
@@ -496,6 +529,7 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -515,6 +549,37 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
     && PANAMA_SERIE_A_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
 
   if (isPanamaSerieA) return null;
+
+  const isUruguayLeague = [
+    "liga auf uruguaya",
+    "liga uruguaya",
+    "primera division de uruguay",
+    "primera division uruguay",
+    "clausura uruguay",
+    "apertura uruguay",
+    "campeonato uruguayo",
+    "primera division profesional de uruguay",
+  ].includes(normalized);
+  const hasChileanClub = [homeTeam, awayTeam]
+    .filter((team): team is string => Boolean(team))
+    .some((team) => CHILE_TEAMS.some((chileTeam) => normalizeText(team).includes(normalizeText(chileTeam))));
+  if (isUruguayLeague && hasChileanClub) {
+    return SUPPORTED_LEAGUES.find((league) => league.id === 265) ?? null;
+  }
+  const hasBolivianClub = [homeTeam, awayTeam]
+    .filter((team): team is string => Boolean(team))
+    .some((team) => BOLIVIA_TEAMS.some((boliviaTeam) => normalizeText(team) === normalizeText(boliviaTeam)));
+  if (isUruguayLeague && hasBolivianClub) return null;
+
+  // Resolve ambiguous Serie A fixtures from their clubs before applying the Italian default.
+  let isEcuadorMatch = false;
+  if (homeTeam || awayTeam) {
+    isEcuadorMatch = ECUADOR_SERIE_A_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
+    if (isEcuadorMatch && ["serie a", "serie a ecuador", "liga pro", "liga pro ecuador"].includes(normalized)) {
+      return SUPPORTED_LEAGUES.find((league) => league.id === 57) ?? null;
+    }
+    if (isEcuadorMatch) return null;
+  }
 
   // Reject any match where teams are Saudi Pro League clubs — they must never appear under Argentine Liga Profesional
   if (homeTeam || awayTeam) {

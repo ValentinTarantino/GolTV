@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { Zap, Filter, RefreshCw } from "lucide-react";
 import MatchList from "@/components/matches/MatchList";
 import { MatchSkeleton } from "@/components/ui/Skeleton";
@@ -9,6 +9,10 @@ import { formatDateISO } from "@/lib/utils";
 import type { Match } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+function subscribeToHydration() {
+  return () => {};
+}
+
 export default function HomePage() {
   const { language, t } = useLanguage();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -16,11 +20,14 @@ export default function HomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showLiveOnly, setShowLiveOnly] = useState(false);
-
-  const currentDate = useMemo(() => {
+  const currentDate = useSyncExternalStore(
+    subscribeToHydration,
+    () => {
     const options: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long" };
-    return new Date().toLocaleDateString(language === "es" ? "es-AR" : "en-US", options);
-  }, [language]);
+      return new Date().toLocaleDateString(language === "es" ? "es-AR" : "en-US", options);
+    },
+    () => ""
+  );
 
   useEffect(() => {
     const fetchMatches = async (isBackground = false) => {

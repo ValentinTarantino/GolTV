@@ -5,6 +5,7 @@ import {
   CHANNEL_SETS,
   matchPlLeague,
   isFootballLeagueName,
+  isMenFootballMatch,
 } from "@/lib/constants";
 import { getTeamLogo } from "@/lib/team-logos";
 import { isAllowedStreamLeague } from "@/lib/streaming";
@@ -123,6 +124,24 @@ describe("isAllowedStreamLeague", () => {
 });
 
 describe("getTeamLogo", () => {
+  it("uses official MLS crests for New York Red Bulls and New England aliases", async () => {
+    const newYorkRedBullsCrest = "https://a.espncdn.com/i/teamlogos/soccer/500/190.png";
+    const newEnglandRevolutionCrest = "https://a.espncdn.com/i/teamlogos/soccer/500/189.png";
+
+    for (const team of ["New York RB", "New York Red Bulls", "Red Bull New York", "NYRB", "RBNY"]) {
+      await expect(getTeamLogo(team, "USA")).resolves.toBe(newYorkRedBullsCrest);
+    }
+    for (const team of ["New England", "New England Revolution", "Revolution"]) {
+      await expect(getTeamLogo(team, "USA")).resolves.toBe(newEnglandRevolutionCrest);
+    }
+  });
+  it("uses Brazil's official CBF crest for Portuguese and English names", async () => {
+    const brazilCrest = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Brazil_National_Football_Team_%28no_stars%29.svg";
+
+    for (const team of ["Brasil", "Brazil", "Brazil National Football Team", "Brasil National Team"]) {
+      await expect(getTeamLogo(team, "Brasil")).resolves.toBe(brazilCrest);
+    }
+  });
   it("uses South Korea's official national team crest for Spanish and English names", async () => {
     const southKoreaCrest =
       "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png";
@@ -176,6 +195,21 @@ describe("getTeamLogo", () => {
     }
 
     await expect(getTeamLogo("Letonia")).resolves.toBe("https://flagcdn.com/w160/lv.png");
+  });
+
+  it("does not use a league country flag as a club badge when lookup fails", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ teams: null }),
+    } as Response);
+
+    try {
+      await expect(getTeamLogo("Unmapped Club 207", "Spain")).resolves.toBe("");
+    } finally {
+      if (originalFetch) globalThis.fetch = originalFetch;
+      else delete (globalThis as { fetch?: typeof fetch }).fetch;
+    }
   });
 
   it("uses the Chilean crest for Audax Italiano", async () => {
@@ -241,12 +275,34 @@ describe("matchPlLeague", () => {
     expect(matchPlLeague("Champions League")?.id).toBe(2);
   });
 
-  it("maps generic Serie A to Italy, even when Ecuadorian teams are present", () => {
+  it("maps generic Serie A with Ecuadorian clubs to Liga Pro", () => {
     const league = matchPlLeague("Serie A", "Barcelona SC", "LDU Quito");
     expect(league).not.toBeNull();
+    expect(league?.id).toBe(57);
+    expect(league?.country).toBe("Ecuador");
+    expect(league?.name).toBe("Liga Pro");
+  });
+
+  it("keeps Italian Serie A clubs in Serie A", () => {
+    const league = matchPlLeague("Serie A", "Napoli", "Frosinone");
     expect(league?.id).toBe(135);
     expect(league?.country).toBe("Italia");
-    expect(league?.name).toBe("Serie A");
+  });
+
+  it("does not classify Ecuadorian clubs as Bundesliga", () => {
+    expect(matchPlLeague("Bundesliga", "Independiente del Valle", "Aucas")).toBeNull();
+  });
+
+  it("routes Chilean clubs out of Uruguay league labels", () => {
+    expect(matchPlLeague("Liga AUF Uruguaya", "Cobresal", "Universidad de Concepción")?.id).toBe(265);
+    expect(matchPlLeague("Liga AUF Uruguaya", "Huachipato", "O'Higgins")?.id).toBe(265);
+    expect(matchPlLeague("Liga AUF Uruguaya", "Wanderers", "Boston River")?.id).toBe(268);
+  });
+
+  it("excludes Bolivian league fixtures mislabeled as Uruguay", () => {
+    expect(matchPlLeague("Liga AUF Uruguaya", "Universitario de Vinto", "Real Oruro")).toBeNull();
+    expect(matchPlLeague("Liga AUF Uruguaya", "Oriente Petrolero", "ABB")).toBeNull();
+    expect(matchPlLeague("Copa Libertadores", "The Strongest", "River Plate")?.id).toBe(13);
   });
 
   it("ignores Panamanian Serie A matches from the fixture", () => {
@@ -262,6 +318,25 @@ describe("matchPlLeague", () => {
     expect(league?.name).toBe("Liga Pro");
   });
 
+  it("rejects women's competitions across common language labels", () => {
+    const womenLeagues = [
+      "Liga Femenina",
+      "Campeonato Brasileiro Feminino",
+      "Women's Super League",
+      "Serie A Femminile",
+      "Bundesliga Frauen",
+      "NWSL",
+      "Liga F",
+    ];
+    expect(womenLeagues.filter(isFootballLeagueName)).toEqual([]);
+  });
+
+  it("rejects women's matches from gender markers in either team name", () => {
+    expect(isMenFootballMatch("Liga Profesional", "Boca Juniors Women", "River Plate")).toBe(false);
+    expect(isMenFootballMatch("Liga Profesional", "Boca Juniors", "River Plate Femenino")).toBe(false);
+    expect(isMenFootballMatch("Amistosos", "Brazil W", "USA W")).toBe(false);
+    expect(isMenFootballMatch("Liga Profesional", "Boca Juniors", "River Plate")).toBe(true);
+  });
   it("rejects non-football sports such as NHL", () => {
     expect(isFootballLeagueName("Sports:")).toBe(false);
     expect(isFootballLeagueName("NHL")).toBe(false);

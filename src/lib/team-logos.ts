@@ -45,6 +45,17 @@ function findBestMatch(teams: SportsDBTeam[], query: string): SportsDBTeam | nul
   return null;
 }
 
+const MLS_TEAM_BADGES: Record<string, string> = {
+  // ESPN's team IDs serve the clubs' official MLS crests as transparent PNGs.
+  newyorkrb: "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+  newyorkredbulls: "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+  redbullnewyork: "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+  nyrb: "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+  rbny: "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+  newengland: "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
+  newenglandrevolution: "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
+  revolution: "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
+};
 const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "celtadevigo": "Celta Vigo",
   "racingsantander": "Racing de Santander",
@@ -64,7 +75,6 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "sjearthquakes": "San Jose Earthquakes",
   "sportingkc": "Sporting Kansas City",
   "dcunited": "DC United",
-  "charlotte": "Charlotte FC",
   "newengland": "New England Revolution",
   "orlandocitysc": "Orlando City",
   "dallas": "FC Dallas",
@@ -85,7 +95,67 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "ohleuven": "Oud-Heverlee Leuven",
   "oudheverleeleuven": "Oud-Heverlee Leuven",
   "leuven": "Oud-Heverlee Leuven",
-  // National teams
+  // MLS teams
+  "lagalaxy": "LA Galaxy",
+  "losangeles": "LA Galaxy",
+  "losangelesgalaxy": "LA Galaxy",
+  "nycfc": "New York City FC",
+  "newyorkcity": "New York City FC",
+  "intermiami": "Inter Miami",
+  "miamifc": "Inter Miami",
+  "miami": "Inter Miami",
+  "columbus": "Columbus Crew",
+  "columbuscrew": "Columbus Crew",
+  "seattle": "Seattle Sounders",
+  "seattlesounders": "Seattle Sounders",
+  "sounders": "Seattle Sounders",
+  "atlanta": "Atlanta United",
+  "toronto": "Toronto FC",
+  "torontofc": "Toronto FC",
+  "philadelphia": "Philadelphia Union",
+  "philadelphiaunion": "Philadelphia Union",
+  "revolution": "New England Revolution",
+  "houston": "Houston Dynamo",
+  "houstondynamo": "Houston Dynamo",
+  "dynamo": "Houston Dynamo",
+  "fcdallas": "FC Dallas",
+  "realsaltlake": "Real Salt Lake",
+  "rsl": "Real Salt Lake",
+  "colorado": "Colorado Rapids",
+  "coloradorapids": "Colorado Rapids",
+  "vancouver": "Vancouver Whitecaps",
+  "vancouverwhitecaps": "Vancouver Whitecaps",
+  "portland": "Portland Timbers",
+  "portlandtimbers": "Portland Timbers",
+  "timbers": "Portland Timbers",
+  "kansascity": "Sporting Kansas City",
+  "minnesota": "Minnesota United",
+  "minnesotaunited": "Minnesota United",
+  "austin": "Austin FC",
+  "austinfc": "Austin FC",
+  "charlotte": "Charlotte FC",
+  "cincinnati": "FC Cincinnati",
+  "fccincinnati": "FC Cincinnati",
+  "nashville": "Nashville SC",
+  "nashvillesc": "Nashville SC",
+  "orlando": "Orlando City",
+  "orlandocity": "Orlando City",
+  "sanjose": "San Jose Earthquakes",
+  "sanjoseearthquakes": "San Jose Earthquakes",
+  "earthquakes": "San Jose Earthquakes",
+  "dc": "DC United",
+  "montreal": "CF Montréal",
+  "chicago": "Chicago Fire",
+  "chicagofire": "Chicago Fire",
+  "fire": "Chicago Fire",
+  // MLS specific mappings for better SportsDB matching
+  "la": "LA Galaxy",
+  "newyorkcityfc": "New York City FC",
+  "vancouverwhitecapsfc": "Vancouver Whitecaps FC",
+  "houstondynamofc": "Houston Dynamo FC",
+  "minnesotaunitedfc": "Minnesota United FC",
+  "real_saltlake": "Real Salt Lake",
+  "nationalteams": "National Teams",
   "republicadominicana": "Dominican Republic",
   "repdominicana": "Dominican Republic",
   "dominicanrepublic": "Dominican Republic",
@@ -218,6 +288,10 @@ const COUNTRY_FLAGS: Record<string, string> = {
 };
 
 const NATIONAL_TEAM_BADGES: Record<string, string> = {
+  brasil: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Brazil_National_Football_Team_%28no_stars%29.svg",
+  brazil: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Brazil_National_Football_Team_%28no_stars%29.svg",
+  brasilnationalteam: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Brazil_National_Football_Team_%28no_stars%29.svg",
+  brazilnationalfootballteam: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Brazil_National_Football_Team_%28no_stars%29.svg",
   southkorea: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
   southkoreanationalfootballteam: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
   korearepublic: "https://r2.thesportsdb.com/images/media/team/badge/a8nqfs1589564916.png",
@@ -271,9 +345,9 @@ const NATIONAL_TEAM_BADGES: Record<string, string> = {
   france: "https://flagcdn.com/w160/fr.png",
   francesnationalfootballteam: "https://flagcdn.com/w160/fr.png",
   francia: "https://flagcdn.com/w160/fr.png",
-  martinique: "https://flagcdn.com/w160/mq.png",
-  martiniqunationalfootballteam: "https://flagcdn.com/w160/mq.png",
-  martinica: "https://flagcdn.com/w160/mq.png",
+  martinique: "https://assets.football-logos.cc/logos/martinique/700x700/martinique-national-team.a617bfc4.png",
+  martiniqunationalfootballteam: "https://assets.football-logos.cc/logos/martinique/700x700/martinique-national-team.a617bfc4.png",
+  martinica: "https://assets.football-logos.cc/logos/martinique/700x700/martinique-national-team.a617bfc4.png",
   kosovo: "https://flagcdn.com/w160/xk.png",
   kosovonationalfootballteam: "https://flagcdn.com/w160/xk.png",
   elsalvador: "https://flagcdn.com/w160/sv.png",
@@ -406,10 +480,24 @@ function getSearchVariations(name: string): string[] {
 
 async function searchTeam(query: string): Promise<SportsDBTeam[]> {
   const url = `${SPORTSDB_BASE}/${SPORTSDB_KEY}/searchteams.php?t=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { next: { revalidate: 86400 } });
-  if (!res.ok) return [];
-  const data: SportsDBResponse = await res.json();
-  return data.teams ?? [];
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    const res = await fetch(url, { 
+      next: { revalidate: 86400 },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) return [];
+    const data: SportsDBResponse = await res.json();
+    return data.teams ?? [];
+  } catch {
+    // If timeout or any error occurs, return empty array to fall back to other methods
+    return [];
+  }
 }
 
 export async function getTeamLogo(teamName: string, country?: string): Promise<string> {
@@ -423,6 +511,9 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
   if (key === "liverpool" && (country === "Uruguay" || country === "Uruguay" )) {
     return "https://r2.thesportsdb.com/images/media/team/badge/0xat6f1678717839.png";
   }
+
+    const mlsBadge = MLS_TEAM_BADGES[key];
+  if (mlsBadge) return mlsBadge;
 
   const aliasKey = PROMIEDOS_ALIASES[key];
   const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key] || PROMIEDOS_BADGES[teamName.toLowerCase()];
@@ -449,24 +540,47 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
 
   // Check if it's a national team first - improved matching
   const normalizedTeamName = teamName.toLowerCase();
-  for (const [c, flagUrl] of Object.entries(COUNTRY_FLAGS)) {
-    const countryLower = c.toLowerCase();
-    const normalizedCountry = normalize(c);
-    // Check if team name contains country name or vice versa
-    if (normalizedTeamName.includes(countryLower) || countryLower.includes(normalizedTeamName)
-      || key === normalizedCountry || key.includes(normalizedCountry) || normalizedCountry.includes(key)) {
-      return flagUrl;
-    }
-    // Check for more specific matches
-    if (normalizedTeamName === countryLower || key === normalizedCountry) {
-      return flagUrl;
+  
+  // Skip country flag matching for known club teams to avoid false positives
+  const knownClubPatterns = [
+    'fc', 'united', 'city', 'real', 'sporting', 'inter', 'dynamo', 
+    'rapids', 'sounders', 'timbers', 'crew', 'union', 'revolution',
+    'galaxy', 'fire', 'earthquakes', 'whitecaps', 'whitecap',
+    'rangers', 'celtic', 'bayern', 'dortmund', 'schalke',
+    'juventus', 'milan', 'napoli', 'roma', 'lazio', 'inter',
+    'barcelona', 'madrid', 'atletico', 'sevilla', 'valencia',
+    'manchester', 'liverpool', 'chelsea', 'arsenal', 'tottenham',
+    'paris', 'marseille', 'lyon', 'monaco', 'lille',
+    'benfica', 'porto', 'sporting', 'ajax', 'psv', 'feyenoord',
+    'river', 'boca', 'independiente', 'racing', 'sanlorenzo',
+    'flamengo', 'palmeiras', 'santos', 'corinthians', 'vasco',
+    'universitario', 'alianza', 'melgar', 'cristal', 'sporting'
+  ];
+  
+  const isLikelyClub = knownClubPatterns.some(pattern => 
+    key.includes(pattern) || normalizedTeamName.includes(pattern)
+  );
+  
+  if (!isLikelyClub) {
+    for (const [c, flagUrl] of Object.entries(COUNTRY_FLAGS)) {
+      const countryLower = c.toLowerCase();
+      const normalizedCountry = normalize(c);
+      // Check if team name contains country name or vice versa
+      if (normalizedTeamName.includes(countryLower) || countryLower.includes(normalizedTeamName)
+        || key === normalizedCountry || key.includes(normalizedCountry) || normalizedCountry.includes(key)) {
+        return flagUrl;
+      }
+      // Check for more specific matches
+      if (normalizedTeamName === countryLower || key === normalizedCountry) {
+        return flagUrl;
+      }
     }
   }
 
 
 
   const cached = logoCache.get(cacheKey);
-  if (cached !== undefined) return cached || fallbackFlag;
+  if (cached !== undefined) return cached;
 
   const pending = pendingLookups.get(cacheKey);
   if (pending) return pending;
@@ -494,11 +608,13 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
         }
       }
 
-      logoCache.set(cacheKey, fallbackFlag);
-      return fallbackFlag;
+      const fallback = NATIONAL_TEAM_BADGES[key] || "";
+      logoCache.set(cacheKey, fallback);
+      return fallback;
     } catch {
-      logoCache.set(cacheKey, fallbackFlag);
-      return fallbackFlag;
+      const fallback = NATIONAL_TEAM_BADGES[key] || "";
+      logoCache.set(cacheKey, fallback);
+      return fallback;
     } finally {
       pendingLookups.delete(cacheKey);
     }

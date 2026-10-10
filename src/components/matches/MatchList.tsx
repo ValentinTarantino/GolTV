@@ -93,9 +93,13 @@ export default function MatchList({ matches }: MatchListProps) {
 
           {/* Match Cards */}
           <div className="grid gap-3 sm:gap-4 grid-cols-1">
-            {group.matches.map((match) => (
-              <MatchCard key={`${match.id}-${match._streamId ?? "fixture"}`} match={match} />
-            ))}
+            {group.matches.map((match, index) => {
+              const sourceKey = match._eventSlug ?? match._streamId;
+              const identity = sourceKey
+                ? `${group.leagueId}-${sourceKey}`
+                : `${group.leagueId}-${match.id}-${match.timestamp}-${match.homeTeam.name}-${match.awayTeam.name}`;
+              return <MatchCard key={`${identity}-${index}`} match={match} />;
+            })}
           </div>
         </section>
       ))}

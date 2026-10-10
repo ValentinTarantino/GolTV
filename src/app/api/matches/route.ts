@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
-import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isFootballLeagueName } from "@/lib/constants";
+import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES } from "@/lib/constants";
 import { getTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
@@ -25,6 +25,67 @@ function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
+const TEAM_DEDUP_ALIASES: Record<string, string> = {
+  estudiantes: "estudiantesdelaplata",
+  estudianteslp: "estudiantesdelaplata",
+  estudiantesdelaplata: "estudiantesdelaplata",
+  centralcordoba: "centralcordobasde",
+  centralcordobasde: "centralcordobasde",
+  centralcordobadesantiagodelestero: "centralcordobasde",
+  celtadevigo2: "celtadevigoii",
+  celtadevigoii: "celtadevigoii",
+  celtavigoii: "celtadevigoii",
+  realsociedadb: "realsociedadii",
+  realsociedadii: "realsociedadii",
+  nurnberg: "nurnberg",
+  "1fcnurnberg": "nurnberg",
+  wolfsburg: "wolfsburg",
+  vflwolfsburg: "wolfsburg",
+};
+
+function matchDedupKey(dateISO: string, leagueId: number, homeTeam: string, awayTeam: string): string {
+  const teams = [homeTeam, awayTeam]
+    .map((team) => {
+      const key = normalize(team);
+      return TEAM_DEDUP_ALIASES[key] ?? key;
+    })
+    .sort();
+  return `${toArgentinaDate(dateISO)}-${leagueId}-${teams[0]}-${teams[1]}`;
+}
+
+const CHILEAN_CLUBS = [
+  "audaxitaliano", "cobresal", "colocolo", "coquimbounido", "deportesconcepcion",
+  "deportesiquique", "deporteslaserena", "deporteslimache", "huachipato",
+  "nublense", "ohiggins", "palestino", "unionlacalera", "unionespanola",
+  "universidadcatolica", "universidaddechile", "universidaddeconcepcion", "univconcepcion",
+  "santiagowanderers",
+];
+const BOLIVIAN_CLUBS = [
+  "abb", "alwaysready", "aurora", "blooming", "bolivar", "guabira", "gvsanjose",
+  "independientepetrolero", "jorgewilstermann", "nacionalpotosi", "orientepetrolero",
+  "realoruro", "realtomayapo", "royalpari", "sanantoniobulobulo", "thestrongest",
+  "totorarealoruro", "universitariodevinto", "vacadiez", "wilstermann",
+];
+
+function classifyAgendaLeague(leagueName: string, homeTeam: string, awayTeam: string) {
+  const mappedLeague = matchPlLeague(leagueName, homeTeam, awayTeam);
+  if (mappedLeague?.id !== 268) return mappedLeague;
+
+  const teamKeys = [normalize(homeTeam), normalize(awayTeam)];
+  const isBolivianFixture = teamKeys.some((team) =>
+    BOLIVIAN_CLUBS.some((club) => team === club || team.startsWith(club))
+  );
+  if (isBolivianFixture) return null;
+
+  const isChileanFixture = teamKeys.some((team) =>
+    CHILEAN_CLUBS.some((club) => team === club || team.startsWith(club))
+  );
+  if (isChileanFixture) {
+    return SUPPORTED_LEAGUES.find((league) => league.id === 265) ?? null;
+  }
+
+  return mappedLeague;
+}
 function hashSlug(slug: string): number {
   let hash = 0;
   for (let i = 0; i < slug.length; i++) {
@@ -55,19 +116,19 @@ export async function GET(request: NextRequest) {
     (m) => toArgentinaDate(m.dateISO) === date || isNearNow(m.dateISO)
   );
 
-  const seenTeams = new Set<string>();
+  const seenMatches = new Set<string>();
   const matches: Match[] = [];
 
   for (const flMatch of filteredAgenda) {
-    if (!isFootballLeagueName(flMatch.league)) continue;
+    if (!isMenFootballMatch(flMatch.league, flMatch.homeTeam, flMatch.awayTeam)) continue;
 
-    const dedupKey = `${normalize(flMatch.homeTeam)}-${normalize(flMatch.awayTeam)}`;
-    if (seenTeams.has(dedupKey)) continue;
-    seenTeams.add(dedupKey);
-
-    const league = matchPlLeague(flMatch.league, flMatch.homeTeam, flMatch.awayTeam);
+    const league = classifyAgendaLeague(flMatch.league, flMatch.homeTeam, flMatch.awayTeam);
     if (!league) continue;
     if (flMatch.embeds.length === 0) continue;
+
+    const dedupKey = matchDedupKey(flMatch.dateISO, league.id, flMatch.homeTeam, flMatch.awayTeam);
+    if (seenMatches.has(dedupKey)) continue;
+    seenMatches.add(dedupKey);
 
     const status = inferStatus(flMatch.dateISO);
 
@@ -100,16 +161,16 @@ export async function GET(request: NextRequest) {
 
   // Secondary fixture: only contributes matches the primary fixture is missing.
   for (const secMatch of secondaryAgenda) {
-    if (!isFootballLeagueName(secMatch.league)) continue;
+    if (!isMenFootballMatch(secMatch.league, secMatch.homeTeam, secMatch.awayTeam)) continue;
 
-    const dedupKey = `${normalize(secMatch.homeTeam)}-${normalize(secMatch.awayTeam)}`;
-    if (seenTeams.has(dedupKey)) continue;
     if (secMatch.sources.length === 0) continue;
     if (!(toArgentinaDate(secMatch.dateISO) === date || isNearNow(secMatch.dateISO))) continue;
 
-    const league = matchPlLeague(secMatch.league, secMatch.homeTeam, secMatch.awayTeam);
+    const league = classifyAgendaLeague(secMatch.league, secMatch.homeTeam, secMatch.awayTeam);
     if (!league) continue;
-    seenTeams.add(dedupKey);
+    const dedupKey = matchDedupKey(secMatch.dateISO, league.id, secMatch.homeTeam, secMatch.awayTeam);
+    if (seenMatches.has(dedupKey)) continue;
+    seenMatches.add(dedupKey);
 
     const status = inferStatus(secMatch.dateISO);
 

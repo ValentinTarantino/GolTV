@@ -53,7 +53,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           ? "bg-black border-4 border-accent-primary shadow-brutal hover:-translate-y-1 hover:-translate-x-1"
           : "bg-bg-card border-4 border-white transition-all relative hover:-translate-y-1 hover:-translate-x-1 hover:shadow-brutal hover:border-accent-primary"
       }`}
-      id={`match-card-${match.id}`}
+      id={`match-card-${match._eventSlug ?? match._streamId ?? match.id}`}
     >
       <div className="flex items-center justify-between gap-2 sm:gap-4">
         {/* Home Team */}
@@ -66,6 +66,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                 fill
                 className="object-contain"
                 sizes="40px"
+                unoptimized
               />
             ) : null}
           </div>
@@ -129,6 +130,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                 fill
                 className="object-contain"
                 sizes="40px"
+                unoptimized
               />
             ) : null}
           </div>

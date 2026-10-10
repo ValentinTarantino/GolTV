@@ -62,6 +62,47 @@ describe("/api/matches", () => {
     expect(data.matches[0]).toHaveProperty("score");
   });
 
+  it("separates Chilean and Bolivian fixtures mislabeled as Uruguay", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ homeTeam: "Cobresal", awayTeam: "Univ. Concepción", league: "Primera División de Uruguay - Apertura", slug: "cobresal-concepcion" }),
+      flMatch({ homeTeam: "Universitario de Vinto", awayTeam: "Real Oruro", league: "Primera División de Uruguay - Apertura", slug: "vinto-oruro" }),
+      flMatch({ homeTeam: "Huachipato", awayTeam: "O'Higgins", league: "Liga AUF Uruguaya", slug: "huachipato-ohiggins" }),
+      flMatch({ homeTeam: "Oriente Petrolero", awayTeam: "ABB", league: "Liga AUF Uruguaya", slug: "oriente-abb" }),
+      flMatch({ homeTeam: "Wanderers", awayTeam: "Boston River", league: "Liga AUF Uruguaya", slug: "wanderers-boston-river" }),
+    ]);
+
+    const res = await GET(makeRequest(todayISO()));
+    const data = await res.json();
+
+    expect(data.matches.map((match: { homeTeam: { name: string }; league: { id: number } }) => [
+      match.homeTeam.name,
+      match.league.id,
+    ])).toEqual([
+      ["Cobresal", 265],
+      ["Huachipato", 265],
+      ["Wanderers", 268],
+    ]);
+  });
+  it("excludes women's matches from both fixture sources", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ league: "Liga Femenina", homeTeam: "Barcelona", awayTeam: "Real Madrid", slug: "barcelona-real-madrid-women" }),
+      flMatch({ league: "Liga Profesional", homeTeam: "Boca Juniors Women", awayTeam: "River Plate", slug: "boca-river-women" }),
+      flMatch({ league: "Liga Profesional", homeTeam: "Boca Juniors", awayTeam: "River Plate", slug: "boca-river-men" }),
+      flMatch({ league: "Amistosos", homeTeam: "Brazil W", awayTeam: "USA W", slug: "brazil-usa-women" }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({ league: "Women's Super League", homeTeam: "Arsenal", awayTeam: "Chelsea", slug: "arsenal-chelsea-women" }),
+      secMatch({ league: "Copa Argentina", homeTeam: "Platense Women", awayTeam: "Estudiantes LP", slug: "platense-estudiantes-women" }),
+    ]);
+
+    const res = await GET(makeRequest(todayISO()));
+    const data = await res.json();
+
+    expect(data.matches.map((match: { homeTeam: { name: string }; awayTeam: { name: string } }) => [
+      match.homeTeam.name,
+      match.awayTeam.name,
+    ])).toEqual([["Boca Juniors", "River Plate"]]);
+  });
   it("filters matches by today's date", async () => {
     const today = new Date().toISOString();
     const yesterday = new Date(Date.now() - 86400000).toISOString();
@@ -216,6 +257,61 @@ describe("/api/matches", () => {
     expect(data.matches).toHaveLength(1);
     expect(data.matches[0].homeTeam.name).toBe("Platense");
     expect(data.matches[0]).toHaveProperty("_eventSources");
+  });
+
+  it("deduplicates the same Ecuador match across league labels and date formats", async () => {
+    const date = todayISO();
+    const primaryDate = `${date}T21:00:00.000Z`;
+    const secondaryDate = `${date}T18:00:00.000-03:00`;
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Barcelona SC",
+        awayTeam: "LDU Quito",
+        league: "Serie A",
+        dateISO: primaryDate,
+      }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({
+        homeTeam: "Barcelona SC",
+        awayTeam: "LDU Quito",
+        league: "Serie A Ecuador",
+        dateISO: secondaryDate,
+      }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].league.id).toBe(57);
+    expect(data.matches[0]).toHaveProperty("_eventSources");
+  });
+
+  it("deduplicates equivalent team aliases in Bundesliga fixtures", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Nürnberg",
+        awayTeam: "Wolfsburg",
+        league: "Bundesliga",
+        slug: "nurnberg-wolfsburg-a",
+        dateISO: `${date}T21:00:00.000Z`,
+      }),
+      flMatch({
+        homeTeam: "1. FC Nürnberg",
+        awayTeam: "VfL Wolfsburg",
+        league: "Bundesliga",
+        slug: "nurnberg-wolfsburg-b",
+        dateISO: `${date}T18:00:00.000-03:00`,
+      }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].league.id).toBe(78);
   });
 
   it("skips secondary matches with unrecognized league", async () => {
