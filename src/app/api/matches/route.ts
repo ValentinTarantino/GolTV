@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES } from "@/lib/constants";
-import { getTeamLogo } from "@/lib/team-logos";
+import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
 
@@ -217,14 +217,33 @@ export async function GET(request: NextRequest) {
     teamCountries.set(m.awayTeam.name, m.league.country);
   }
 
-  const logoEntries = await Promise.all(
-    Array.from(teamNames).map(async (name) => {
-      const logo = await getTeamLogo(name, teamCountries.get(name));
-      return [name, logo] as const;
-    })
-  );
+  const logoMap = new Map<string, string>();
+  const lookupPromises: Promise<void>[] = [];
 
-  const logoMap = new Map(logoEntries);
+  for (const name of teamNames) {
+    const country = teamCountries.get(name);
+    const peeked = peekTeamLogo(name, country);
+    if (peeked !== null) {
+      logoMap.set(name, peeked);
+    } else {
+      logoMap.set(name, "");
+      lookupPromises.push(
+        getTeamLogo(name, country)
+          .then((logo) => {
+            logoMap.set(name, logo);
+          })
+          .catch(() => {})
+      );
+    }
+  }
+
+  if (lookupPromises.length > 0) {
+    await Promise.race([
+      Promise.allSettled(lookupPromises),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+  }
+
   for (const m of matches) {
     m.homeTeam.logo = logoMap.get(m.homeTeam.name) ?? "";
     m.awayTeam.logo = logoMap.get(m.awayTeam.name) ?? "";

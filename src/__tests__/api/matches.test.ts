@@ -11,6 +11,7 @@ jest.mock("@/lib/secondary-source", () => ({
 
 jest.mock("@/lib/team-logos", () => ({
   getTeamLogo: jest.fn().mockResolvedValue(""),
+  peekTeamLogo: jest.fn().mockReturnValue(null),
 }));
 
 import { NextRequest } from "next/server";

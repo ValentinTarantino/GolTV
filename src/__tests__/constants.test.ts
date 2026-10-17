@@ -7,7 +7,7 @@ import {
   isFootballLeagueName,
   isMenFootballMatch,
 } from "@/lib/constants";
-import { getTeamLogo } from "@/lib/team-logos";
+import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { isAllowedStreamLeague } from "@/lib/streaming";
 
 describe("SUPPORTED_LEAGUES", () => {
@@ -243,6 +243,104 @@ describe("getTeamLogo", () => {
     await expect(getTeamLogo("Talleres Córdoba", "Argentina")).resolves.toBe(talleresCrest);
     await expect(getTeamLogo("Talleres de Córdoba", "Argentina")).resolves.toBe(talleresCrest);
     await expect(getTeamLogo("Talleres")).resolves.toBe(talleresCrest);
+  });
+
+  it("resolves the missing fixture crests to their SportsDB badges", async () => {
+    const expected: Array<[string, string]> = [
+      ["Hannover 96", "https://r2.thesportsdb.com/images/media/team/badge/tqpqqv1473454148.png"],
+      ["St. Pauli", "https://r2.thesportsdb.com/images/media/team/badge/5qupxa1608237013.png"],
+      ["Valencia", "https://r2.thesportsdb.com/images/media/team/badge/dm8l6o1655594864.png"],
+      ["Las Palmas", "https://r2.thesportsdb.com/images/media/team/badge/mmhyb11616443601.png"],
+      ["CD Castellon", "https://r2.thesportsdb.com/images/media/team/badge/ywibjw1733456820.png"],
+      ["Boyacá Chicó", "https://r2.thesportsdb.com/images/media/team/badge/boe8tv1677602771.png"],
+      ["Atlético Nacional", "https://r2.thesportsdb.com/images/media/team/badge/efl4o41576157720.png"],
+      ["LDU Quito", "https://r2.thesportsdb.com/images/media/team/badge/5tf5ch1736404372.png"],
+      ["Gimnasia Mendoza", "https://r2.thesportsdb.com/images/media/team/badge/h11mlf1677636958.png"],
+      ["Deportivo Garcilaso", "https://r2.thesportsdb.com/images/media/team/badge/me11g41690449129.png"],
+      ["Jaguares de Córdoba", "https://r2.thesportsdb.com/images/media/team/badge/7ypl1y1629122579.png"],
+      ["Once Caldas", "https://r2.thesportsdb.com/images/media/team/badge/nuh9kd1778085916.png"],
+      ["Alianza Lima", "https://r2.thesportsdb.com/images/media/team/badge/y5wov41580040189.png"],
+      ["Atlético Grau", "https://r2.thesportsdb.com/images/media/team/badge/ksemw91678411736.png"],
+      ["Inter San Carlos", "https://r2.thesportsdb.com/images/media/team/badge/9doqdz1781200489.png"],
+      ["Alajuelense", "https://r2.thesportsdb.com/images/media/team/badge/zi9ft21707630526.png"],
+    ];
+
+    for (const [team, crest] of expected) {
+      await expect(getTeamLogo(team)).resolves.toBe(crest);
+    }
+  });
+
+  it("retries after a 429 and resolves the badge on the next attempt", async () => {
+    const badge = "https://r2.thesportsdb.com/images/media/team/badge/test429.png";
+    let calls = 0;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = jest.fn().mockImplementation(async () => {
+      calls++;
+      if (calls === 1) {
+        return { ok: false, status: 429, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          teams: [{ strTeam: "Retry Test FC", strBadge: badge, strSport: "Soccer" }],
+        }),
+      };
+    }) as unknown as typeof fetch;
+
+    try {
+      const logo = await getTeamLogo("Retry Test FC");
+      expect(calls).toBeGreaterThanOrEqual(2);
+      expect(logo).toBe(badge);
+    } finally {
+      if (originalFetch) globalThis.fetch = originalFetch;
+      else delete (globalThis as { fetch?: typeof fetch }).fetch;
+    }
+  });
+
+  it("does not cache a failed lookup forever (negative cache TTL)", async () => {
+    const badge = "https://r2.thesportsdb.com/images/media/team/badge/testneg.png";
+    let failMode = true;
+    const originalFetch = globalThis.fetch;
+    const originalNow = Date.now;
+    let currentTime = originalNow();
+
+    globalThis.fetch = jest.fn().mockImplementation(async () => {
+      if (failMode) {
+        return { ok: false, status: 429, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          teams: [{ strTeam: "Negative Cache FC", strBadge: badge, strSport: "Soccer" }],
+        }),
+      };
+    }) as unknown as typeof fetch;
+
+    Date.now = jest.fn(() => currentTime);
+
+    try {
+      const first = await getTeamLogo("Negative Cache FC");
+      expect(first).toBe("");
+
+      failMode = false;
+      currentTime += 10 * 60 * 1000 + 1;
+
+      const second = await getTeamLogo("Negative Cache FC");
+      expect(second).toBe(badge);
+    } finally {
+      if (originalFetch) globalThis.fetch = originalFetch;
+      else delete (globalThis as { fetch?: typeof fetch }).fetch;
+      Date.now = originalNow;
+    }
+  }, 20000);
+
+  it("peekTeamLogo resolves hardcoded teams synchronously and returns null for unknown", () => {
+    expect(peekTeamLogo("Valencia")).toBe("https://r2.thesportsdb.com/images/media/team/badge/dm8l6o1655594864.png");
+    expect(peekTeamLogo("Hannover 96")).toBe("https://r2.thesportsdb.com/images/media/team/badge/tqpqqv1473454148.png");
+    expect(peekTeamLogo("Talleres Córdoba", "Argentina")).toBe("/talleres-cordoba.png");
+    expect(peekTeamLogo("Some Totally Unknown FC 99999")).toBeNull();
   });
 });
 

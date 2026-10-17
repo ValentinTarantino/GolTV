@@ -1,6 +1,7 @@
 import { PROMIEDOS_BADGES, PROMIEDOS_ALIASES } from "./constants";
+import { POPULATED_BADGES } from "./badges-populated";
 
-const SPORTSDB_KEY = "3";
+const SPORTSDB_KEY = "123";
 const SPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json";
 
 interface SportsDBTeam {
@@ -14,6 +15,41 @@ interface SportsDBResponse {
 
 const logoCache = new Map<string, string>();
 const pendingLookups = new Map<string, Promise<string>>();
+
+// Negative cache: key -> expiry timestamp (ms). Failed lookups are remembered
+// for a short TTL so we don't hammer the API on every request, but a transient
+// 429/timeout doesn't blank a team forever.
+const NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000;
+const negativeCache = new Map<string, number>();
+
+// Throttle SportsDB searches to avoid the free-tier rate limit (~9 req burst).
+const MAX_CONCURRENT_SEARCHES = 3;
+const SEARCH_DELAY_MS = 300;
+let activeSearches = 0;
+const searchQueue: Array<() => void> = [];
+
+function acquireSearchSlot(): Promise<void> {
+  if (activeSearches < MAX_CONCURRENT_SEARCHES) {
+    activeSearches++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    searchQueue.push(() => {
+      activeSearches++;
+      resolve();
+    });
+  });
+}
+
+function releaseSearchSlot(): void {
+  activeSearches--;
+  const next = searchQueue.shift();
+  if (next) next();
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function normalize(name: string): string {
   return name
@@ -458,45 +494,57 @@ function getSearchVariations(name: string): string[] {
     const filtered = words.filter(
       (w) => !/^(de|del|la|las|el|los|fc|sc|cf|cd|ac|rc|rr|sd|ud|sv|ii|iii|iv)$/i.test(w)
     );
-    if (filtered.length >= 1) variations.push(filtered.join(" "));
-    if (filtered.length >= 2) {
-      variations.push(filtered[0]);
-      variations.push(filtered.slice(0, 2).join(" "));
+    if (filtered.length >= 1 && filtered.join(" ").toLowerCase() !== name.toLowerCase()) {
+      variations.push(filtered.join(" "));
     }
   }
 
-  if (words.length > 1) {
-    variations.push(words[words.length - 1]);
-  }
-
   const seen = new Set<string>();
-  return variations.filter((v) => {
-    const key = normalize(v);
-    if (!key || key.length < 2 || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return variations
+    .filter((v) => {
+      const key = normalize(v);
+      if (!key || key.length < 2 || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 2);
 }
 
 async function searchTeam(query: string): Promise<SportsDBTeam[]> {
   const url = `${SPORTSDB_BASE}/${SPORTSDB_KEY}/searchteams.php?t=${encodeURIComponent(query)}`;
+  await acquireSearchSlot();
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
-    const res = await fetch(url, { 
-      next: { revalidate: 86400 },
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!res.ok) return [];
-    const data: SportsDBResponse = await res.json();
-    return data.teams ?? [];
-  } catch {
-    // If timeout or any error occurs, return empty array to fall back to other methods
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const res = await fetch(url, { signal: controller.signal });
+
+        clearTimeout(timeoutId);
+
+        if (res.status === 429 || res.status >= 500) {
+          if (attempt < 2) {
+            await sleep(1000 * (attempt + 1));
+            continue;
+          }
+          return [];
+        }
+        if (!res.ok) return [];
+        const data: SportsDBResponse = await res.json();
+        return data.teams ?? [];
+      } catch {
+        if (attempt < 2) {
+          await sleep(1000 * (attempt + 1));
+          continue;
+        }
+        return [];
+      }
+    }
     return [];
+  } finally {
+    releaseSearchSlot();
+    await sleep(SEARCH_DELAY_MS);
   }
 }
 
@@ -518,6 +566,9 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
   const aliasKey = PROMIEDOS_ALIASES[key];
   const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key] || PROMIEDOS_BADGES[teamName.toLowerCase()];
   if (promiedosUrl) return promiedosUrl;
+
+  const populatedUrl = POPULATED_BADGES[aliasKey || key] || POPULATED_BADGES[key];
+  if (populatedUrl) return populatedUrl;
 
   const nationalTeamBadge = NATIONAL_TEAM_BADGES[key];
   if (nationalTeamBadge) return nationalTeamBadge;
@@ -582,6 +633,11 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
   const cached = logoCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
+  const negExpiry = negativeCache.get(cacheKey);
+  if (negExpiry !== undefined && Date.now() < negExpiry) {
+    return NATIONAL_TEAM_BADGES[key] || "";
+  }
+
   const pending = pendingLookups.get(cacheKey);
   if (pending) return pending;
 
@@ -604,17 +660,16 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
         const match = findBestMatch(teams, teamName) || (mappedAliasKey ? findBestMatch(teams, mappedAliasKey) : null) || (key === "liverpool" ? findBestMatch(teams, "Liverpool Montevideo") : null);
         if (match?.strBadge) {
           logoCache.set(cacheKey, match.strBadge);
+          negativeCache.delete(cacheKey);
           return match.strBadge;
         }
       }
 
-      const fallback = NATIONAL_TEAM_BADGES[key] || "";
-      logoCache.set(cacheKey, fallback);
-      return fallback;
+      negativeCache.set(cacheKey, Date.now() + NEGATIVE_CACHE_TTL_MS);
+      return NATIONAL_TEAM_BADGES[key] || "";
     } catch {
-      const fallback = NATIONAL_TEAM_BADGES[key] || "";
-      logoCache.set(cacheKey, fallback);
-      return fallback;
+      negativeCache.set(cacheKey, Date.now() + NEGATIVE_CACHE_TTL_MS);
+      return NATIONAL_TEAM_BADGES[key] || "";
     } finally {
       pendingLookups.delete(cacheKey);
     }
@@ -622,4 +677,46 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
 
   pendingLookups.set(cacheKey, promise);
   return promise;
+}
+
+export function peekTeamLogo(teamName: string, country?: string): string | null {
+  const key = normalize(teamName);
+  if (!key) return null;
+
+  if (key === "liverpool" && country === "Uruguay") {
+    return "https://r2.thesportsdb.com/images/media/team/badge/0xat6f1678717839.png";
+  }
+
+  const mlsBadge = MLS_TEAM_BADGES[key];
+  if (mlsBadge) return mlsBadge;
+
+  const aliasKey = PROMIEDOS_ALIASES[key];
+  const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key] || PROMIEDOS_BADGES[teamName.toLowerCase()];
+  if (promiedosUrl) return promiedosUrl;
+
+  const populatedUrl = POPULATED_BADGES[aliasKey || key] || POPULATED_BADGES[key];
+  if (populatedUrl) return populatedUrl;
+
+  const nationalTeamBadge = NATIONAL_TEAM_BADGES[key];
+  if (nationalTeamBadge) return nationalTeamBadge;
+
+  if (key === "irland" || key === "ireland" || key === "republicofireland") {
+    return "https://flagcdn.com/w160/ie.png";
+  }
+
+  const CLUB_OVERRIDES: Record<string, string> = {
+    "antofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
+    "deportesantofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
+    "roma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
+    "asroma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
+    "deportivorecoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
+    "recoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
+  };
+  if (CLUB_OVERRIDES[key]) return CLUB_OVERRIDES[key];
+
+  const cacheKey = country ? `${key}-${normalize(country)}` : key;
+  const cached = logoCache.get(cacheKey);
+  if (cached !== undefined && cached !== "") return cached;
+
+  return null;
 }
