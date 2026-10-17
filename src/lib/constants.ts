@@ -350,6 +350,8 @@ const PL_EXCLUDED_LEAGUES = [
   "lol",
   "league of legends",
   "ufc",
+  "canadian premier league",
+  "canpl",
 ];
 
 export const ECUADOR_SERIE_A_TEAMS = [
@@ -679,6 +681,7 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "sanluis": "atleticosanluis",
   "spurs": "tottenham",
   "talleres": "talleresdecordoba",
+  "tallerescordoba": "talleresdecordoba",
   "tigre": "tigre",
   "tigres": "uanltigres",
   "tigresuanl": "uanltigres",
@@ -709,7 +712,7 @@ export const PROMIEDOS_BADGES: Record<string, string> = {
   "estudiantesdelaplata": "https://api.promiedos.com.ar/images/team/igh/3",
   "deportivoriestra": "https://api.promiedos.com.ar/images/team/bbjea/3",
   "platense": "https://api.promiedos.com.ar/images/team/hcah/3",
-  "talleresdecordoba": "https://api.promiedos.com.ar/images/team/jche/3",
+  "talleresdecordoba": "/talleres-cordoba.png",
   "centralcordobasde": "https://api.promiedos.com.ar/images/team/beafh/3",
   "argentinosjuniors": "https://api.promiedos.com.ar/images/team/ihb/3",
   "gimnasialaplata": "https://api.promiedos.com.ar/images/team/iia/3",

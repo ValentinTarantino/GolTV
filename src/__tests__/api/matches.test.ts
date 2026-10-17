@@ -133,6 +133,20 @@ describe("/api/matches", () => {
     expect(data.matches).toHaveLength(1);
   });
 
+  it("deduplicates Inter listed under two names (Inter Milan vs Inter)", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ homeTeam: "Inter Milan", awayTeam: "Parma", league: "Serie A", slug: "inter-milan-vs-parma" }),
+      flMatch({ homeTeam: "Inter", awayTeam: "Parma", league: "Serie A", slug: "inter-vs-parma" }),
+    ]);
+
+    const req = makeRequest(todayISO());
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].homeTeam.name).toBe("Inter Milan");
+  });
+
   it("skips matches without embeds", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ embeds: [] }),

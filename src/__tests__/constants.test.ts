@@ -236,6 +236,14 @@ describe("getTeamLogo", () => {
   it("still maps Platense to its promiedos badge", async () => {
     await expect(getTeamLogo("Platense", "Argentina")).resolves.toBe("https://api.promiedos.com.ar/images/team/hcah/3");
   });
+
+  it("uses Talleres de Córdoba's crest for its fixture name", async () => {
+    const talleresCrest = "/talleres-cordoba.png";
+
+    await expect(getTeamLogo("Talleres Córdoba", "Argentina")).resolves.toBe(talleresCrest);
+    await expect(getTeamLogo("Talleres de Córdoba", "Argentina")).resolves.toBe(talleresCrest);
+    await expect(getTeamLogo("Talleres")).resolves.toBe(talleresCrest);
+  });
 });
 
 describe("matchPlLeague", () => {
@@ -281,6 +289,12 @@ describe("matchPlLeague", () => {
     expect(league?.id).toBe(57);
     expect(league?.country).toBe("Ecuador");
     expect(league?.name).toBe("Liga Pro");
+  });
+
+  it("maps Serie A with Independiente del Valle vs Aucas to Liga Pro", () => {
+    const league = matchPlLeague("Serie A", "Independiente del Valle", "Aucas");
+    expect(league?.id).toBe(57);
+    expect(league?.country).toBe("Ecuador");
   });
 
   it("keeps Italian Serie A clubs in Serie A", () => {
@@ -346,5 +360,12 @@ describe("matchPlLeague", () => {
     expect(matchPlLeague("NHL", "Detroit Red Wings", "New York Rangers")).toBeNull();
     expect(matchPlLeague("NBA", "Los Angeles Lakers", "Boston Celtics")).toBeNull();
     expect(matchPlLeague("MLB", "Yankees", "Red Sox")).toBeNull();
+  });
+
+  it("rejects Canadian Premier League instead of mapping it to English Premier League", () => {
+    expect(matchPlLeague("Canadian Premier League", "Supra du Quebec", "Inter Toronto")).toBeNull();
+    expect(matchPlLeague("Canadian Premier League", "Vancouver FC", "HFX Wanderers")).toBeNull();
+    expect(matchPlLeague("CanPL", "Forge", "Cavalry")).toBeNull();
+    expect(matchPlLeague("Premier League", "Arsenal", "Liverpool")?.id).toBe(39);
   });
 });

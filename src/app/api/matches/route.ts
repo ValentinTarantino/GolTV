@@ -41,6 +41,12 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   "1fcnurnberg": "nurnberg",
   wolfsburg: "wolfsburg",
   vflwolfsburg: "wolfsburg",
+  inter: "intermilan",
+  internazionale: "intermilan",
+  intermilano: "intermilan",
+  interdemilan: "intermilan",
+  fcinternazionale: "intermilan",
+  intermilan: "intermilan",
 };
 
 function matchDedupKey(dateISO: string, leagueId: number, homeTeam: string, awayTeam: string): string {

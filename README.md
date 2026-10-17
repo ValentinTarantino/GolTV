@@ -90,13 +90,13 @@ MONGODB_DB=goltv
 
 | Tipo | Tests | Descripcion |
 |------|-------|-------------|
-| Unit (Jest) | 72 | Constantes, utilidades, streaming, tipos, parser del fixture secundario |
-| API Routes (Jest) | 53 | matches, match-by-id, standings, leagues, chat, viewers, health |
+| Unit (Jest) | 90 | Constantes, utilidades, streaming, tipos, parser del fixture secundario |
+| API Routes (Jest) | 59 | matches, match-by-id, standings, leagues, chat, viewers, health |
 | E2E (Cypress) | 32 | Home, navegacion, busqueda, ligas, responsive, idioma |
-| **Total** | **157** | **Cobertura completa de stack** |
+| **Total** | **181** | **Cobertura completa de stack** |
 
 ```bash
-npm test                          # 125 tests Jest
+npm test                          # 149 tests Jest
 npx cypress run                   # 32 tests E2E
 npm run validate                  # Lint + TypeScript + Jest + Build
 ```
@@ -108,7 +108,7 @@ npm run validate                  # Lint + TypeScript + Jest + Build
 | `npm run dev` | Servidor de desarrollo |
 | `npm run build` | Build de produccion |
 | `npm run lint` | Linter ESLint |
-| `npm test` | Ejecutar tests Jest (125 tests) |
+| `npm test` | Ejecutar tests Jest (149 tests) |
 | `npm run cypress` | Abrir Cypress E2E (browser) |
 | `npm run cypress:run` | Ejecutar Cypress headless |
 | `npm run test:e2e` | Abrir Cypress |
@@ -248,13 +248,13 @@ MONGODB_DB=goltv
 
 | Type | Tests | Description |
 |------|-------|-------------|
-| Unit (Jest) | 72 | Constants, utilities, streaming, types, secondary fixture parser |
-| API Routes (Jest) | 53 | matches, match-by-id, standings, leagues, chat, viewers, health |
+| Unit (Jest) | 90 | Constants, utilities, streaming, types, secondary fixture parser |
+| API Routes (Jest) | 59 | matches, match-by-id, standings, leagues, chat, viewers, health |
 | E2E (Cypress) | 32 | Home, navigation, search, leagues, responsive, language |
-| **Total** | **157** | **Full stack coverage** |
+| **Total** | **181** | **Full stack coverage** |
 
 ```bash
-npm test                          # 125 Jest tests
+npm test                          # 149 Jest tests
 npx cypress run                   # 32 E2E tests
 npm run validate                  # Lint + TypeScript + Jest + Build
 ```
@@ -266,7 +266,7 @@ npm run validate                  # Lint + TypeScript + Jest + Build
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint linter |
-| `npm test` | Run Jest tests (125 tests) |
+| `npm test` | Run Jest tests (149 tests) |
 | `npm run cypress` | Open Cypress E2E (browser) |
 | `npm run cypress:run` | Run Cypress headless |
 | `npm run test:e2e` | Open Cypress |
