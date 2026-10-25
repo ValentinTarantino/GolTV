@@ -80,7 +80,7 @@ describe("/api/standings", () => {
     const match = normalizeBracketMatch({
       teams: [{ name: "River Plate" }, { name: "Boca Juniors" }],
       scores: [1, 1],
-      winner: 1,
+      winner: 2,
       penalties: [4, 2],
       status: { short_name: "PEN" },
     });
@@ -89,5 +89,63 @@ describe("/api/standings", () => {
     expect(match.awayScore).toBe("1");
     expect(match.winner).toBe("away");
     expect(match.penalties).toEqual({ home: 4, away: 2 });
+    expect(match.decidedByPenalties).toBe(true);
+  });
+
+  it("parses Promiedos aggregate scores, 1-based winner fields and penalty status", () => {
+    const { normalizeBracketMatch } = jest.requireActual("@/lib/standings") as typeof import("@/lib/standings");
+
+    const match = normalizeBracketMatch({
+      teams: [{ name: "Flamengo" }, { name: "Estudiantes de La Plata" }],
+      scores: [0, 0],
+      agg_scores: [0, 0],
+      description: "Global 0 - 0",
+      winner: 2,
+      to_qualify: 2,
+      status: { name: "Por penales", short_name: "Por penales", symbol_name: "Pen" },
+    });
+
+    expect(match.winner).toBe("away");
+    expect(match.aggregateHomeScore).toBe("0");
+    expect(match.aggregateAwayScore).toBe("0");
+    expect(match.decidedByPenalties).toBe(true);
+    expect(match.status).toContain("Por penales");
+    expect(match.penalties).toBeNull();
+  });
+
+  it("shows the Fluminense advancement from the real Promiedos penalty-decider shape", () => {
+    const { normalizeBracketMatch } = jest.requireActual("@/lib/standings") as typeof import("@/lib/standings");
+
+    const match = normalizeBracketMatch({
+      teams: [{ name: "Independiente Rivadavia" }, { name: "Fluminense" }],
+      scores: [1, 1],
+      agg_scores: [1, 1],
+      description: "Global 1 - 1",
+      winner: 2,
+      to_qualify: 2,
+      status: { enum: 3, name: "Por penales", short_name: "Por penales", symbol_name: "Pen" },
+      game_time_status_to_display: "Por penales",
+    });
+
+    expect(match.winner).toBe("away");
+    expect(match.decidedByPenalties).toBe(true);
+    expect(match.aggregateHomeScore).toBe("1");
+    expect(match.aggregateAwayScore).toBe("1");
+  });
+
+  it("recognizes the advancing team when winner is encoded as 1", () => {
+    const { normalizeBracketMatch } = jest.requireActual("@/lib/standings") as typeof import("@/lib/standings");
+
+    const match = normalizeBracketMatch({
+      teams: [{ name: "Palmeiras" }, { name: "Fluminense" }],
+      scores: [0, 1],
+      agg_scores: [2, 2],
+      winner: 1,
+      to_qualify: 1,
+      status: { name: "Por penales" },
+    });
+
+    expect(match.winner).toBe("home");
+    expect(match.decidedByPenalties).toBe(true);
   });
 });

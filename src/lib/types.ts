@@ -101,6 +101,9 @@ export interface BracketMatch {
   status: string;
   winner?: "home" | "away" | "draw";
   penalties?: { home: number | null; away: number | null } | null;
+  aggregateHomeScore?: string;
+  aggregateAwayScore?: string;
+  decidedByPenalties?: boolean;
 }
 
 export interface BracketRound {

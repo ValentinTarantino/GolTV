@@ -139,6 +139,11 @@ function readPenaltyScore(game: any): { home: number | null; away: number | null
     game.result?.penalties ??
     game.result?.score_penalties ??
     game.penalty_shootout ??
+    game.scores_penalty ??
+    game.penalties_score ??
+    game.penalty_result ??
+    game.shootout_score ??
+    game.shootout ??
     null;
 
   if (!raw) return null;
@@ -178,7 +183,37 @@ export function normalizeBracketMatch(game: any): BracketMatch {
   const homeScore = normalizeScoreValue(game.scores?.[0] ?? game.score?.home ?? game.home_score ?? game.homeScore ?? "");
   const awayScore = normalizeScoreValue(game.scores?.[1] ?? game.score?.away ?? game.away_score ?? game.awayScore ?? "");
   const penalties = readPenaltyScore(game);
+  const aggregateScores = game.agg_scores ?? game.aggregate_scores ?? game.scores_aggregate ?? game.aggregate_score;
+  let aggregateHomeScore = "";
+  let aggregateAwayScore = "";
+  if (Array.isArray(aggregateScores)) {
+    aggregateHomeScore = normalizeScoreValue(aggregateScores[0]);
+    aggregateAwayScore = normalizeScoreValue(aggregateScores[1]);
+  } else if (aggregateScores && typeof aggregateScores === "object") {
+    aggregateHomeScore = normalizeScoreValue(aggregateScores.home ?? aggregateScores[0]);
+    aggregateAwayScore = normalizeScoreValue(aggregateScores.away ?? aggregateScores[1]);
+  }
+  if ((!aggregateHomeScore || !aggregateAwayScore) && typeof game.description === "string") {
+    const globalScore = game.description.match(/global\s*(-?\d+)\s*[-–:]\s*(-?\d+)/i);
+    if (globalScore) {
+      aggregateHomeScore ||= globalScore[1];
+      aggregateAwayScore ||= globalScore[2];
+    }
+  }
+
+  const rawStatus = game.status;
+  const statusText = [
+    typeof rawStatus === "string" ? rawStatus : "",
+    rawStatus?.name,
+    rawStatus?.short_name,
+    rawStatus?.symbol_name,
+    game.game_time_status_to_display,
+  ].filter((value): value is string => typeof value === "string").join(" ");
+  const decidedByPenalties = Boolean(penalties) || /penalt|penal(?:es)?|shoot.?out|tanda|\bpen\b/i.test(statusText);
+
   const winningTeam =
+    game.to_qualify ??
+    game.qualified ??
     game.winner ??
     game.winner_team ??
     game.winnerTeam ??
@@ -188,8 +223,8 @@ export function normalizeBracketMatch(game: any): BracketMatch {
     null;
 
   let winner: BracketMatch["winner"] = undefined;
-  if (winningTeam === 0 || winningTeam === "0" || winningTeam === home?.name) winner = "home";
-  else if (winningTeam === 1 || winningTeam === "1" || winningTeam === away?.name) winner = "away";
+  if (winningTeam === 0 || winningTeam === "0" || winningTeam === 1 || winningTeam === "1" || winningTeam === home?.name || winningTeam === "home") winner = "home";
+  else if (winningTeam === 2 || winningTeam === "2" || winningTeam === away?.name || winningTeam === "away") winner = "away";
   else if (winningTeam === "draw" || winningTeam === "tie" || winningTeam === "empatado") winner = "draw";
 
   return {
@@ -198,9 +233,12 @@ export function normalizeBracketMatch(game: any): BracketMatch {
     homeScore,
     awayScore,
     round: "",
-    status: game.status?.short_name || game.status || game.game_time_status_to_display || "",
+    status: statusText.trim(),
     winner,
     penalties,
+    aggregateHomeScore,
+    aggregateAwayScore,
+    decidedByPenalties,
   };
 }
 
@@ -295,7 +333,9 @@ export async function fetchLeagueStandings(
   const league = PROMIEDOS_LEAGUES[leagueId];
   if (!league) return { tabs: [], brackets: [] };
 
-  const cacheKey = `standings:${leagueId}`;
+  // Bump the cache namespace when bracket fields change so hot-reloaded or
+  // distributed caches cannot keep returning pre-normalized knockout results.
+  const cacheKey = `standings:v2:${leagueId}`;
   const cached = await getCache<LeagueStandingsData>(cacheKey);
   if (cached) return cached;
 

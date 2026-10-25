@@ -167,6 +167,20 @@ describe("/api/matches/[matchId]", () => {
     expect(data.match.channels[0].kind).toBe("iframe");
   });
 
+  it("does not reuse player 1 channels when player 3 has no signal", async () => {
+    (getMatchById as jest.Mock).mockResolvedValue(makeMatch({
+      channels: [{ id: "fl-old", name: "Player 1", url: "https://example.com/player-one" }],
+    }));
+    (findSecondaryStreams as jest.Mock).mockResolvedValue([]);
+
+    const req = makeRequest("http://localhost/api/matches/12345?player=3");
+    const res = await GET(req, { params: Promise.resolve({ matchId: "12345" }) });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.match.channels).toEqual([]);
+  });
+
   it("resolves primary-agenda channels for secondary-only matches (player=1)", async () => {
     (getMatchById as jest.Mock).mockResolvedValue(null);
     (findAgendaStreams as jest.Mock).mockResolvedValue([

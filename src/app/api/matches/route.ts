@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
+import { fetchEventAgenda } from "@/lib/event-source";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
@@ -47,16 +48,80 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   interdemilan: "intermilan",
   fcinternazionale: "intermilan",
   intermilan: "intermilan",
+  lafc: "losangelesfc",
+  losangelesfc: "losangelesfc",
+  galaxy: "lagalaxy",
+  lagalaxy: "lagalaxy",
+  losangelesgalaxy: "lagalaxy",
+  clubnacional: "nacional",
+  clubnacionaldefootball: "nacional",
+  nacionaldefootball: "nacional",
+  liverpoolm: "liverpool",
+  liverpoolmontevideo: "liverpool",
+  independientemedellin: "independientemedellin",
+  independientemedellinfc: "independientemedellin",
+  dim: "independientemedellin",
+  medellin: "independientemedellin",
+  alianza: "alianzavalledupar",
+  alianzavalledupar: "alianzavalledupar",
+  alianzafc: "alianzavalledupar",
+  interbogota: "internacionaldebogota",
+  internacionalbogota: "internacionaldebogota",
+  internacionaldebogota: "internacionaldebogota",
+  alajuelense: "alajuelense",
+  ldalajuelense: "alajuelense",
+  ligadeportivaalajuelense: "alajuelense",
+  perezzeledon: "perezzeledon",
+  municipalperezzeledon: "perezzeledon",
 };
 
-function matchDedupKey(dateISO: string, leagueId: number, homeTeam: string, awayTeam: string): string {
+const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
+  239: { alianza: "alianzavalledupar", alianzafc: "alianzavalledupar" },
+  281: { alianza: "alianzalima" },
+};
+
+function canonicalTeamForDedup(team: string, leagueId: number): string {
+  const key = normalize(team);
+  return LEAGUE_TEAM_DEDUP_ALIASES[leagueId]?.[key] ?? TEAM_DEDUP_ALIASES[key] ?? key;
+}
+
+function matchDedupKey(homeTeam: string, awayTeam: string, leagueId: number): string {
   const teams = [homeTeam, awayTeam]
-    .map((team) => {
-      const key = normalize(team);
-      return TEAM_DEDUP_ALIASES[key] ?? key;
-    })
+    .map((team) => canonicalTeamForDedup(team, leagueId))
     .sort();
-  return `${toArgentinaDate(dateISO)}-${leagueId}-${teams[0]}-${teams[1]}`;
+  // League is deliberately omitted: providers sometimes label the same fixture
+  // with different competitions, while the canonical team pair is stable.
+  return `${teams[0]}-${teams[1]}`;
+}
+
+interface SeenFixture {
+  date: string;
+  timestamp: number;
+}
+
+const CROSS_DATE_DUPLICATE_WINDOW_MS = 8 * 60 * 60 * 1000;
+
+function isDuplicateFixture(
+  seenMatches: Map<string, SeenFixture[]>,
+  dateISO: string,
+  leagueId: number,
+  homeTeam: string,
+  awayTeam: string
+): boolean {
+  const key = matchDedupKey(homeTeam, awayTeam, leagueId);
+  const date = toArgentinaDate(dateISO);
+  const timestamp = new Date(dateISO).getTime();
+  const previous = seenMatches.get(key) ?? [];
+
+  if (previous.some((fixture) =>
+    fixture.date === date || Math.abs(fixture.timestamp - timestamp) <= CROSS_DATE_DUPLICATE_WINDOW_MS
+  )) {
+    return true;
+  }
+
+  previous.push({ date, timestamp });
+  seenMatches.set(key, previous);
+  return false;
 }
 
 const CHILEAN_CLUBS = [
@@ -112,9 +177,10 @@ export async function GET(request: NextRequest) {
   if ("error" in validation) return validation.error;
 
   const requestedDate = validation.data.date;
-  const [flAgenda, secondaryAgenda] = await Promise.all([
+  const [flAgenda, secondaryAgenda, eventAgenda] = await Promise.all([
     fetchAgenda(),
     fetchSecondaryAgenda(),
+    fetchEventAgenda(),
   ]);
 
   const date = requestedDate || getArgentinaToday();
@@ -122,7 +188,7 @@ export async function GET(request: NextRequest) {
     (m) => toArgentinaDate(m.dateISO) === date || isNearNow(m.dateISO)
   );
 
-  const seenMatches = new Set<string>();
+  const seenMatches = new Map<string, SeenFixture[]>();
   const matches: Match[] = [];
 
   for (const flMatch of filteredAgenda) {
@@ -132,9 +198,7 @@ export async function GET(request: NextRequest) {
     if (!league) continue;
     if (flMatch.embeds.length === 0) continue;
 
-    const dedupKey = matchDedupKey(flMatch.dateISO, league.id, flMatch.homeTeam, flMatch.awayTeam);
-    if (seenMatches.has(dedupKey)) continue;
-    seenMatches.add(dedupKey);
+    if (isDuplicateFixture(seenMatches, flMatch.dateISO, league.id, flMatch.homeTeam, flMatch.awayTeam)) continue;
 
     const status = inferStatus(flMatch.dateISO);
 
@@ -174,9 +238,7 @@ export async function GET(request: NextRequest) {
 
     const league = classifyAgendaLeague(secMatch.league, secMatch.homeTeam, secMatch.awayTeam);
     if (!league) continue;
-    const dedupKey = matchDedupKey(secMatch.dateISO, league.id, secMatch.homeTeam, secMatch.awayTeam);
-    if (seenMatches.has(dedupKey)) continue;
-    seenMatches.add(dedupKey);
+    if (isDuplicateFixture(seenMatches, secMatch.dateISO, league.id, secMatch.homeTeam, secMatch.awayTeam)) continue;
 
     const status = inferStatus(secMatch.dateISO);
 
@@ -203,6 +265,46 @@ export async function GET(request: NextRequest) {
       channels: [],
       broadcastChannels: getBroadcastChannels(league.id),
       _eventSlug: secMatch.slug,
+    });
+  }
+
+  // Pelota Libre's event agenda is a third fixture provider. It supplies its
+  // own streams through player 2, and only fills matches absent from the other
+  // agendas.
+  for (const eventMatch of eventAgenda) {
+    if (!isMenFootballMatch(eventMatch.league, eventMatch.homeTeam, eventMatch.awayTeam)) continue;
+    if (eventMatch.sources.length === 0) continue;
+    if (!(toArgentinaDate(eventMatch.dateISO) === date || isNearNow(eventMatch.dateISO))) continue;
+
+    const league = classifyAgendaLeague(eventMatch.league, eventMatch.homeTeam, eventMatch.awayTeam);
+    if (!league) continue;
+    if (isDuplicateFixture(seenMatches, eventMatch.dateISO, league.id, eventMatch.homeTeam, eventMatch.awayTeam)) continue;
+
+    const status = inferStatus(eventMatch.dateISO);
+
+    matches.push({
+      id: hashSlug(eventMatch.slug),
+      league: {
+        id: league.id,
+        name: league.name,
+        country: league.country,
+        logo: LEAGUE_LOGOS[league.id] || `https://media.api-sports.io/football/leagues/${league.id}.png`,
+        flag: league.countryFlag,
+        slug: league.slug,
+      },
+      homeTeam: { id: 0, name: eventMatch.homeTeam, logo: "" },
+      awayTeam: { id: 0, name: eventMatch.awayTeam, logo: "" },
+      date: eventMatch.dateISO,
+      timestamp: Math.floor(new Date(eventMatch.dateISO).getTime() / 1000),
+      status: {
+        short: status,
+        long: status === "NS" ? "Próximamente" : status === "FT" ? "Finalizado" : "En Juego",
+        elapsed: null,
+      },
+      score: { home: null, away: null },
+      channels: [],
+      broadcastChannels: getBroadcastChannels(league.id),
+      _eventSlug: eventMatch.slug,
     });
   }
 

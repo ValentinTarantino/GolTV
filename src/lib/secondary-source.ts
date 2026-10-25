@@ -14,7 +14,7 @@ function eventBase(): string {
 }
 
 const AGENDA_CACHE_TTL = 5 * 60 * 1000;
-const AGENDA_CACHE_KEY = "secondary:agenda";
+const AGENDA_CACHE_KEY = "secondary:agenda:v2";
 
 export interface SecondaryEmbed {
   id: string; // raw base64 "r" param (decodes to the stream URL)
@@ -49,6 +49,29 @@ function decodeHtmlEntities(str: string): string {
 
 function stripTags(str: string): string {
   return decodeHtmlEntities(str.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+function extractEventsArray(script: string): string | null {
+  const assignment = /(?:const|let|var)\s+EVENTOS_DATA\s*=\s*\[/i.exec(script);
+  if (!assignment) return null;
+  const start = script.indexOf("[", assignment.index);
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < script.length; i++) {
+    const char = script[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === "[") depth++;
+    else if (char === "]" && --depth === 0) return script.slice(start, i + 1);
+  }
+  return null;
 }
 
 function parseDescription(desc: string): { league: string; homeTeam: string; awayTeam: string } {
@@ -90,6 +113,45 @@ function toArgentinaISO(year: number, month: number, day: number, time: string):
 }
 
 export function parseSecondaryAgenda(html: string): SecondaryMatch[] {
+  const scriptData = extractEventsArray(html);
+  if (scriptData) {
+    try {
+      const events = JSON.parse(scriptData) as Array<{
+        titulo?: string;
+        hora?: string;
+        clase?: string;
+        canales?: Array<{ nombre?: string; url?: string }>;
+      }>;
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+
+      return events.flatMap((event) => {
+        const { league, homeTeam, awayTeam } = parseDescription(event.titulo ?? "");
+        if (!homeTeam || !awayTeam) return [];
+        if (!isMenFootballMatch(`${event.clase ?? ""} ${league}`, homeTeam, awayTeam)) return [];
+        if (NON_FOOTBALL_TEXT.test(`${event.clase ?? ""} ${league} ${homeTeam} ${awayTeam}`)) return [];
+        if (!/^\d{1,2}:\d{2}$/.test(event.hora ?? "")) return [];
+
+        const [hourText, minuteText] = (event.hora as string).split(":");
+        const hour = Number(hourText);
+        if (hour > 23 || Number(minuteText) > 59) return [];
+        const dateISO = `${today}T${String((hour - 4 + 24) % 24).padStart(2, "0")}:${minuteText}:00-03:00`;
+        const sources = (event.canales ?? []).flatMap((channel) => {
+          if (!channel.nombre || !channel.url) return [];
+          try {
+            const encoded = channel.url.match(/[?&]r=([^&#]+)/)?.[1];
+            return encoded ? [{ id: decodeURIComponent(encoded), name: channel.nombre }] : [];
+          } catch {
+            return [];
+          }
+        });
+        const slug = `${homeTeam.toLowerCase().replace(/\s+/g, "-")}-vs-${awayTeam.toLowerCase().replace(/\s+/g, "-")}`;
+        return [{ slug, homeTeam, awayTeam, league, dateISO, sources }];
+      });
+    } catch {
+      return [];
+    }
+  }
+
   type Token =
     | { kind: "day"; index: number; year: number; month: number; day: number }
     | { kind: "item"; index: number; text: string; time: string; block: string };
@@ -142,12 +204,12 @@ export function parseSecondaryAgenda(html: string): SecondaryMatch[] {
     if (!dateISO) continue;
 
     const sources: SecondaryEmbed[] = [];
-    const sourceRegex = /href="\/eventos\.html\?r=([A-Za-z0-9+/=]+)"[^>]*>([^<]*)/g;
+    const sourceRegex = /<a\b[^>]*href="([^"]*\/eventos\.html\?[^"#]*\br=([^&"#]+)[^"#]*)"[^>]*>([\s\S]*?)<\/a>/gi;
     let sourceMatch: RegExpExecArray | null;
     while ((sourceMatch = sourceRegex.exec(token.block)) !== null) {
-      const name = stripTags(sourceMatch[2]);
+      const name = stripTags(sourceMatch[3].split(/<span\b/i)[0]);
       if (!name) continue;
-      sources.push({ id: sourceMatch[1], name });
+      sources.push({ id: decodeURIComponent(sourceMatch[2]), name });
     }
 
     const slug = `${homeTeam.toLowerCase().replace(/\s+/g, "-")}-vs-${awayTeam.toLowerCase().replace(/\s+/g, "-")}`;
@@ -204,13 +266,45 @@ export async function fetchSecondaryAgenda(): Promise<SecondaryMatch[]> {
 }
 
 function decodeStreamUrl(encoded: string): string {
+  const candidates = [encoded];
   try {
-    const decoded = atob(encoded);
-    if (decoded.startsWith("https://") || decoded.startsWith("http://")) {
-      return decoded;
-    }
+    candidates.push(atob(encoded));
   } catch {
-    // not valid base64 — caller falls back to the wrapper URL
+    // Some agenda links store the destination as a plain query parameter.
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const value = candidate.trim();
+      if (/^https?:\/\//i.test(value)) {
+        const parsed = new URL(value);
+        if (/\/(eventos\.html|index\.php)$/i.test(parsed.pathname)) {
+          const nested = parsed.searchParams.get("r");
+          if (nested && nested !== encoded) {
+            const nestedUrl = decodeStreamUrl(nested);
+            if (nestedUrl) return nestedUrl;
+          }
+        }
+        return value;
+      }
+
+      // The base64 payload may itself be a wrapper URL or contain iframe markup.
+      const iframeSrc = value.match(/<iframe\b[^>]*\bsrc=["']([^"']+)["']/i)?.[1];
+      if (iframeSrc) {
+        const absolute = new URL(iframeSrc, eventBase()).toString();
+        if (absolute !== value) {
+          const nestedUrl = decodeStreamUrl(absolute);
+          if (nestedUrl) return nestedUrl;
+        }
+      }
+      const nestedParam = value.match(/[?&]r=([^&\s"']+)/i)?.[1];
+      if (nestedParam && nestedParam !== encoded) {
+        const nestedUrl = decodeStreamUrl(decodeURIComponent(nestedParam));
+        if (nestedUrl) return nestedUrl;
+      }
+    } catch {
+      // Try the next representation; caller can still use the wrapper URL.
+    }
   }
   return "";
 }

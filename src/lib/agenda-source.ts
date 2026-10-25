@@ -28,6 +28,15 @@ export interface AgendaMatch {
   embeds: AgendaEmbed[];
 }
 
+function stableEmbedId(embedIframe: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < embedIframe.length; i++) {
+    hash ^= embedIframe.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 function limaToArgentinaISO(dateDiary: string, diaryHour: string): string {
   const hour = parseInt(diaryHour.slice(0, 2), 10);
   const minute = parseInt(diaryHour.slice(3, 5), 10);
@@ -196,7 +205,8 @@ export async function getAgendaStream(
   embedIframe: string,
   embedName: string
 ): Promise<Channel | null> {
-  const cacheKey = `fl:stream:${embedIframe}`;
+  // v2 invalidates cached channel IDs that were based only on display names.
+  const cacheKey = `fl:v2:stream:${embedIframe}`;
 
   const cached = await getCache<Channel>(cacheKey);
   if (cached) return cached;
@@ -208,7 +218,7 @@ export async function getAgendaStream(
 
   const url = buildEmbedUrl(embedIframe);
   const channel: Channel = {
-    id: `fl-${embedName.toLowerCase().replace(/\s+/g, "-")}`,
+    id: `fl-${stableEmbedId(embedIframe)}`,
     name: embedName,
     url,
     kind: "iframe",

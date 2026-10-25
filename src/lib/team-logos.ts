@@ -83,6 +83,10 @@ function findBestMatch(teams: SportsDBTeam[], query: string): SportsDBTeam | nul
 
 const MLS_TEAM_BADGES: Record<string, string> = {
   // ESPN's team IDs serve the clubs' official MLS crests as transparent PNGs.
+  lafc: "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
+  losangelesfc: "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
+  lagalaxy: "https://a.espncdn.com/i/teamlogos/soccer/500/187.png",
+  losangelesgalaxy: "https://a.espncdn.com/i/teamlogos/soccer/500/187.png",
   newyorkrb: "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
   newyorkredbulls: "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
   redbullnewyork: "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",

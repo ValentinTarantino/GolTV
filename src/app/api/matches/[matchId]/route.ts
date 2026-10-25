@@ -63,7 +63,9 @@ export async function GET(
       channels.push(...rapidChannels);
     }
 
-    if (channels.length > 0) {
+    // Each player mode is a separate provider. Never leave the previous
+    // provider's channels attached when the selected source returns none.
+    if (playerMode !== "1" || channels.length > 0) {
       match.channels = channels;
     }
   }

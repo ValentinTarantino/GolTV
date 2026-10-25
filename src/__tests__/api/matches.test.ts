@@ -9,6 +9,10 @@ jest.mock("@/lib/secondary-source", () => ({
   fetchSecondaryAgenda: jest.fn(),
 }));
 
+jest.mock("@/lib/event-source", () => ({
+  fetchEventAgenda: jest.fn(),
+}));
+
 jest.mock("@/lib/team-logos", () => ({
   getTeamLogo: jest.fn().mockResolvedValue(""),
   peekTeamLogo: jest.fn().mockReturnValue(null),
@@ -18,6 +22,7 @@ import { NextRequest } from "next/server";
 import { GET } from "@/app/api/matches/route";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
+import { fetchEventAgenda } from "@/lib/event-source";
 
 function makeRequest(date?: string) {
   const url = date
@@ -45,6 +50,7 @@ describe("/api/matches", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
   });
 
   it("returns matches with correct structure", async () => {
@@ -274,6 +280,85 @@ describe("/api/matches", () => {
     expect(data.matches[0]).toHaveProperty("_eventSources");
   });
 
+  it("adds MLS fixtures from the event agenda and keeps duplicate fixtures once", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "los-angeles-fc-vs-la-galaxy",
+        homeTeam: "Los Angeles FC",
+        awayTeam: "LA Galaxy",
+        league: "MLS",
+        dateISO: `${date}T22:00:00-03:00`,
+        sources: [{ id: "8502", name: "Apple TV Español" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].league.id).toBe(332);
+    expect(data.matches[0].homeTeam.name).toBe("Los Angeles FC");
+    expect(data.matches[0]._eventSlug).toBe("los-angeles-fc-vs-la-galaxy");
+  });
+
+  it("primary agenda wins over the same event-agenda fixture", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Los Angeles FC",
+        awayTeam: "LA Galaxy",
+        league: "MLS",
+        dateISO: `${date}T22:00:00-03:00`,
+      }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "los-angeles-fc-vs-la-galaxy",
+        homeTeam: "LAFC",
+        awayTeam: "LA Galaxy",
+        league: "Major League Soccer",
+        dateISO: `${date}T22:00:00-03:00`,
+        sources: [{ id: "8502", name: "Apple TV Español" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0]).toHaveProperty("_eventSources");
+  });
+
+  it("includes MLS and ignores the same fixture from the secondary agenda", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Inter Miami",
+        awayTeam: "Atlanta United",
+        league: "Major League Soccer",
+        dateISO: `${date}T23:30:00.000-03:00`,
+      }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({
+        homeTeam: "Atlanta United",
+        awayTeam: "Inter Miami",
+        league: "MLS",
+        dateISO: `${date}T23:00:00.000-03:00`,
+      }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].league.id).toBe(332);
+    expect(data.matches[0]).toHaveProperty("_eventSources");
+  });
+
   it("deduplicates the same Ecuador match across league labels and date formats", async () => {
     const date = todayISO();
     const primaryDate = `${date}T21:00:00.000Z`;
@@ -301,6 +386,129 @@ describe("/api/matches", () => {
     expect(data.matches).toHaveLength(1);
     expect(data.matches[0].league.id).toBe(57);
     expect(data.matches[0]).toHaveProperty("_eventSources");
+  });
+
+  it("deduplicates club-name variants across all three agendas", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Nacional",
+        awayTeam: "Liverpool",
+        league: "Liga AUF Uruguaya",
+        dateISO: `${date}T19:30:00-03:00`,
+        slug: "nacional-liverpool",
+      }),
+      flMatch({
+        homeTeam: "Atlético Nacional",
+        awayTeam: "Medellín",
+        league: "Liga BetPlay",
+        dateISO: `${date}T20:10:00-03:00`,
+        slug: "atletico-nacional-medellin",
+      }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({
+        homeTeam: "Nacional",
+        awayTeam: "Liverpool M.",
+        league: "Primera División de Uruguay",
+        dateISO: `${date}T19:30:00-03:00`,
+      }),
+      secMatch({
+        homeTeam: "Independiente Medellín",
+        awayTeam: "Atlético Nacional",
+        league: "Liga BetPlay",
+        dateISO: `${date}T20:10:00-03:00`,
+      }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "nacional-liverpool-montevideo",
+        homeTeam: "Club Nacional de Football",
+        awayTeam: "Liverpool Montevideo",
+        league: "Primera División",
+        dateISO: `${date}T19:30:00-03:00`,
+        sources: [{ id: "1", name: "Canal" }],
+      },
+      {
+        slug: "atletico-nacional-independiente-medellin",
+        homeTeam: "Atlético Nacional",
+        awayTeam: "DIM",
+        league: "Liga BetPlay",
+        dateISO: `${date}T20:10:00-03:00`,
+        sources: [{ id: "2", name: "Canal" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(2);
+    expect(data.matches.map((match: { homeTeam: { name: string } }) => match.homeTeam.name)).toEqual([
+      "Nacional",
+      "Atlético Nacional",
+    ]);
+  });
+
+  it("deduplicates Bogotá and Costa Rica club abbreviations across agenda sources", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Alianza",
+        awayTeam: "Inter Bogotá",
+        league: "Liga BetPlay",
+        dateISO: `${date}T18:05:00-03:00`,
+      }),
+      flMatch({
+        homeTeam: "Alajuelense",
+        awayTeam: "Pérez Zeledón",
+        league: "Primera División",
+        dateISO: `${date}T21:00:00-03:00`,
+      }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({
+        homeTeam: "Alianza Valledupar",
+        awayTeam: "Internacional de Bogotá",
+        league: "Primera División",
+        dateISO: `${date}T18:05:00-03:00`,
+      }),
+      secMatch({
+        homeTeam: "LD Alajuelense",
+        awayTeam: "Pérez Zeledón",
+        league: "Primera División",
+        dateISO: `${date}T21:00:00-03:00`,
+      }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(2);
+    expect(data.matches[0].homeTeam.name).toBe("Alianza");
+    expect(data.matches[1].homeTeam.name).toBe("Alajuelense");
+  });
+
+  it("keeps similarly named Alianza clubs distinct", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Alianza",
+        awayTeam: "Universitario",
+        league: "Liga 1",
+        dateISO: `${date}T18:05:00-03:00`,
+      }),
+      flMatch({
+        homeTeam: "Alianza Valledupar",
+        awayTeam: "Universitario",
+        league: "Liga BetPlay",
+        dateISO: `${date}T18:05:00-03:00`,
+      }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(2);
   });
 
   it("deduplicates equivalent team aliases in Bundesliga fixtures", async () => {

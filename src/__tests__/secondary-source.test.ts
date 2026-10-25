@@ -83,6 +83,38 @@ describe("parseSecondaryAgenda", () => {
   it("returns an empty list for unrelated HTML", () => {
     expect(parseSecondaryAgenda("<html><body>Nothing here</body></html>")).toEqual([]);
   });
+
+  it("extracts r from absolute event URLs with additional query parameters", () => {
+    const html = `<b>Agenda - Viernes 2 de Octubre 2026</b>
+      <li class="AR"><a href="#">Copa: Boca vs River <span class="t">20:00</span></a>
+      <ul><li><a href="https://fixtures.test/eventos.html?src=agenda&amp;r=QUJDRA%3D%3D">Canal Uno</a></li></ul></li>`;
+
+    expect(parseSecondaryAgenda(html)[0].sources).toEqual([{ id: "QUJDRA==", name: "Canal Uno" }]);
+  });
+
+  it("parses the provider's current EVENTOS_DATA JavaScript feed", () => {
+    const script = `const EVENTOS_DATA = [{
+      "clase": "ARG",
+      "titulo": "Liga Profesional: Boca Juniors vs River Plate",
+      "hora": "21:30",
+      "canales": [{ "nombre": "TNT Sports", "url": "/eventos.html?r=QUJDRA%3D%3D" }]
+    }, {
+      "clase": "NBA",
+      "titulo": "NBA: Lakers vs Jazz",
+      "hora": "22:00",
+      "canales": [{ "nombre": "ESPN", "url": "/eventos.html?r=REVG" }]
+    }];`;
+    const matches = parseSecondaryAgenda(script);
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      homeTeam: "Boca Juniors",
+      awayTeam: "River Plate",
+      league: "Liga Profesional",
+      sources: [{ id: "QUJDRA==", name: "TNT Sports" }],
+    });
+    expect(matches[0].dateISO).toMatch(/^\d{4}-\d{2}-\d{2}T17:30:00-03:00$/);
+  });
 });
 
 describe("findSecondaryStreams", () => {
@@ -113,6 +145,7 @@ Copa Argentina: Platense vs Estudiantes LP
 
   beforeEach(async () => {
     await deleteCache("secondary:agenda");
+    await deleteCache("secondary:agenda:v2");
     (globalThis as { fetch?: unknown }).fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,

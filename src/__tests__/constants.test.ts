@@ -124,6 +124,34 @@ describe("isAllowedStreamLeague", () => {
 });
 
 describe("getTeamLogo", () => {
+  it("uses stable MLS crests for LAFC and LA Galaxy aliases", async () => {
+    const lafcBadge = "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png";
+    const galaxyBadge = "https://a.espncdn.com/i/teamlogos/soccer/500/187.png";
+
+    for (const name of ["LAFC", "Los Angeles FC"]) {
+      await expect(getTeamLogo(name, "Estados Unidos")).resolves.toBe(lafcBadge);
+      expect(peekTeamLogo(name, "Estados Unidos")).toBe(lafcBadge);
+    }
+    for (const name of ["LA Galaxy", "Los Angeles Galaxy"]) {
+      await expect(getTeamLogo(name, "Estados Unidos")).resolves.toBe(galaxyBadge);
+      expect(peekTeamLogo(name, "Estados Unidos")).toBe(galaxyBadge);
+    }
+  });
+
+  it("resolves Inter Milan and Genoa badge aliases", async () => {
+    const interBadge = "https://api.promiedos.com.ar/images/team/cce/3";
+    const genoaBadge = "https://api.promiedos.com.ar/images/team/cdb/3";
+
+    for (const name of ["Inter Milan", "Internazionale", "Internazionale Milano", "FC Internazionale"]) {
+      await expect(getTeamLogo(name, "Italia")).resolves.toBe(interBadge);
+      expect(peekTeamLogo(name, "Italia")).toBe(interBadge);
+    }
+    for (const name of ["Genoa", "Genova", "Genoa CFC", "Genova FC"]) {
+      await expect(getTeamLogo(name, "Italia")).resolves.toBe(genoaBadge);
+      expect(peekTeamLogo(name, "Italia")).toBe(genoaBadge);
+    }
+  });
+
   it("uses official MLS crests for New York Red Bulls and New England aliases", async () => {
     const newYorkRedBullsCrest = "https://a.espncdn.com/i/teamlogos/soccer/500/190.png";
     const newEnglandRevolutionCrest = "https://a.espncdn.com/i/teamlogos/soccer/500/189.png";
@@ -345,6 +373,11 @@ describe("getTeamLogo", () => {
 });
 
 describe("matchPlLeague", () => {
+  it("maps MLS naming variants to Major League Soccer", () => {
+    expect(matchPlLeague("MLS", "Inter Miami", "Atlanta United")?.id).toBe(332);
+    expect(matchPlLeague("Major League Soccer", "Inter Miami", "Atlanta United")?.id).toBe(332);
+  });
+
   it("maps UEFA Nations League exactly", () => {
     const league = matchPlLeague("UEFA Nations League");
     expect(league).not.toBeNull();

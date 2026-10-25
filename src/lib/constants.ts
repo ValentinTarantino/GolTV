@@ -479,6 +479,8 @@ export function isFootballLeagueName(plLeagueName: string): boolean {
 
   if (!normalized || containsWomensFootballSignal(normalized)) return false;
 
+  if (normalized === "mls" || normalized === "major league soccer") return true;
+
   for (const excluded of PL_EXCLUDED_LEAGUES) {
     if (normalized === excluded || normalized.includes(excluded)) {
       return false;
@@ -541,6 +543,10 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
   const normalized = normalizeText(plLeagueName);
 
   if (!isFootballLeagueName(plLeagueName)) return null;
+
+  if (normalized === "mls" || normalized === "major league soccer" || normalized === "major league") {
+    return SUPPORTED_LEAGUES.find((league) => league.id === 332) ?? null;
+  }
 
   for (const excluded of PL_EXCLUDED_LEAGUES) {
     if (normalized === excluded) return null;
@@ -655,9 +661,18 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "independiente medellin": "independientemedellin",
   "dim": "independientemedellin",
   "inter": "intermilan",
-  "inter milano": "intermilan",
-  "inter de milan": "intermilan",
+  "intermilan": "intermilan",
+  "intermilano": "intermilan",
+  "interdemilan": "intermilan",
+  "interdemilano": "intermilan",
+  "internazionale milano": "intermilan",
   "internazionale": "intermilan",
+  "internazionalemilano": "intermilan",
+  "fcinternazionale": "intermilan",
+  "genoa": "genoa",
+  "genova": "genoa",
+  "genoacfc": "genoa",
+  "genovafc": "genoa",
   "lanus": "lanus",
   "libertad": "libertad",
   "mancity": "manchestercity",

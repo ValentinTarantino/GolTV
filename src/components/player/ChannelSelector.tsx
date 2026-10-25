@@ -27,11 +27,11 @@ export default function ChannelSelector({
         <p className="text-sm text-text-muted">{t.player.noChannels}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {channels.map((channel) => {
+          {channels.map((channel, index) => {
             const isActive = channel.id === activeChannelId;
             return (
               <button
-                key={channel.id}
+                key={`${channel.id}-${index}`}
                 onClick={() => onChannelChange(channel)}
                 className={`px-4 py-2 text-xs sm:text-sm font-black uppercase tracking-wide border-2 transition-all ${
                   isActive

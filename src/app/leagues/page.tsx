@@ -161,6 +161,8 @@ function BracketView({ rounds, t }: { rounds: BracketRound[]; t: ReturnType<type
                   : match.winner === "away"
                     ? match.awayTeam
                     : null;
+              const hasAggregate = Boolean(match.aggregateHomeScore && match.aggregateAwayScore);
+              const showDecision = Boolean(isTied || match.decidedByPenalties || match.penalties || (winnerName && hasAggregate));
 
               return (
                 <div key={i} className="px-2 sm:px-4 py-2 sm:py-3">
@@ -200,12 +202,19 @@ function BracketView({ rounds, t }: { rounds: BracketRound[]; t: ReturnType<type
                       <span className="font-bold text-white text-sm">{match.awayTeam}</span>
                     </div>
                   </div>
-                  {isTied && (match.penalties || winnerName) && (
-                    <div className="mt-2 flex flex-wrap gap-x-3 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-accent-primary">
+                  {(hasAggregate || showDecision) && (
+                    <div className="mt-2 flex flex-wrap justify-center gap-x-3 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-accent-primary">
+                      {hasAggregate && (
+                        <span>{t.leagues.aggregate}: {match.aggregateHomeScore}-{match.aggregateAwayScore}</span>
+                      )}
+                      {isTied && <span>{t.leagues.draw}</span>}
+                      {match.decidedByPenalties && <span>{t.leagues.decidedByPenalties}</span>}
                       {match.penalties && (
                         <span>{t.leagues.penalties}: {match.penalties.home ?? "-"}-{match.penalties.away ?? "-"}</span>
                       )}
-                      {winnerName && <span>{t.leagues.winner}: {winnerName}</span>}
+                      {showDecision && winnerName && (
+                        <span className="text-accent-gold">{t.leagues.winner}: {winnerName}</span>
+                      )}
                     </div>
                   )}
                 </div>

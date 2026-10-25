@@ -219,6 +219,7 @@ function WatchPageInner({
                       onClick={() => {
                         setIsLoading(true);
                         const sp = new URLSearchParams(searchParams.toString());
+                        sp.set("player", playerMode);
                         sp.set("refresh", "1");
                         const qs = sp.toString();
                         fetch(`/api/matches/${matchId}?${qs}`, { cache: "no-store" })
