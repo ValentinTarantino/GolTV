@@ -68,21 +68,23 @@ export default function MatchList({ matches }: MatchListProps) {
             id={`league-header-${group.leagueId}-${groupIndex}`}
           >
             <div className="flex items-center gap-3 sm:gap-4">
+              <div className="relative isolate h-10 w-10 flex-shrink-0 border-2 border-black bg-black shadow-brutal-sm sm:h-12 sm:w-12">
               {group.leagueLogo ? (
-                <div className="relative h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                <div className="absolute inset-1">
                   <Image
                     src={group.leagueLogo}
                     alt={group.leagueName}
                     fill
                     className={`object-contain ${group.leagueId === 1034 ? 'mix-blend-multiply' : ''}`}
-                    sizes="40px"
+                    sizes="32px"
                   />
                 </div>
               ) : (
-                <div className="flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center border-2 border-black bg-black text-lg sm:text-xl font-black text-accent-primary">
+                <div className="relative z-10 flex h-full w-full items-center justify-center text-lg font-black text-accent-primary sm:text-xl">
                   ⚽
                 </div>
               )}
+              </div>
               <div className="flex flex-col">
                 <h2 className="text-lg sm:text-xl md:text-2xl font-black text-black uppercase tracking-tight">
                   {translateLeague(group.leagueName, language)}

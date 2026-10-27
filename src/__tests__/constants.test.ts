@@ -124,6 +124,24 @@ describe("isAllowedStreamLeague", () => {
 });
 
 describe("getTeamLogo", () => {
+  it("resolves Messi Cup academy team names to their club crests", async () => {
+    const teams = [
+      ["River Plate Academy", "https://api.promiedos.com.ar/images/team/igi/3"],
+      ["Ajax Academy", "https://www.messicup.com/media/teams/ajax.webp"],
+      ["Boca Juniors Academy", "https://api.promiedos.com.ar/images/team/igg/3"],
+      ["Cornellà Academy", "https://www.messicup.com/media/teams/ue-cornella.webp"],
+      ["FC Barcelona Academy", "https://api.promiedos.com.ar/images/team/bdc/3"],
+      ["Arsenal Academy", "https://api.promiedos.com.ar/images/team/bae/3"],
+      ["Palmeiras Academy", "https://api.promiedos.com.ar/images/team/bccc/3"],
+      ["Newell's Old Boys Academy", "https://api.promiedos.com.ar/images/team/ihh/3"],
+    ];
+
+    for (const [team, crest] of teams) {
+      await expect(getTeamLogo(team, "Internacional")).resolves.toBe(crest);
+      expect(peekTeamLogo(team, "Internacional")).toBe(crest);
+    }
+  });
+
   it("uses stable MLS crests for LAFC and LA Galaxy aliases", async () => {
     const lafcBadge = "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png";
     const galaxyBadge = "https://a.espncdn.com/i/teamlogos/soccer/500/187.png";
@@ -373,6 +391,17 @@ describe("getTeamLogo", () => {
 });
 
 describe("matchPlLeague", () => {
+  it("classifies Messi Cup fixtures without adding it to standings leagues", () => {
+    expect(isMenFootballMatch("Messi Cup U16", "River Plate", "AFC Ajax")).toBe(true);
+    expect(matchPlLeague("Messi Cup 2026 U16", "River Plate", "AFC Ajax")).toMatchObject({
+      id: 9901,
+      name: "Messi Cup",
+      country: "Internacional",
+      slug: "messi-cup",
+    });
+    expect(SUPPORTED_LEAGUES.some((league) => league.id === 9901)).toBe(false);
+  });
+
   it("maps MLS naming variants to Major League Soccer", () => {
     expect(matchPlLeague("MLS", "Inter Miami", "Atlanta United")?.id).toBe(332);
     expect(matchPlLeague("Major League Soccer", "Inter Miami", "Atlanta United")?.id).toBe(332);

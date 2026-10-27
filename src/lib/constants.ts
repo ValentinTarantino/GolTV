@@ -1,6 +1,7 @@
 import type { LeagueConfig } from "./types";
 
 export const LEAGUE_LOGOS: Record<number, string> = {
+  9901: "https://www.messicup.com/media/mc-2026-title.svg",
   57: "https://media.api-sports.io/football/leagues/57.png",
   128: "https://media.api-sports.io/football/leagues/128.png",
   1032: "https://media.api-sports.io/football/leagues/1032.png",
@@ -44,8 +45,18 @@ export function getLeagueIdByName(name: string): number {
   const league = SUPPORTED_LEAGUES.find(
     (l) => l.name.toLowerCase() === name.toLowerCase()
   );
-  return league?.id ?? 0;
+  if (league) return league.id;
+  return /^messi cup(?:\s|$)/i.test(name.trim()) ? MESSI_CUP_LEAGUE.id : 0;
 }
+
+const MESSI_CUP_LEAGUE: LeagueConfig = {
+  id: 9901,
+  name: "Messi Cup",
+  country: "Internacional",
+  countryFlag: "🌎",
+  slug: "messi-cup",
+  season: 2026,
+};
 
 /**
  * Agenda acotada: primeras + copas de AR/CL/BR/PE/PY/UY,
@@ -544,6 +555,11 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
 
   if (!isFootballLeagueName(plLeagueName)) return null;
 
+  // Fixture-only youth tournament: keep it out of the standings/API league list.
+  if (normalized === "messi cup" || normalized.startsWith("messi cup ")) {
+    return MESSI_CUP_LEAGUE;
+  }
+
   if (normalized === "mls" || normalized === "major league soccer" || normalized === "major league") {
     return SUPPORTED_LEAGUES.find((league) => league.id === 332) ?? null;
   }
@@ -633,6 +649,15 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
 export const PROMIEDOS_ALIASES: Record<string, string> = {
   "america": "clubamerica",
   "argentinos": "argentinosjuniors",
+  "riverplateacademy": "riverplate",
+  "ajaxacademy": "ajax",
+  "afcajaxacademy": "ajax",
+  "bocajuniorsacademy": "bocajuniors",
+  "cornellaacademy": "uecornella",
+  "fcbarcelonaacademy": "fcbarcelona",
+  "arsenalacademy": "arsenal",
+  "palmeirasacademy": "palmeiras",
+  "newellsoldboysacademy": "newellsoldboys",
   "athleticbilbao": "athleticclub",
   "athleticopr": "athleticoparanaense",
   "atleticopr": "athleticoparanaense",
@@ -714,6 +739,8 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
 
 
 export const PROMIEDOS_BADGES: Record<string, string> = {
+  "ajax": "https://www.messicup.com/media/teams/ajax.webp",
+  "uecornella": "https://www.messicup.com/media/teams/ue-cornella.webp",
   "instituto": "https://api.promiedos.com.ar/images/team/hchc/3",
   "defensayjusticia": "https://api.promiedos.com.ar/images/team/hcbh/3",
   "gimnasiademendoza": "https://api.promiedos.com.ar/images/team/bbjbf/3",

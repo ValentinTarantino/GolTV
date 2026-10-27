@@ -131,21 +131,23 @@ function WatchPageInner({
             id="watch-league-header"
           >
             <div className="flex items-center gap-3 sm:gap-4">
+              <div className="relative isolate h-10 w-10 flex-shrink-0 border-2 border-black bg-black shadow-brutal-sm sm:h-12 sm:w-12 md:h-14 md:w-14">
               {match.league.logo ? (
-                <div className="relative h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 flex-shrink-0">
+                <div className="absolute inset-1">
                   <Image
                     src={match.league.logo}
                     alt={match.league.name}
                     fill
                     className="object-contain"
-                    sizes="32px"
+                    sizes="48px"
                   />
                 </div>
               ) : (
-                <div className="flex h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 flex-shrink-0 items-center justify-center border-2 border-black bg-black text-base sm:text-lg font-black text-accent-primary">
+                <div className="relative z-10 flex h-full w-full items-center justify-center text-base font-black text-accent-primary sm:text-lg">
                   ⚽
                 </div>
               )}
+              </div>
               <h2 className="text-base sm:text-xl md:text-2xl font-black text-black uppercase tracking-tight">
                 {translateLeague(match.league.name, language)}
               </h2>

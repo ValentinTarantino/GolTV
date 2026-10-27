@@ -69,6 +69,24 @@ describe("/api/matches", () => {
     expect(data.matches[0]).toHaveProperty("score");
   });
 
+  it("includes Messi Cup matches in the fixture", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "River Plate",
+        awayTeam: "AFC Ajax",
+        league: "Messi Cup U16",
+        dateISO: `${todayISO()}T16:30:00-03:00`,
+        slug: "river-ajax-messi-cup",
+      }),
+    ]);
+
+    const res = await GET(makeRequest(todayISO()));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].league).toMatchObject({ id: 9901, name: "Messi Cup", slug: "messi-cup" });
+  });
+
   it("separates Chilean and Bolivian fixtures mislabeled as Uruguay", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ homeTeam: "Cobresal", awayTeam: "Univ. Concepción", league: "Primera División de Uruguay - Apertura", slug: "cobresal-concepcion" }),
