@@ -16,6 +16,32 @@ const PL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
 const PL_COOLDOWN_KEY = "pl:cooldown:until";
 const PL_AGENDA_CACHE_KEY = "pl:agenda";
 
+/** Resolve provider wrapper pages to the actual media URL when exposed. */
+async function resolvePlaybackUrl(url: string): Promise<{ url: string; kind: "hls" | "iframe" }> {
+  if (/\.(m3u8|mp4)(?:\?|$)/i.test(url)) {
+    return { url, kind: /\.m3u8(?:\?|$)/i.test(url) ? "hls" : "iframe" };
+  }
+
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html,application/xhtml+xml" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return { url, kind: "iframe" };
+    const html = await response.text();
+    const media = html.match(/https?:[^"'\\s<>]+\.m3u8(?:\?[^"'\\s<>]*)?/i)?.[0];
+    if (media) return { url: media.replace(/\\u0026/g, "&"), kind: "hls" };
+    const nested = html.match(/<iframe[^>]+src=["']([^"']+)["']/i)?.[1];
+    if (nested) {
+      const nestedUrl = new URL(nested, url).toString();
+      if (nestedUrl !== url) return resolvePlaybackUrl(nestedUrl);
+    }
+  } catch {
+    // Keep the provider page as a safe fallback when it blocks server inspection.
+  }
+  return { url, kind: "iframe" };
+}
+
 interface EventEmbed {
   id: string;
   name: string;
@@ -172,7 +198,9 @@ export async function getEventStream(
   slug: string,
   sourceId: string
 ): Promise<Channel | null> {
-  const cacheKey = `pl:stream:${slug}:${sourceId}`;
+  // Versioned after correcting provider responses that mislabeled HTML as HLS.
+  // This prevents stale broken channels from surviving the fix for 30 minutes.
+  const cacheKey = `pl:stream:v2:${slug}:${sourceId}`;
 
   const cached = await getCache<Channel>(cacheKey);
   if (cached) return cached;
@@ -205,12 +233,18 @@ export async function getEventStream(
     const data = await res.json();
 
     if (data.success && data.url) {
-      const kind = data.kind === "hls" ? "hls" : "iframe";
+      // Some provider responses incorrectly label an HTML wrapper as HLS.
+      // Only send genuinely m3u8 URLs to HlsPlayer; otherwise resolve the
+      // wrapper and retain it as an iframe fallback when direct media is not
+      // exposed.
+      const resolved = data.kind === "hls" && /\.m3u8(?:\?|$)/i.test(data.url)
+        ? { url: data.url as string, kind: "hls" as const }
+        : await resolvePlaybackUrl(data.url as string);
       const channel: Channel = {
         id: `pl-${sourceId}`,
         name: data.source_name || `Fuente ${sourceId}`,
-        url: data.url,
-        kind,
+        url: resolved.url,
+        kind: resolved.kind,
       };
       await setCache(cacheKey, channel, PL_STREAM_CACHE_TTL);
       return channel;
