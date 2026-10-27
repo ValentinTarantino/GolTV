@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:streams": "node scripts/test-streams.js",
+    "sync:badges": "node scripts/sync-open-badges.mjs",
     "cypress": "cypress open",
     "cypress:run": "cypress run",
     "test:e2e": "start-server-and-test dev http://localhost:3000 cypress:run",

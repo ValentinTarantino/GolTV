@@ -24,12 +24,13 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   2: "https://media.api-sports.io/football/leagues/2.png",
   3: "https://media.api-sports.io/football/leagues/3.png",
   140: "https://media.api-sports.io/football/leagues/140.png",
+  143: "https://media.api-sports.io/football/leagues/143.png",
   39: "https://media.api-sports.io/football/leagues/39.png",
   78: "https://media.api-sports.io/football/leagues/78.png",
   80: "https://media.api-sports.io/football/leagues/80.png",
   135: "https://r2.thesportsdb.com/images/media/league/badge/67q3q21679951383.png",
   137: "https://media.api-sports.io/football/leagues/137.png",
-  332: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Major_League_Soccer_logo.svg/250px-Major_League_Soccer_logo.svg.png",
+  332: "https://assets.football-logos.cc/logos/usa/256x256/mls.138cdca5.png",
   235: "https://media.api-sports.io/football/leagues/235.png",
   5: "https://media.api-sports.io/football/leagues/5.png",
   18: "https://upload.wikimedia.org/wikipedia/commons/d/da/CONCACAF_Champions_Cup.png",
@@ -72,6 +73,7 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 73, name: "Copa do Brasil", country: "Brasil", countryFlag: "🇧🇷", slug: "copa-do-brasil", season: 2026 },
   // Uruguay
   { id: 268, name: "Liga AUF Uruguaya", country: "Uruguay", countryFlag: "🇺🇾", slug: "liga-auf-uruguaya", season: 2026 },
+  { id: 930, name: "Copa Uruguay", country: "Uruguay", countryFlag: "🇺🇾", slug: "copa-uruguay", season: 2026 },
   // Chile
   { id: 265, name: "Campeonato Nacional", country: "Chile", countryFlag: "🇨🇱", slug: "liga-de-primera", season: 2026 },
   { id: 267, name: "Copa Chile", country: "Chile", countryFlag: "🇨🇱", slug: "copa-chile", season: 2026 },
@@ -84,6 +86,7 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 504, name: "Copa Ecuador", country: "Ecuador", countryFlag: "🇪🇨", slug: "copa-ecuador", season: 2026 },
   // Paraguay
   { id: 255, name: "Copa de Primera", country: "Paraguay", countryFlag: "🇵🇾", slug: "copa-de-primera", season: 2026 },
+  { id: 501, name: "Copa Paraguay", country: "Paraguay", countryFlag: "🇵🇾", slug: "copa-paraguay", season: 2026 },
   // CONMEBOL
   { id: 13, name: "Copa Libertadores", country: "Internacional", countryFlag: "🌎", slug: "copa-libertadores", season: 2026 },
   { id: 11, name: "Copa Sudamericana", country: "Internacional", countryFlag: "🌎", slug: "copa-sudamericana", season: 2026 },
@@ -91,6 +94,7 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 2, name: "Champions League", country: "Internacional", countryFlag: "🌎", slug: "champions-league", season: 2026 },
   { id: 3, name: "Europa League", country: "Internacional", countryFlag: "🌎", slug: "europa-league", season: 2026 },
   { id: 140, name: "La Liga", country: "España", countryFlag: "🇪🇸", slug: "la-liga", season: 2026 },
+  { id: 143, name: "Copa del Rey", country: "España", countryFlag: "🇪🇸", slug: "copa-del-rey", season: 2026 },
   { id: 39, name: "Premier League", country: "Inglaterra", countryFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", slug: "premier-league", season: 2026 },
   { id: 78, name: "Bundesliga", country: "Alemania", countryFlag: "🇩🇪", slug: "bundesliga", season: 2026 },
   // Italia
@@ -217,6 +221,7 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   2: ["HBO Max", "ESPN", "Fox Sports", "DSports", "Movistar Plus+"],
   3: ["HBO Max", "ESPN", "Fox Sports", "DSports"],
   140: ["Movistar Plus+", "DAZN", "ESPN"],
+  143: ["Movistar Plus+", "DAZN", "ESPN"],
   39: ["Sky Sports", "TNT Sports", "Prime Video"],
   135: ["ESPN", "DAZN", "Sky Sport"],
   137: ["ESPN", "DAZN", "Sky Sport"],
@@ -284,9 +289,11 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "primera division paraguay": 255,
   "primera division de paraguay": 255,
   "copa paraguay": 501,
+  "copa paraguay 2026": 501,
   "liga auf uruguaya": 268,
   "liga uruguaya": 268,
   "copa uruguay": 930,
+  "copa uruguay 2026": 930,
   "copa libertadores": 13,
   "copa conmebol libertadores": 13,
   "libertadores": 13,
@@ -300,6 +307,10 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "la liga": 140,
   "laliga": 140,
   "laliga ea sports": 140,
+  "copa del rey": 143,
+  "copa del rey de espana": 143,
+  "copa del rey espana": 143,
+  "copa rey": 143,
   "premier league": 39,
   "premier": 39,
   "bundesliga": 78,
@@ -455,7 +466,8 @@ const TEAM_DISPLAY_NAMES: Record<string, string> = {
 };
 
 export function shortenTeamName(name: string): string {
-  return TEAM_DISPLAY_NAMES[name.toLowerCase()] ?? name;
+  const displayName = TEAM_DISPLAY_NAMES[name.toLowerCase()] ?? name;
+  return displayName.replace(/^cr\s+/i, "").replace(/\s+academy$/i, "");
 }
 
 function containsWomensFootballSignal(value: string): boolean {
@@ -554,6 +566,12 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
   const normalized = normalizeText(plLeagueName);
 
   if (!isFootballLeagueName(plLeagueName)) return null;
+
+  // Pelota Libre sometimes emits only "Cup". Never let substring matching
+  // reinterpret that generic label as CONCACAF Champions Cup.
+  if (["cup", "championship", "tournament", "competition"].includes(normalized)) {
+    return null;
+  }
 
   // Fixture-only youth tournament: keep it out of the standings/API league list.
   if (normalized === "messi cup" || normalized.startsWith("messi cup ")) {
@@ -658,6 +676,17 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "arsenalacademy": "arsenal",
   "palmeirasacademy": "palmeiras",
   "newellsoldboysacademy": "newellsoldboys",
+  "crflamengo": "flamengo",
+  "crflamengoacademy": "flamengo",
+  "intermilanacademy": "intermilan",
+  "manchestercityacademy": "manchestercity",
+  "manacor": "manacor",
+  "recreativohuelva": "recreativodehuelva",
+  "alcazar": "sportingalcazar",
+  "torque": "montevideocitytorque",
+  "montevideocity": "montevideocitytorque",
+  "junior": "juniorfc",
+  "junior de barranquilla": "juniorfc",
   "athleticbilbao": "athleticclub",
   "athleticopr": "athleticoparanaense",
   "atleticopr": "athleticoparanaense",
@@ -739,6 +768,9 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
 
 
 export const PROMIEDOS_BADGES: Record<string, string> = {
+  "recreativodehuelva": "https://www.footylogos.com/dls/logo/recreativo-huelva.png",
+  "manacor": "/badges/manacor.jpg",
+  "sportingalcazar": "/badges/sporting-alcazar.png",
   "ajax": "https://www.messicup.com/media/teams/ajax.webp",
   "uecornella": "https://www.messicup.com/media/teams/ue-cornella.webp",
   "instituto": "https://api.promiedos.com.ar/images/team/hchc/3",

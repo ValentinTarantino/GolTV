@@ -6,6 +6,7 @@ import {
   matchPlLeague,
   isFootballLeagueName,
   isMenFootballMatch,
+  shortenTeamName,
 } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { isAllowedStreamLeague } from "@/lib/streaming";
@@ -140,6 +141,24 @@ describe("getTeamLogo", () => {
       await expect(getTeamLogo(team, "Internacional")).resolves.toBe(crest);
       expect(peekTeamLogo(team, "Internacional")).toBe(crest);
     }
+  });
+
+  it("uses stable API-Football badges for missing academy variants", async () => {
+    await expect(getTeamLogo("CR Flamengo Academy", "Brasil")).resolves.toBe(
+      "https://media.api-sports.io/football/teams/127.png"
+    );
+    await expect(getTeamLogo("Inter Milan Academy", "Italia")).resolves.toBe(
+      "https://media.api-sports.io/football/teams/505.png"
+    );
+    await expect(getTeamLogo("Manchester City Academy", "Inglaterra")).resolves.toBe(
+      "https://media.api-sports.io/football/teams/50.png"
+    );
+  });
+
+  it("hides the Academy suffix in fixture display names", () => {
+    expect(shortenTeamName("Boca Juniors Academy")).toBe("Boca Juniors");
+    expect(shortenTeamName("Newell's Old Boys Academy")).toBe("Newell's Old Boys");
+    expect(shortenTeamName("CR Flamengo Academy")).toBe("Flamengo");
   });
 
   it("uses stable MLS crests for LAFC and LA Galaxy aliases", async () => {
@@ -432,6 +451,10 @@ describe("matchPlLeague", () => {
     expect(matchPlLeague("CONCACAF Champions League")?.id).toBe(18);
   });
 
+  it("does not turn a generic Cup label into CONCACAF Champions Cup", () => {
+    expect(matchPlLeague("Cup", "FC Krasnodar", "Houston Dynamo")).toBeNull();
+  });
+
   it("does not map broad concacaf text to Champions Cup for Nations League names", () => {
     const league = matchPlLeague("Liga de Naciones de la CONCACAF");
     expect(league?.id).not.toBe(18);
@@ -441,6 +464,12 @@ describe("matchPlLeague", () => {
     expect(matchPlLeague("Liga Profesional")?.id).toBe(128);
     expect(matchPlLeague("Copa Libertadores")?.id).toBe(13);
     expect(matchPlLeague("Champions League")?.id).toBe(2);
+  });
+
+  it("maps the requested domestic cups", () => {
+    expect(matchPlLeague("Copa del Rey de España")?.id).toBe(143);
+    expect(matchPlLeague("Copa Paraguay 2026")?.id).toBe(501);
+    expect(matchPlLeague("Copa Uruguay 2026")?.id).toBe(930);
   });
 
   it("maps generic Serie A with Ecuadorian clubs to Liga Pro", () => {

@@ -342,7 +342,9 @@ export async function GET(request: NextRequest) {
   if (lookupPromises.length > 0) {
     await Promise.race([
       Promise.allSettled(lookupPromises),
-      new Promise((resolve) => setTimeout(resolve, 3000)),
+      // Give the first fixture load enough time for uncached badge lookups;
+      // otherwise cards render permanently without logos after the race ends.
+      new Promise((resolve) => setTimeout(resolve, 10000)),
     ]);
   }
 

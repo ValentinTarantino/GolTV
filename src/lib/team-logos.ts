@@ -4,6 +4,21 @@ import { POPULATED_BADGES } from "./badges-populated";
 const SPORTSDB_KEY = "123";
 const SPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json";
 
+// Stable API-Football media URLs for common clubs. The image endpoint is
+// public and does not consume API quota; IDs are intentionally separate from
+// name search so transient provider failures cannot blank a crest.
+const API_FOOTBALL_TEAM_IDS: Record<string, number> = {
+  flamengo: 127,
+  intermilan: 505,
+  manchestercity: 50,
+};
+
+function apiFootballBadge(key: string): string | null {
+  const id = API_FOOTBALL_TEAM_IDS[key];
+  return id ? `https://media.api-sports.io/football/teams/${id}.png` : null;
+}
+
+
 interface SportsDBTeam {
   strTeam: string;
   strBadge: string;
@@ -568,11 +583,14 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
   if (mlsBadge) return mlsBadge;
 
   const aliasKey = PROMIEDOS_ALIASES[key];
+  const apiFootballUrl = apiFootballBadge(aliasKey || key);
+  if (apiFootballUrl && /(?:academy|^cr)/i.test(teamName)) return apiFootballUrl;
   const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key] || PROMIEDOS_BADGES[teamName.toLowerCase()];
   if (promiedosUrl) return promiedosUrl;
 
   const populatedUrl = POPULATED_BADGES[aliasKey || key] || POPULATED_BADGES[key];
   if (populatedUrl) return populatedUrl;
+
 
   const nationalTeamBadge = NATIONAL_TEAM_BADGES[key];
   if (nationalTeamBadge) return nationalTeamBadge;
@@ -695,11 +713,14 @@ export function peekTeamLogo(teamName: string, country?: string): string | null 
   if (mlsBadge) return mlsBadge;
 
   const aliasKey = PROMIEDOS_ALIASES[key];
+  const apiFootballUrl = apiFootballBadge(aliasKey || key);
+  if (apiFootballUrl && /(?:academy|^cr)/i.test(teamName)) return apiFootballUrl;
   const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key] || PROMIEDOS_BADGES[teamName.toLowerCase()];
   if (promiedosUrl) return promiedosUrl;
 
   const populatedUrl = POPULATED_BADGES[aliasKey || key] || POPULATED_BADGES[key];
   if (populatedUrl) return populatedUrl;
+
 
   const nationalTeamBadge = NATIONAL_TEAM_BADGES[key];
   if (nationalTeamBadge) return nationalTeamBadge;

@@ -131,7 +131,7 @@ function WatchPageInner({
             id="watch-league-header"
           >
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="relative isolate h-10 w-10 flex-shrink-0 border-2 border-black bg-black shadow-brutal-sm sm:h-12 sm:w-12 md:h-14 md:w-14">
+              <div className={`relative isolate h-10 w-10 flex-shrink-0 border-2 border-black shadow-brutal-sm sm:h-12 sm:w-12 md:h-14 md:w-14 ${match.league.id === 9901 ? "bg-black" : "bg-white"}`}>
               {match.league.logo ? (
                 <div className="absolute inset-1">
                   <Image

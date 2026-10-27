@@ -23,7 +23,9 @@ const COUNTRY_ORDER = [
   { name: "Paraguay", flag: "🇵🇾" },
 ];
 
-const LEAGUES_PAGE_EXCLUDED_IDS = new Set([281, 5, 6, 10, 1034]);
+// Cup fixtures remain available on the home page, but knockout cups without
+// regular league tables do not belong in the standings selector.
+const LEAGUES_PAGE_EXCLUDED_IDS = new Set([143, 501, 281, 5, 6, 10, 1034]);
 
 function groupByCountry() {
   const groups: Record<string, typeof SUPPORTED_LEAGUES> = {};
