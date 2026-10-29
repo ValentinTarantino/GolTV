@@ -107,6 +107,33 @@ function HlsPlayer({ url, title, headers }: HlsPlayerProps) {
         abrEwmaDefaultEstimate: 5_000_000,
         maxBufferLength: 45,
         maxMaxBufferLength: 120,
+        // Some live edges answer playlist reloads in 10-20s under load; the
+        // hls.js defaults (10s to first byte, 2 retries with no delay) turn
+        // that into a fatal levelLoadTimeOut and the player never starts.
+        manifestLoadPolicy: {
+          default: {
+            maxTimeToFirstByteMs: 30_000,
+            maxLoadTimeMs: 60_000,
+            timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000, backoff: "exponential" },
+            errorRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000, backoff: "exponential" },
+          },
+        },
+        playlistLoadPolicy: {
+          default: {
+            maxTimeToFirstByteMs: 30_000,
+            maxLoadTimeMs: 60_000,
+            timeoutRetry: { maxNumRetry: 5, retryDelayMs: 1_000, maxRetryDelayMs: 8_000, backoff: "exponential" },
+            errorRetry: { maxNumRetry: 5, retryDelayMs: 1_000, maxRetryDelayMs: 8_000, backoff: "exponential" },
+          },
+        },
+        fragLoadPolicy: {
+          default: {
+            maxTimeToFirstByteMs: 30_000,
+            maxLoadTimeMs: 120_000,
+            timeoutRetry: { maxNumRetry: 6, retryDelayMs: 500, maxRetryDelayMs: 8_000, backoff: "exponential" },
+            errorRetry: { maxNumRetry: 6, retryDelayMs: 1_000, maxRetryDelayMs: 8_000, backoff: "exponential" },
+          },
+        },
         xhrSetup: (xhr) => {
           if (headers) {
             Object.entries(headers).forEach(([key, value]) => {

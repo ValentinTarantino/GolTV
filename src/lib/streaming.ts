@@ -153,6 +153,11 @@ export function isAllowedStreamLeague(leagueName: string): boolean {
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
 
+  const normalizedMlsLabel = lower.replace(/[-_:]/g, " ").replace(/\s+/g, " ").trim();
+  if (/^(?:(?:usa|united states) )?(?:mls|major league soccer)(?: \d{4})?(?: (?:regular season|playoffs?|eastern conference|western conference))?$/.test(normalizedMlsLabel)) {
+    return true;
+  }
+
   if (
     /\b(belarus|azerbaijan|armenia|jordan|kazakhstan|poland|polish|mexico|liga mx|italian|italy|germany|german|france|french|concacaf|asian|russia|scottish|irish|maltese|israel)\b/.test(
       lower

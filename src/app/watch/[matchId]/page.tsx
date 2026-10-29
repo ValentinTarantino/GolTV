@@ -27,7 +27,12 @@ function WatchPageInner({
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
-  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3">("1");
+  // Honor ?player=N in the URL (shared links / reloads) — anything else falls
+  // back to the default player.
+  const playerParam = searchParams.get("player");
+  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4">(
+    playerParam === "2" || playerParam === "3" || playerParam === "4" ? playerParam : "1"
+  );
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -160,7 +165,7 @@ function WatchPageInner({
 
           <div className="animate-fade-in">
             <div className="mb-3 flex flex-wrap gap-2" id="player-mode-selector">
-              {(["1", "2", "3"] as const).map((mode) => (
+              {(["1", "2", "3", "4"] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
@@ -178,7 +183,7 @@ function WatchPageInner({
                   }`}
                   aria-pressed={playerMode === mode}
                 >
-                  {mode === "1" ? t.player.playerOne : mode === "2" ? t.player.playerTwo : t.player.playerThree}
+                  {mode === "1" ? t.player.playerOne : mode === "2" ? t.player.playerTwo : mode === "3" ? t.player.playerThree : t.player.playerFour}
                 </button>
               ))}
             </div>

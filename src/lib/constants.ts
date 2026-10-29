@@ -484,6 +484,10 @@ function containsWomensFootballSignal(value: string): boolean {
     || /\b(?:u\d{2,3}\s+w|w\s+u\d{2,3}|[a-z]{2,}\s+w)\b/.test(normalized);
 }
 
+function isMlsLeagueLabel(normalized: string): boolean {
+  return /^(?:(?:usa|united states) )?(?:mls|major league soccer)(?: \d{4})?(?: (?:regular season|playoffs?|eastern conference|western conference))?$/.test(normalized);
+}
+
 export function isMenFootballMatch(leagueName: string, homeTeam = "", awayTeam = ""): boolean {
   return isFootballLeagueName(leagueName)
     && !containsWomensFootballSignal(leagueName + " " + homeTeam + " " + awayTeam);
@@ -578,7 +582,7 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
     return MESSI_CUP_LEAGUE;
   }
 
-  if (normalized === "mls" || normalized === "major league soccer" || normalized === "major league") {
+  if (isMlsLeagueLabel(normalized) || normalized === "major league") {
     return SUPPORTED_LEAGUES.find((league) => league.id === 332) ?? null;
   }
 

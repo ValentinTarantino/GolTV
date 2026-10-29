@@ -3,6 +3,7 @@ import { getStreamsForMatch } from "@/lib/streaming";
 import { getAgendaStream, findAgendaStreams } from "@/lib/agenda-source";
 import { findEventStreams } from "@/lib/event-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
+import { findFutbolVideosStreams } from "@/lib/futbolvideos-source";
 import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo } from "@/lib/constants";
 import type { Match, Channel } from "@/lib/types";
 import { validateParams, validateQuery, createErrorResponse, matchIdParamsSchema, matchIdQuerySchema } from "@/lib/validators";
@@ -21,7 +22,7 @@ export async function GET(
   if ("error" in queryValidation) return queryValidation.error;
 
   const { streamId, eventSlug, eventSources, player, home, away, league } = queryValidation.data;
-  const playerMode = player === "2" || player === "3" ? player : "1";
+  const playerMode = player === "2" || player === "3" || player === "4" ? player : "1";
   const id = parseInt(matchId, 10);
 
   if (isNaN(id) && !streamId) {
@@ -40,6 +41,8 @@ export async function GET(
       channels.push(...await findEventStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "3") {
       channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));
+    } else if (playerMode === "4") {
+      channels.push(...await findFutbolVideosStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (eventSlug && eventSources) {
       try {
         const sources = JSON.parse(eventSources) as { id: string; name: string; embedIframe: string }[];
@@ -105,6 +108,31 @@ export async function GET(
 
   if (playerMode === "3") {
     const channels = await findSecondaryStreams(homeTeam, awayTeam);
+    const leagueId = getLeagueIdByName(leagueName);
+    const syntheticMatch: Match = {
+      id: id || 0,
+      league: {
+        id: leagueId,
+        name: leagueName,
+        country: "Internacional",
+        logo: getLeagueLogo(leagueId),
+        flag: "",
+        slug: leagueName.toLowerCase().replace(/\s+/g, "-"),
+      },
+      homeTeam: { id: 0, name: homeTeam, logo: "" },
+      awayTeam: { id: 0, name: awayTeam, logo: "" },
+      date: new Date().toISOString(),
+      timestamp: Math.floor(Date.now() / 1000),
+      status: { short: "LIVE", long: "En Juego", elapsed: null },
+      score: { home: 0, away: 0 },
+      channels,
+    };
+
+    return Response.json({ match: syntheticMatch });
+  }
+
+  if (playerMode === "4") {
+    const channels = await findFutbolVideosStreams(homeTeam, awayTeam);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,

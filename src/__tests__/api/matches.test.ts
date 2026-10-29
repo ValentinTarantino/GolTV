@@ -322,6 +322,43 @@ describe("/api/matches", () => {
     expect(data.matches[0]._eventSlug).toBe("los-angeles-fc-vs-la-galaxy");
   });
 
+  it("keeps MLS fixtures from all agenda sources under the MLS league", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "New York RB",
+        awayTeam: "New England",
+        league: "MLS 2026",
+        dateISO: `${date}T18:00:00-03:00`,
+        slug: "new-york-rb-vs-new-england",
+      }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({
+        homeTeam: "LAFC",
+        awayTeam: "LA Galaxy",
+        league: "USA - Major League Soccer 2026",
+        dateISO: `${date}T20:00:00-03:00`,
+      }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "inter-miami-vs-atlanta-united",
+        homeTeam: "Inter Miami",
+        awayTeam: "Atlanta United",
+        league: "MLS 2026 Regular Season",
+        dateISO: `${date}T22:00:00-03:00`,
+        sources: [{ id: "8502", name: "Apple TV Español" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(3);
+    expect(data.matches.map((match: { league: { id: number } }) => match.league.id)).toEqual([332, 332, 332]);
+  });
+
   it("primary agenda wins over the same event-agenda fixture", async () => {
     const date = todayISO();
     (fetchAgenda as jest.Mock).mockResolvedValue([

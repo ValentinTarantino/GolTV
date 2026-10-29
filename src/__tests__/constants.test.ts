@@ -109,6 +109,10 @@ describe("isAllowedStreamLeague", () => {
     expect(isAllowedStreamLeague("Copa Libertadores")).toBe(true);
     expect(isAllowedStreamLeague("English Premier League")).toBe(true);
     expect(isAllowedStreamLeague("Liga AUF Uruguaya")).toBe(true);
+    expect(isAllowedStreamLeague("MLS")).toBe(true);
+    expect(isAllowedStreamLeague("USA - MLS 2026")).toBe(true);
+    expect(isAllowedStreamLeague("Major League Soccer")).toBe(true);
+    expect(isAllowedStreamLeague("MLS 2026 - Regular Season")).toBe(true);
   });
 
   it("rejects unrelated live noise", () => {
@@ -195,9 +199,11 @@ describe("getTeamLogo", () => {
 
     for (const team of ["New York RB", "New York Red Bulls", "Red Bull New York", "NYRB", "RBNY"]) {
       await expect(getTeamLogo(team, "USA")).resolves.toBe(newYorkRedBullsCrest);
+      expect(peekTeamLogo(team, "USA")).toBe(newYorkRedBullsCrest);
     }
     for (const team of ["New England", "New England Revolution", "Revolution"]) {
       await expect(getTeamLogo(team, "USA")).resolves.toBe(newEnglandRevolutionCrest);
+      expect(peekTeamLogo(team, "USA")).toBe(newEnglandRevolutionCrest);
     }
   });
   it("uses Brazil's official CBF crest for Portuguese and English names", async () => {
@@ -424,6 +430,10 @@ describe("matchPlLeague", () => {
   it("maps MLS naming variants to Major League Soccer", () => {
     expect(matchPlLeague("MLS", "Inter Miami", "Atlanta United")?.id).toBe(332);
     expect(matchPlLeague("Major League Soccer", "Inter Miami", "Atlanta United")?.id).toBe(332);
+    for (const label of ["MLS 2026", "USA MLS", "USA - MLS 2026", "Major League Soccer 2026", "MLS 2026 Regular Season"]) {
+      expect(matchPlLeague(label, "Inter Miami", "Atlanta United")?.id).toBe(332);
+    }
+    expect(matchPlLeague("MLS Next Pro", "NYRB II", "New England Revolution II")).toBeNull();
   });
 
   it("maps UEFA Nations League exactly", () => {
