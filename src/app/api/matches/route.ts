@@ -75,16 +75,51 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   ligadeportivaalajuelense: "alajuelense",
   perezzeledon: "perezzeledon",
   municipalperezzeledon: "perezzeledon",
+  // Providers inconsistently include club abbreviations in display names.
+  lebrijana: "lebrijana",
+  ublebrijana: "lebrijana",
+  cusco: "cusco",
+  cuscofc: "cusco",
 };
 
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
+  // Pelota Libre lists the same 2026 Copa del Rey tie as both
+  // "Auriense - Deportivo La Coruña" and "Auriense Cented Academy - Deportivo".
+  // Keep these aliases scoped to this competition because "Deportivo" is
+  // ambiguous in other leagues.
+  143: {
+    auriense: "auriensecentedacademy",
+    auriensecented: "auriensecentedacademy",
+    auriensecentedacademy: "auriensecentedacademy",
+    deportivo: "deportivolacoruna",
+    deportivolacoruna: "deportivolacoruna",
+    deportivodelacoruna: "deportivolacoruna",
+    deportivodeacoruna: "deportivolacoruna",
+  },
   239: { alianza: "alianzavalledupar", alianzafc: "alianzavalledupar" },
   281: { alianza: "alianzalima" },
 };
 
+const TEAM_NAME_DESIGNATORS = new Set([
+  "ac", "ae", "afc", "ca", "cf", "cd", "club", "fc", "fk", "if", "sc", "sk", "ud", "ub",
+]);
+
 function canonicalTeamForDedup(team: string, leagueId: number): string {
   const key = normalize(team);
-  return LEAGUE_TEAM_DEDUP_ALIASES[leagueId]?.[key] ?? TEAM_DEDUP_ALIASES[key] ?? key;
+  const leagueAlias = LEAGUE_TEAM_DEDUP_ALIASES[leagueId]?.[key];
+  const knownAlias = TEAM_DEDUP_ALIASES[key];
+  if (leagueAlias || knownAlias) return leagueAlias ?? knownAlias!;
+
+  // Remove legal club designators as tokens, whether the provider writes them
+  // as "AE Prat", "A.E. Prat", or "Prat". Keep all identity-bearing tokens;
+  // this avoids fuzzy substring collisions between different clubs.
+  return team
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token && !TEAM_NAME_DESIGNATORS.has(token))
+    .join("");
 }
 
 function matchDedupKey(homeTeam: string, awayTeam: string, leagueId: number): string {

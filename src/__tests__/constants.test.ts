@@ -223,6 +223,32 @@ describe("getTeamLogo", () => {
     }
   });
 
+  it("uses local official crests for Deportivo and Sporting Hortaleza aliases", async () => {
+    const deportivoCrest = "/badges/deportivo-a-coruna.svg";
+    const hortalezaCrest = "/badges/sporting-hortaleza.png";
+
+    for (const team of [
+      "Deportivo La Coruña",
+      "Deportivo de La Coruña",
+      "Deportivo A Coruña",
+      "RC Deportivo",
+      "Real Club Deportivo de La Coruña",
+    ]) {
+      await expect(getTeamLogo(team, "España")).resolves.toBe(deportivoCrest);
+      expect(peekTeamLogo(team, "España")).toBe(deportivoCrest);
+    }
+    for (const team of [
+      "Hortaleza",
+      "Sporting Hortaleza",
+      "Sporting de Hortaleza",
+      "AD Sporting Hortaleza",
+      "AD Sporting de Hortaleza",
+    ]) {
+      await expect(getTeamLogo(team, "España")).resolves.toBe(hortalezaCrest);
+      expect(peekTeamLogo(team, "España")).toBe(hortalezaCrest);
+    }
+  });
+
   it("uses Brazil's official CBF crest for Portuguese and English names", async () => {
     const brazilCrest = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Brazil_National_Football_Team_%28no_stars%29.svg";
 

@@ -116,6 +116,17 @@ const DIRECT_TEAM_BADGES: Record<string, string> = {
   internacionalbogota: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
   internacionaldebogota: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
   clubinternacionalbogota: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
+  // Local files sourced from each club's official identity assets.
+  deportivolacoruna: "/badges/deportivo-a-coruna.svg",
+  deportivodelacoruna: "/badges/deportivo-a-coruna.svg",
+  deportivoacoruna: "/badges/deportivo-a-coruna.svg",
+  rcdeportivo: "/badges/deportivo-a-coruna.svg",
+  realclubdeportivodelacoruna: "/badges/deportivo-a-coruna.svg",
+  hortaleza: "/badges/sporting-hortaleza.png",
+  sportinghortaleza: "/badges/sporting-hortaleza.png",
+  sportingdehortaleza: "/badges/sporting-hortaleza.png",
+  adsportinghortaleza: "/badges/sporting-hortaleza.png",
+  adsportingdehortaleza: "/badges/sporting-hortaleza.png",
 };
 const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "celtadevigo": "Celta Vigo",

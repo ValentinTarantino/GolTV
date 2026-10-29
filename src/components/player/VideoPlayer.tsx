@@ -11,6 +11,7 @@ interface HlsPlayerProps {
   url: string;
   title?: string;
   headers?: Record<string, string>;
+  borderlessFullscreen?: boolean;
 }
 
 interface QualityLevelInfo {
@@ -47,7 +48,7 @@ function levelLabel(level: QualityLevelInfo): string {
   return `L${level.index + 1}`;
 }
 
-function HlsPlayer({ url, title, headers }: HlsPlayerProps) {
+function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPlayerProps) {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -315,7 +316,9 @@ function HlsPlayer({ url, title, headers }: HlsPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-video bg-black overflow-hidden border-3 sm:border-4 border-white shadow-brutal group cursor-pointer"
+      className={`relative w-full aspect-video bg-black overflow-hidden border-3 sm:border-4 border-white shadow-brutal group cursor-pointer${
+        borderlessFullscreen ? " player-four-video" : ""
+      }`}
       onMouseMove={() => setShowControls(true)}
       onClick={togglePlay}
       id="video-player"
@@ -488,12 +491,13 @@ interface VideoPlayerProps {
   title?: string;
   headers?: Record<string, string>;
   kind?: "hls" | "iframe";
+  borderlessFullscreen?: boolean;
 }
 
-export default function VideoPlayer({ url, title, headers, kind }: VideoPlayerProps) {
+export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen }: VideoPlayerProps) {
   if (kind === "iframe") {
     return <IframePlayer url={url} title={title} />;
   }
-  return <HlsPlayer url={url} title={title} headers={headers} />;
+  return <HlsPlayer url={url} title={title} headers={headers} borderlessFullscreen={borderlessFullscreen} />;
 }
 

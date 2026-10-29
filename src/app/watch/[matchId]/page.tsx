@@ -193,6 +193,7 @@ function WatchPageInner({
                 title={`${match.homeTeam.name} vs ${match.awayTeam.name}`}
                 headers={activeChannel.headers}
                 kind={activeChannel.kind}
+                borderlessFullscreen={playerMode === "4"}
               />
             ) : (
               <div className="relative w-full aspect-video bg-black overflow-hidden border-3 sm:border-4 border-white shadow-brutal flex flex-col items-center justify-center gap-2 sm:gap-3 p-4 sm:p-6 text-center">

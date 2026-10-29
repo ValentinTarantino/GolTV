@@ -145,6 +145,23 @@
     animation-play-state: paused;
   }
 
+  /* The fourth player fills the screen without the site's decorative frame. */
+  .player-four-video:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: auto;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .player-four-video:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: auto;
+    border: 0;
+    box-shadow: none;
+  }
+
   @media (max-width: 640px) {
     .animate-marquee {
       animation-duration: 10s;

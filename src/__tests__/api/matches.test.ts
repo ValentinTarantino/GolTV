@@ -158,6 +158,129 @@ describe("/api/matches", () => {
     expect(data.matches).toHaveLength(1);
   });
 
+  it("deduplicates fixtures when providers add or omit club abbreviations", async () => {
+    const date = todayISO();
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ homeTeam: "Los Chankas", awayTeam: "Cusco", dateISO: `${date}T15:00:00-03:00`, slug: "los-chankas-cusco" }),
+      flMatch({ homeTeam: "Los Chankas", awayTeam: "Cusco FC", dateISO: `${date}T15:00:00-03:00`, slug: "los-chankas-cusco-fc" }),
+      flMatch({ homeTeam: "UB Lebrijana", awayTeam: "Getafe", dateISO: `${date}T16:00:00-03:00`, slug: "ub-lebrijana-getafe" }),
+      flMatch({ homeTeam: "Lebrijana", awayTeam: "Getafe", dateISO: `${date}T16:00:00-03:00`, slug: "lebrijana-getafe" }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(2);
+    expect(data.matches.map((match: { homeTeam: { name: string } }) => match.homeTeam.name)).toEqual([
+      "Los Chankas",
+      "UB Lebrijana",
+    ]);
+  });
+
+  it("deduplicates spelling variants contributed by all three agenda sources", async () => {
+    const date = todayISO();
+    const kickoff = `${date}T15:00:00-03:00`;
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ homeTeam: "Los Chankas", awayTeam: "Cusco", league: "Liga 1", dateISO: kickoff, slug: "chankas-cusco" }),
+      flMatch({ homeTeam: "UB Lebrijana", awayTeam: "Getafe", league: "LaLiga", dateISO: `${date}T16:00:00-03:00`, slug: "ub-lebrijana-getafe" }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({ homeTeam: "Los Chankas", awayTeam: "Cusco FC", league: "Liga 1", dateISO: kickoff }),
+      secMatch({ homeTeam: "Lebrijana", awayTeam: "Getafe", league: "LaLiga", dateISO: `${date}T16:00:00-03:00` }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "los-chankas-vs-cusco-fc",
+        homeTeam: "Los Chankas",
+        awayTeam: "Cusco FC",
+        league: "Liga 1",
+        dateISO: kickoff,
+        sources: [{ id: "1", name: "Canal" }],
+      },
+      {
+        slug: "lebrijana-vs-getafe",
+        homeTeam: "Lebrijana",
+        awayTeam: "Getafe",
+        league: "LaLiga",
+        dateISO: `${date}T16:00:00-03:00`,
+        sources: [{ id: "2", name: "Canal" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(2);
+    expect(data.matches.map((match: { homeTeam: { name: string } }) => match.homeTeam.name)).toEqual([
+      "Los Chankas",
+      "UB Lebrijana",
+    ]);
+  });
+
+  it("deduplicates AE Prat and Prat while preserving the primary source entry", async () => {
+    const date = todayISO();
+    const kickoff = `${date}T17:00:00-03:00`;
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ homeTeam: "AE Prat", awayTeam: "Athletic Club", league: "LaLiga", dateISO: kickoff, slug: "ae-prat-athletic" }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({ homeTeam: "Prat", awayTeam: "Athletic Club", league: "LaLiga", dateISO: kickoff }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "prat-vs-athletic-club",
+        homeTeam: "Prat",
+        awayTeam: "Athletic Club",
+        league: "LaLiga",
+        dateISO: kickoff,
+        sources: [{ id: "1", name: "Canal" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].homeTeam.name).toBe("AE Prat");
+    expect(data.matches[0]).toHaveProperty("_eventSources");
+  });
+
+  it("deduplicates the two Pelota Libre names for the same future Copa del Rey tie", async () => {
+    const kickoffMs = Date.now() + 3 * 60 * 60 * 1000;
+    const utcKickoff = new Date(kickoffMs).toISOString();
+    const argentinaKickoff = `${new Date(kickoffMs - 3 * 60 * 60 * 1000).toISOString().slice(0, 19)}-03:00`;
+    const date = new Date(utcKickoff)
+      .toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" })
+      .slice(0, 10);
+
+    (fetchAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "auriense-vs-deportivo-la-coruna",
+        homeTeam: "Auriense",
+        awayTeam: "Deportivo La Coruña",
+        league: "Copa del Rey",
+        dateISO: argentinaKickoff,
+        sources: [{ id: "1", name: "Canal" }],
+      },
+      {
+        slug: "auriense-cented-academy-vs-deportivo",
+        homeTeam: "Auriense Cented Academy",
+        awayTeam: "Deportivo",
+        league: "Copa del Rey",
+        dateISO: utcKickoff,
+        sources: [{ id: "2", name: "Canal" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].homeTeam.name).toBe("Auriense");
+    expect(data.matches[0].awayTeam.name).toBe("Deportivo La Coruña");
+  });
+
   it("deduplicates Inter listed under two names (Inter Milan vs Inter)", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ homeTeam: "Inter Milan", awayTeam: "Parma", league: "Serie A", slug: "inter-milan-vs-parma" }),
