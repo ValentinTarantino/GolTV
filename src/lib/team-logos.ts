@@ -96,8 +96,8 @@ function findBestMatch(teams: SportsDBTeam[], query: string): SportsDBTeam | nul
   return null;
 }
 
-const MLS_TEAM_BADGES: Record<string, string> = {
-  // ESPN's team IDs serve the clubs' official MLS crests as transparent PNGs.
+const DIRECT_TEAM_BADGES: Record<string, string> = {
+  // ESPN team IDs serve stable club crests as transparent PNGs.
   lafc: "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
   losangelesfc: "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
   lagalaxy: "https://a.espncdn.com/i/teamlogos/soccer/500/187.png",
@@ -110,6 +110,12 @@ const MLS_TEAM_BADGES: Record<string, string> = {
   newengland: "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
   newenglandrevolution: "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
   revolution: "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
+  interbogota: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
+  interdebogota: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
+  interbogotafc: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
+  internacionalbogota: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
+  internacionaldebogota: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
+  clubinternacionalbogota: "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
 };
 const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "celtadevigo": "Celta Vigo",
@@ -579,8 +585,8 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
     return "https://r2.thesportsdb.com/images/media/team/badge/0xat6f1678717839.png";
   }
 
-    const mlsBadge = MLS_TEAM_BADGES[key];
-  if (mlsBadge) return mlsBadge;
+  const directBadge = DIRECT_TEAM_BADGES[key];
+  if (directBadge) return directBadge;
 
   const aliasKey = PROMIEDOS_ALIASES[key];
   const apiFootballUrl = apiFootballBadge(aliasKey || key);
@@ -709,8 +715,8 @@ export function peekTeamLogo(teamName: string, country?: string): string | null 
     return "https://r2.thesportsdb.com/images/media/team/badge/0xat6f1678717839.png";
   }
 
-  const mlsBadge = MLS_TEAM_BADGES[key];
-  if (mlsBadge) return mlsBadge;
+  const directBadge = DIRECT_TEAM_BADGES[key];
+  if (directBadge) return directBadge;
 
   const aliasKey = PROMIEDOS_ALIASES[key];
   const apiFootballUrl = apiFootballBadge(aliasKey || key);

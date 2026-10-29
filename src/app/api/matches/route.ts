@@ -68,6 +68,8 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   interbogota: "internacionaldebogota",
   internacionalbogota: "internacionaldebogota",
   internacionaldebogota: "internacionaldebogota",
+  interdebogota: "internacionaldebogota",
+  interbogotafc: "internacionaldebogota",
   alajuelense: "alajuelense",
   ldalajuelense: "alajuelense",
   ligadeportivaalajuelense: "alajuelense",
@@ -97,29 +99,45 @@ function matchDedupKey(homeTeam: string, awayTeam: string, leagueId: number): st
 interface SeenFixture {
   date: string;
   timestamp: number;
+  kickoffTime: string;
+  id: number;
 }
 
 const CROSS_DATE_DUPLICATE_WINDOW_MS = 8 * 60 * 60 * 1000;
+const SAME_FIXTURE_NEXT_DAY_WINDOW_MS = 26 * 60 * 60 * 1000;
 
 function isDuplicateFixture(
   seenMatches: Map<string, SeenFixture[]>,
   dateISO: string,
   leagueId: number,
   homeTeam: string,
-  awayTeam: string
+  awayTeam: string,
+  id: number
 ): boolean {
   const key = matchDedupKey(homeTeam, awayTeam, leagueId);
   const date = toArgentinaDate(dateISO);
+  const kickoffTime = new Date(dateISO).toLocaleTimeString("en-GB", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
   const timestamp = new Date(dateISO).getTime();
   const previous = seenMatches.get(key) ?? [];
 
-  if (previous.some((fixture) =>
-    fixture.date === date || Math.abs(fixture.timestamp - timestamp) <= CROSS_DATE_DUPLICATE_WINDOW_MS
-  )) {
+  if (previous.some((fixture) => {
+    const difference = Math.abs(fixture.timestamp - timestamp);
+    return fixture.date === date
+      || difference <= CROSS_DATE_DUPLICATE_WINDOW_MS
+      // Providers can publish the same fixture on adjacent days with different
+      // team spellings/slugs; their local kickoff time still identifies it.
+      || (difference <= SAME_FIXTURE_NEXT_DAY_WINDOW_MS
+        && (fixture.id === id || fixture.kickoffTime === kickoffTime));
+  })) {
     return true;
   }
 
-  previous.push({ date, timestamp });
+  previous.push({ date, timestamp, kickoffTime, id });
   seenMatches.set(key, previous);
   return false;
 }
@@ -189,16 +207,7 @@ export async function GET(request: NextRequest) {
   );
 
   const seenMatches = new Map<string, SeenFixture[]>();
-  // Providers sometimes list the same fixture on different days (one agenda has
-  // it live now, another lists it +24h as upcoming), which a date-window dedup
-  // misses. For the same fixture the match id (a hash of the team-pair slug) is
-  // identical across providers, so also dedup on team-pair + id — ignoring the
-  // date. Distinct fixtures that happen to share a slug stay separate because
-  // their canonical team pair differs. The first (primary agenda, which carries
-  // the live streams) wins.
-  const seenIds = new Set<string>();
-  const idDedupToken = (homeTeam: string, awayTeam: string, leagueId: number, id: number) =>
-    `${matchDedupKey(homeTeam, awayTeam, leagueId)}#${id}`;
+  // Canonical pair and kickoff identity deduplicate provider copies; the primary source wins.
   const matches: Match[] = [];
 
   for (const flMatch of filteredAgenda) {
@@ -214,12 +223,8 @@ export async function GET(request: NextRequest) {
     // can't block a valid rescheduled entry of the same fixture.
     if (status === "FT") continue;
 
-    if (isDuplicateFixture(seenMatches, flMatch.dateISO, league.id, flMatch.homeTeam, flMatch.awayTeam)) continue;
-
     const id = hashSlug(flMatch.slug);
-    const token = idDedupToken(flMatch.homeTeam, flMatch.awayTeam, league.id, id);
-    if (seenIds.has(token)) continue;
-    seenIds.add(token);
+    if (isDuplicateFixture(seenMatches, flMatch.dateISO, league.id, flMatch.homeTeam, flMatch.awayTeam, id)) continue;
 
     matches.push({
       id,
@@ -264,12 +269,8 @@ export async function GET(request: NextRequest) {
     // can't block a valid rescheduled entry of the same fixture.
     if (status === "FT") continue;
 
-    if (isDuplicateFixture(seenMatches, secMatch.dateISO, league.id, secMatch.homeTeam, secMatch.awayTeam)) continue;
-
     const id = hashSlug(secMatch.slug);
-    const token = idDedupToken(secMatch.homeTeam, secMatch.awayTeam, league.id, id);
-    if (seenIds.has(token)) continue;
-    seenIds.add(token);
+    if (isDuplicateFixture(seenMatches, secMatch.dateISO, league.id, secMatch.homeTeam, secMatch.awayTeam, id)) continue;
 
     matches.push({
       id,
@@ -314,12 +315,8 @@ export async function GET(request: NextRequest) {
     // can't block a valid rescheduled entry of the same fixture.
     if (status === "FT") continue;
 
-    if (isDuplicateFixture(seenMatches, eventMatch.dateISO, league.id, eventMatch.homeTeam, eventMatch.awayTeam)) continue;
-
     const id = hashSlug(eventMatch.slug);
-    const token = idDedupToken(eventMatch.homeTeam, eventMatch.awayTeam, league.id, id);
-    if (seenIds.has(token)) continue;
-    seenIds.add(token);
+    if (isDuplicateFixture(seenMatches, eventMatch.dateISO, league.id, eventMatch.homeTeam, eventMatch.awayTeam, id)) continue;
 
     matches.push({
       id,

@@ -426,6 +426,71 @@ describe("/api/matches", () => {
     expect(data.matches[0]).toHaveProperty("_eventSources");
   });
 
+  it("deduplicates Bogotá and Medellín variants when feeds use different slugs", async () => {
+    const now = Date.now();
+    const primaryISO = new Date(now - 2 * 3600_000).toISOString();
+    const eventISO = new Date(now + 22 * 3600_000).toISOString();
+    const eventDate = new Date(eventISO)
+      .toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" })
+      .slice(0, 10);
+
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Inter Bogotá",
+        awayTeam: "Medellín",
+        league: "Liga BetPlay",
+        dateISO: primaryISO,
+        slug: "inter-bogota-vs-medellin",
+      }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "inter-de-bogota-vs-dim",
+        homeTeam: "Inter de Bogotá",
+        awayTeam: "DIM",
+        league: "Liga BetPlay",
+        dateISO: eventISO,
+        sources: [{ id: "1", name: "Win Sports" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(eventDate));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].homeTeam.name).toBe("Inter Bogotá");
+    expect(data.matches[0].awayTeam.name).toBe("Medellín");
+    expect(data.matches[0]).toHaveProperty("_eventSources");
+  });
+
+  it("keeps next-day rematches with a different kickoff time", async () => {
+    const now = Date.now();
+    const primaryISO = new Date(now - 2 * 3600_000).toISOString();
+    const rematchISO = new Date(now + 23 * 3600_000).toISOString();
+    const rematchDate = new Date(rematchISO)
+      .toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" })
+      .slice(0, 10);
+
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ homeTeam: "Inter Bogotá", awayTeam: "Medellín", league: "Liga BetPlay", dateISO: primaryISO }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "inter-bogota-vs-medellin-rematch",
+        homeTeam: "Inter Bogotá",
+        awayTeam: "Medellín",
+        league: "Liga BetPlay",
+        dateISO: rematchISO,
+        sources: [{ id: "2", name: "Win Sports" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(rematchDate));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(2);
+  });
+
   it("excludes matches that already finished", async () => {
     const date = todayISO();
     const now = Date.now();

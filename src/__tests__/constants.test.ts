@@ -206,6 +206,23 @@ describe("getTeamLogo", () => {
       expect(peekTeamLogo(team, "USA")).toBe(newEnglandRevolutionCrest);
     }
   });
+
+  it("uses Internacional de Bogotá's current crest for its fixture aliases", async () => {
+    const interBogotaCrest = "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png";
+
+    for (const team of [
+      "Inter Bogotá",
+      "Inter de Bogotá",
+      "Inter Bogotá FC",
+      "Internacional Bogotá",
+      "Internacional de Bogotá",
+      "Club Internacional Bogotá",
+    ]) {
+      await expect(getTeamLogo(team, "Colombia")).resolves.toBe(interBogotaCrest);
+      expect(peekTeamLogo(team, "Colombia")).toBe(interBogotaCrest);
+    }
+  });
+
   it("uses Brazil's official CBF crest for Portuguese and English names", async () => {
     const brazilCrest = "https://upload.wikimedia.org/wikipedia/commons/d/d4/Brazil_National_Football_Team_%28no_stars%29.svg";
 
