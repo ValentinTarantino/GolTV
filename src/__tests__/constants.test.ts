@@ -545,6 +545,16 @@ describe("matchPlLeague", () => {
     expect(league?.country).toBe("Italia");
   });
 
+  it("never leaves an Italian Serie A club under an Ecuador league label", () => {
+    for (const label of ["Liga Pro", "Liga Pro Ecuador 2026", "Serie A Ecuador 2026"]) {
+      const league = matchPlLeague(label, "Fiorentina", "Atalanta");
+      expect(league?.id).toBe(135);
+      expect(league?.country).toBe("Italia");
+    }
+    expect(matchPlLeague("Liga Pro Ecuador 2026", "Fiorentina", "Unrecognized opponent")?.id).toBe(135);
+    expect(matchPlLeague("Liga Pro", "Barcelona SC", "LDU Quito")?.id).toBe(57);
+  });
+
   it("does not classify Ecuadorian clubs as Bundesliga", () => {
     expect(matchPlLeague("Bundesliga", "Independiente del Valle", "Aucas")).toBeNull();
   });

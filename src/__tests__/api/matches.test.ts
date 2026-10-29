@@ -69,6 +69,28 @@ describe("/api/matches", () => {
     expect(data.matches[0]).toHaveProperty("score");
   });
 
+  it("places Fiorentina vs Atalanta in Italian Serie A when a source adds a Liga Pro season label", async () => {
+    const kickoff = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const date = new Date(kickoff)
+      .toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" })
+      .slice(0, 10);
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Fiorentina",
+        awayTeam: "Atalanta",
+        league: "Liga Pro Ecuador 2026",
+        dateISO: kickoff,
+        slug: "fiorentina-atalanta",
+      }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].league).toMatchObject({ id: 135, country: "Italia", name: "Serie A" });
+  });
+
   it("includes Messi Cup matches in the fixture", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({

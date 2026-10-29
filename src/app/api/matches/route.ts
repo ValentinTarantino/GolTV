@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
-import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES } from "@/lib/constants";
+import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam, isMenFootballMatch, SUPPORTED_LEAGUES } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
@@ -193,6 +193,14 @@ const BOLIVIAN_CLUBS = [
 
 function classifyAgendaLeague(leagueName: string, homeTeam: string, awayTeam: string) {
   const mappedLeague = matchPlLeague(leagueName, homeTeam, awayTeam);
+  // Guard the combined agenda too: a provider season suffix or an alternate
+  // Liga Pro label must not leave a match between two Italian clubs in Ecuador.
+  if (
+    mappedLeague?.id === 57
+    && (isItalianSerieATeam(homeTeam) || isItalianSerieATeam(awayTeam))
+  ) {
+    return SUPPORTED_LEAGUES.find((league) => league.id === 135) ?? null;
+  }
   if (mappedLeague?.id !== 268) return mappedLeague;
 
   const teamKeys = [normalize(homeTeam), normalize(awayTeam)];

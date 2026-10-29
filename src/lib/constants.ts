@@ -385,6 +385,26 @@ export const ECUADOR_SERIE_A_TEAMS = [
   "manta", "manta fc",
 ];
 
+const ITALIAN_SERIE_A_TEAMS = new Set([
+  "atalanta", "atalanta bc", "atalanta bergamo", "bologna", "bologna fc", "cagliari", "cagliari calcio",
+  "como", "como 1907", "fiorentina", "acf fiorentina", "frosinone", "frosinone calcio",
+  "genoa", "genoa cfc", "inter", "inter milan", "internazionale", "internazionale milano",
+  "juventus", "juventus fc", "lazio", "ss lazio", "lecce", "us lecce", "milan", "ac milan",
+  "monza", "ac monza", "napoli", "ssc napoli", "parma", "parma calcio", "parma calcio 1913",
+  "roma", "as roma", "sassuolo", "sassuolo calcio", "torino", "torino fc", "udinese",
+  "udinese calcio", "venezia", "venezia fc",
+].map((team) => team.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim()));
+
+export function isItalianSerieATeam(team: string): boolean {
+  const normalized = team.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return ITALIAN_SERIE_A_TEAMS.has(normalized);
+}
+
 const PANAMA_SERIE_A_TEAMS = [
   "tauro", "san francisco fc", "plaza amador", "club deportivo del este", "academia costa del este",
   "potros del este", "herrera", "arabe unido", "sporting san miguelito", "veraguas",
@@ -591,6 +611,21 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
   }
 
   const combinedTeams = normalizeText(`${homeTeam ?? ""} ${awayTeam ?? ""}`);
+  const hasItalianSerieAClub = [homeTeam, awayTeam]
+    .some((team) => typeof team === "string" && isItalianSerieATeam(team));
+  const isMislabelledEcuadorLeague = normalized === "liga pro"
+    || normalized.startsWith("liga pro ")
+    || normalized === "serie a ecuador"
+    || normalized.startsWith("serie a ecuador ")
+    || normalized === "ecuadorian serie a"
+    || normalized.startsWith("ecuadorian serie a ");
+  if (
+    hasItalianSerieAClub
+    && isMislabelledEcuadorLeague
+  ) {
+    return SUPPORTED_LEAGUES.find((league) => league.id === 135) ?? null;
+  }
+
   const isPanamaSerieA = (homeTeam || awayTeam)
     && PANAMA_SERIE_A_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
 
