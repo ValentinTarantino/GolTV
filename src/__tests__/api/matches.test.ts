@@ -387,6 +387,82 @@ describe("/api/matches", () => {
     expect(data.matches[0]).toHaveProperty("_eventSources");
   });
 
+  it("dedups the same fixture listed on different days by different agendas", async () => {
+    const now = Date.now();
+    // Primary lists it 2h ago (in progress, well inside the 6h near-now window
+    // and clear of the 4h FT threshold); the event agenda lists the same
+    // fixture 20h later (a different Argentina date, well outside the 8h
+    // cross-date window that the team-pair dedup uses).
+    const primaryISO = new Date(now - 2 * 3600_000).toISOString();
+    const eventISO = new Date(now + 20 * 3600_000).toISOString();
+    const argDate = (d: string) =>
+      new Date(d).toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 10);
+
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Boca Juniors",
+        awayTeam: "River Plate",
+        dateISO: primaryISO,
+        slug: "boca-juniors-vs-river-plate",
+      }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "boca-juniors-vs-river-plate",
+        homeTeam: "Boca Juniors",
+        awayTeam: "River Plate",
+        league: "Liga Profesional",
+        dateISO: eventISO,
+        sources: [{ id: "1", name: "Canal" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(argDate(eventISO)));
+    const data = await res.json();
+
+    // The same fixture on two days must collapse to one card — the primary
+    // entry, which carries the live streams (_eventSources).
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0]).toHaveProperty("_eventSources");
+  });
+
+  it("excludes matches that already finished", async () => {
+    const date = todayISO();
+    const now = Date.now();
+    const argISO = (d: Date) => d.toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires", hour12: false }).replace(" ", "T") + "-03:00";
+    // A fixture that kicked off 6h ago (well past the 4h FT threshold), an
+    // in-progress one, and an upcoming one.
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ homeTeam: "Racing Club", awayTeam: "Independiente", dateISO: argISO(new Date(now - 6 * 3600_000)) }),
+      flMatch({ homeTeam: "San Lorenzo", awayTeam: "Huracán", dateISO: argISO(new Date(now - 30 * 60_000)) }),
+      flMatch({ homeTeam: "Vélez", awayTeam: "Lanús", dateISO: argISO(new Date(now + 2 * 3600_000)) }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({ homeTeam: "Talleres", awayTeam: "Belgrano", dateISO: argISO(new Date(now - 7 * 3600_000)) }),
+    ]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug: "newells-old-boys-vs-rosario-central",
+        homeTeam: "Newell's Old Boys",
+        awayTeam: "Rosario Central",
+        league: "Liga Profesional",
+        dateISO: argISO(new Date(now - 8 * 3600_000)),
+        sources: [{ id: "9", name: "Canal" }],
+      },
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    const pairs = data.matches.map((m: { homeTeam: { name: string }; awayTeam: { name: string } }) => `${m.homeTeam.name} vs ${m.awayTeam.name}`);
+    expect(pairs).not.toContain("Racing Club vs Independiente");
+    expect(pairs).not.toContain("Talleres vs Belgrano");
+    expect(pairs).not.toContain("Newell's Old Boys vs Rosario Central");
+    // Live and upcoming fixtures stay.
+    expect(pairs).toContain("San Lorenzo vs Huracán");
+    expect(pairs).toContain("Vélez vs Lanús");
+  });
+
   it("includes MLS and ignores the same fixture from the secondary agenda", async () => {
     const date = todayISO();
     (fetchAgenda as jest.Mock).mockResolvedValue([

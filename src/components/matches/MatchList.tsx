@@ -77,6 +77,7 @@ export default function MatchList({ matches }: MatchListProps) {
                     fill
                     className={`object-contain ${group.leagueId === 1034 ? 'mix-blend-multiply' : ''}`}
                     sizes="32px"
+                    unoptimized
                   />
                 </div>
               ) : (

@@ -183,7 +183,7 @@ describe("findFutbolVideosStreams", () => {
     expect(new Set(channels.map((c) => c.id)).size).toBe(4);
   });
 
-  it("groups streams that resolve to the same playlist into one HLS + one web channel", async () => {
+  it("keeps distinct source pages as separate signals even when they share a playlist path", async () => {
     const encrypted = encryptToCustomFormat(makePayload(), KEY_HEX);
     globalThis.fetch = routeFetch({
       [API]: encrypted,
@@ -196,12 +196,40 @@ describe("findFutbolVideosStreams", () => {
 
     const channels = await findFutbolVideosStreams("Santos", "Palmeiras");
 
-    // Same playlist path → a single group with its HLS channel + web fallback.
-    expect(channels).toHaveLength(2);
+    // 1.php and 2.php are separate buttons on the site, so they stay separate
+    // signals (each with its HLS channel + web fallback) even though both
+    // resolve to the same /premiere1/mono.m3u8 playlist path.
+    expect(channels).toHaveLength(4);
+    expect(channels.map((c) => c.kind)).toEqual(["hls", "iframe", "hls", "iframe"]);
+    expect(channels[0].url).toBe(proxied("https://a.example.com/premiere1/mono.m3u8?token=aaa"));
+    expect(channels[1].url).toBe("https://tvf90.com/1.php?stream=premiere1");
+    expect(channels[2].url).toBe(proxied("https://b.example.com/premiere1/mono.m3u8?token=bbb"));
+    expect(channels[3].url).toBe("https://tvf90.com/2.php?stream=premiere1");
+  });
+
+  it("collapses the generated and native entries for the same source page", async () => {
+    const encrypted = encryptToCustomFormat(makePayload(), KEY_HEX);
+    globalThis.fetch = routeFetch({
+      [API]: encrypted,
+      "https://tvf90.com/1.php?stream=premiere1":
+        '<script>var s="https://a.example.com/premiere1/mono.m3u8?token=aaa"</script>',
+      // 2.php is a distinct signal; with no m3u8 route it stays iframe-only.
+      "https://tvf90.com/2.php?stream=premiere1": "<html>no stream</html>",
+    });
+
+    const channels = await findFutbolVideosStreams("Santos", "Palmeiras");
+
+    // The feed lists 1.php twice (generated + native); it must collapse to a
+    // single HLS channel + a single web fallback, not two of each.
+    const iframeUrls = channels.filter((c) => c.kind === "iframe").map((c) => c.url);
+    expect(iframeUrls.filter((u) => u === "https://tvf90.com/1.php?stream=premiere1")).toHaveLength(1);
     expect(channels[0].kind).toBe("hls");
     expect(channels[0].url).toBe(proxied("https://a.example.com/premiere1/mono.m3u8?token=aaa"));
     expect(channels[1].kind).toBe("iframe");
     expect(channels[1].url).toBe("https://tvf90.com/1.php?stream=premiere1");
+    // 2.php resolves to no m3u8 → its own iframe-only signal.
+    expect(channels[2].kind).toBe("iframe");
+    expect(channels[2].url).toBe("https://tvf90.com/2.php?stream=premiere1");
   });
 
   it("falls back to the frameable player page when no m3u8 is found", async () => {

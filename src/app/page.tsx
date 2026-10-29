@@ -166,7 +166,7 @@ export default function HomePage() {
         {/* Main Column — Full Grid */}
         <div className="space-y-4 sm:space-y-6">
           {isLoading ? (
-            <MatchSkeleton />
+            <MatchSkeleton label={t.home.loading} />
           ) : filteredMatches.length === 0 ? (
             <div className="border-3 sm:border-4 border-white bg-black p-8 sm:p-12 text-center shadow-brutal-sm">
               <h2 className="text-lg sm:text-xl font-black uppercase text-white tracking-widest">

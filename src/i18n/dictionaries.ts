@@ -222,6 +222,7 @@ export const dictionaries = {
       onlyLive: "SOLO EN VIVO",
       lastUpdated: "ÚLTIMA ACTUALIZACIÓN",
       refresh: "ACTUALIZAR",
+      loading: "Cargando partidos...",
     },
     match: {
       today: "HOY",
@@ -366,6 +367,7 @@ export const dictionaries = {
       onlyLive: "ONLY LIVE",
       lastUpdated: "LAST UPDATED",
       refresh: "REFRESH",
+      loading: "Loading matches...",
     },
     match: {
       today: "TODAY",

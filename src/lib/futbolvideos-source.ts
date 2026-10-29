@@ -195,13 +195,14 @@ async function fetchFutbolVideosMatches(): Promise<FutbolVideosMatch[]> {
  * kora-plus.li (which sends X-Frame-Options and refuses to be embedded) and the
  * native tvf90.com player page it wraps (frameable, and two levels deep it
  * carries a direct HLS `.m3u8`). We resolve each underlying stream to its m3u8
- * server-side and group entries that collapse to the same playlist (the feed
- * often lists the same feed twice, e.g. "EN" and "Español" for one channel).
+ * server-side and dedupe by source page so the generated+native pair for one
+ * signal collapses to a single channel.
  *
- * Every group yields an HLS channel (native player, preferred) plus the
- * frameable tvf90 page as an extra "Web" iframe channel — a working fallback
- * when the HLS edge is slow or blocked. Groups with no resolvable m3u8 only
- * yield the iframe channel.
+ * Every distinct tvf90 page (1.php, 2.php, 3.php, hd.php, …) is its own
+ * signal — the site lists them as separate buttons even when they resolve to
+ * the same playlist path — so each yields an HLS channel (native player,
+ * preferred) plus the frameable tvf90 page as an extra "Web" iframe channel.
+ * Signals with no resolvable m3u8 only yield the iframe channel.
  */
 export async function findFutbolVideosStreams(
   homeTeam: string,
@@ -247,56 +248,36 @@ export async function findFutbolVideosStreams(
     })
   );
 
-  // One group per distinct content: sources that resolve to the same playlist
-  // path belong together (the feed often lists one feed twice, e.g. "EN" and
-  // "Español"); sources that fail to resolve stay grouped by their own URL.
-  const groups: { label: string; hls: string; iframe: string }[] = [];
-  const byHlsPath = new Map<string, (typeof groups)[number]>();
-  const bySourceUrl = new Map<string, (typeof groups)[number]>();
-
+  // One channel group per distinct tvf90 source page (1.php, 2.php, 3.php,
+  // hd.php). The feed lists a "generated" wrapper and a "native" entry for the
+  // same page, which the bySource dedup above already merged — so one resolved
+  // entry is one signal. Distinct pages stay separate even when they resolve
+  // to the same playlist path: each is its own button on the site, and the
+  // different pages often point at different edge servers.
+  //
+  // Each signal plays best as HLS (native player, relayed through /api/hls —
+  // the CDN blocks the browser directly) with the frameable tvf90 page as an
+  // extra "Web" channel; signals without a resolvable m3u8 only offer iframe.
+  const channels: Channel[] = [];
   for (const { source, label, hls } of resolved) {
     if (hls) {
-      // Compare by path, ignoring the rotating CDN host and token.
-      let key = hls;
-      try {
-        key = new URL(hls).pathname;
-      } catch {
-        // keep the full url as key
-      }
-      if (byHlsPath.has(key)) continue;
-      const group = { label, hls, iframe: source };
-      byHlsPath.set(key, group);
-      groups.push(group);
-    } else if (!bySourceUrl.has(source)) {
-      const group = { label, hls: "", iframe: source };
-      bySourceUrl.set(source, group);
-      groups.push(group);
-    }
-  }
-
-  // Each group plays best as HLS (native player, relayed through /api/hls —
-  // the CDN blocks the browser directly) with the frameable tvf90 page as an
-  // extra "Web" channel; groups without an m3u8 only offer the iframe.
-  const channels: Channel[] = [];
-  for (const group of groups) {
-    if (group.hls) {
       channels.push({
         id: `futbolvideos-${channels.length + 1}`,
-        name: group.label,
-        url: toHlsProxyUrl(group.hls),
+        name: label,
+        url: toHlsProxyUrl(hls),
         kind: "hls",
       });
       channels.push({
         id: `futbolvideos-${channels.length + 1}`,
-        name: `${group.label} · Web`,
-        url: group.iframe,
+        name: `${label} · Web`,
+        url: source,
         kind: "iframe",
       });
     } else {
       channels.push({
         id: `futbolvideos-${channels.length + 1}`,
-        name: group.label,
-        url: group.iframe,
+        name: label,
+        url: source,
         kind: "iframe",
       });
     }

@@ -189,6 +189,16 @@ export async function GET(request: NextRequest) {
   );
 
   const seenMatches = new Map<string, SeenFixture[]>();
+  // Providers sometimes list the same fixture on different days (one agenda has
+  // it live now, another lists it +24h as upcoming), which a date-window dedup
+  // misses. For the same fixture the match id (a hash of the team-pair slug) is
+  // identical across providers, so also dedup on team-pair + id — ignoring the
+  // date. Distinct fixtures that happen to share a slug stay separate because
+  // their canonical team pair differs. The first (primary agenda, which carries
+  // the live streams) wins.
+  const seenIds = new Set<string>();
+  const idDedupToken = (homeTeam: string, awayTeam: string, leagueId: number, id: number) =>
+    `${matchDedupKey(homeTeam, awayTeam, leagueId)}#${id}`;
   const matches: Match[] = [];
 
   for (const flMatch of filteredAgenda) {
@@ -198,12 +208,21 @@ export async function GET(request: NextRequest) {
     if (!league) continue;
     if (flMatch.embeds.length === 0) continue;
 
+    const status = inferStatus(flMatch.dateISO);
+    // Finished matches only clutter the fixture and confuse the live list.
+    // Checked before the dedup registrations so a stale (finished) listing
+    // can't block a valid rescheduled entry of the same fixture.
+    if (status === "FT") continue;
+
     if (isDuplicateFixture(seenMatches, flMatch.dateISO, league.id, flMatch.homeTeam, flMatch.awayTeam)) continue;
 
-    const status = inferStatus(flMatch.dateISO);
+    const id = hashSlug(flMatch.slug);
+    const token = idDedupToken(flMatch.homeTeam, flMatch.awayTeam, league.id, id);
+    if (seenIds.has(token)) continue;
+    seenIds.add(token);
 
     matches.push({
-      id: hashSlug(flMatch.slug),
+      id,
       league: {
         id: league.id,
         name: league.name,
@@ -218,7 +237,7 @@ export async function GET(request: NextRequest) {
       timestamp: Math.floor(new Date(flMatch.dateISO).getTime() / 1000),
       status: {
         short: status,
-        long: status === "NS" ? "Próximamente" : status === "FT" ? "Finalizado" : "En Juego",
+        long: status === "NS" ? "Próximamente" : "En Juego",
         elapsed: null,
       },
       score: { home: null, away: null },
@@ -238,12 +257,22 @@ export async function GET(request: NextRequest) {
 
     const league = classifyAgendaLeague(secMatch.league, secMatch.homeTeam, secMatch.awayTeam);
     if (!league) continue;
-    if (isDuplicateFixture(seenMatches, secMatch.dateISO, league.id, secMatch.homeTeam, secMatch.awayTeam)) continue;
 
     const status = inferStatus(secMatch.dateISO);
+    // Finished matches only clutter the fixture and confuse the live list.
+    // Checked before the dedup registrations so a stale (finished) listing
+    // can't block a valid rescheduled entry of the same fixture.
+    if (status === "FT") continue;
+
+    if (isDuplicateFixture(seenMatches, secMatch.dateISO, league.id, secMatch.homeTeam, secMatch.awayTeam)) continue;
+
+    const id = hashSlug(secMatch.slug);
+    const token = idDedupToken(secMatch.homeTeam, secMatch.awayTeam, league.id, id);
+    if (seenIds.has(token)) continue;
+    seenIds.add(token);
 
     matches.push({
-      id: hashSlug(secMatch.slug),
+      id,
       league: {
         id: league.id,
         name: league.name,
@@ -258,7 +287,7 @@ export async function GET(request: NextRequest) {
       timestamp: Math.floor(new Date(secMatch.dateISO).getTime() / 1000),
       status: {
         short: status,
-        long: status === "NS" ? "Próximamente" : status === "FT" ? "Finalizado" : "En Juego",
+        long: status === "NS" ? "Próximamente" : "En Juego",
         elapsed: null,
       },
       score: { home: null, away: null },
@@ -278,12 +307,22 @@ export async function GET(request: NextRequest) {
 
     const league = classifyAgendaLeague(eventMatch.league, eventMatch.homeTeam, eventMatch.awayTeam);
     if (!league) continue;
-    if (isDuplicateFixture(seenMatches, eventMatch.dateISO, league.id, eventMatch.homeTeam, eventMatch.awayTeam)) continue;
 
     const status = inferStatus(eventMatch.dateISO);
+    // Finished matches only clutter the fixture and confuse the live list.
+    // Checked before the dedup registrations so a stale (finished) listing
+    // can't block a valid rescheduled entry of the same fixture.
+    if (status === "FT") continue;
+
+    if (isDuplicateFixture(seenMatches, eventMatch.dateISO, league.id, eventMatch.homeTeam, eventMatch.awayTeam)) continue;
+
+    const id = hashSlug(eventMatch.slug);
+    const token = idDedupToken(eventMatch.homeTeam, eventMatch.awayTeam, league.id, id);
+    if (seenIds.has(token)) continue;
+    seenIds.add(token);
 
     matches.push({
-      id: hashSlug(eventMatch.slug),
+      id,
       league: {
         id: league.id,
         name: league.name,
@@ -298,7 +337,7 @@ export async function GET(request: NextRequest) {
       timestamp: Math.floor(new Date(eventMatch.dateISO).getTime() / 1000),
       status: {
         short: status,
-        long: status === "NS" ? "Próximamente" : status === "FT" ? "Finalizado" : "En Juego",
+        long: status === "NS" ? "Próximamente" : "En Juego",
         elapsed: null,
       },
       score: { home: null, away: null },
