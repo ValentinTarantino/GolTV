@@ -5,7 +5,6 @@ import { Zap, Filter, RefreshCw } from "lucide-react";
 import MatchList from "@/components/matches/MatchList";
 import { MatchSkeleton } from "@/components/ui/Skeleton";
 import { LIVE_STATUSES } from "@/lib/constants";
-import { formatDateISO } from "@/lib/utils";
 import type { Match } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -33,8 +32,7 @@ export default function HomePage() {
     const fetchMatches = async (isBackground = false) => {
       if (!isBackground) setIsLoading(true);
       try {
-        const dateStr = formatDateISO(new Date());
-        const res = await fetch(`/api/matches?date=${dateStr}`);
+        const res = await fetch("/api/matches", { cache: "no-store" });
         const data = await res.json();
         setMatches(data.matches);
         setLastUpdated(new Date());
@@ -59,8 +57,7 @@ export default function HomePage() {
   const refreshMatches = async () => {
     setIsRefreshing(true);
     try {
-      const dateStr = formatDateISO(new Date());
-      const res = await fetch(`/api/matches?date=${dateStr}`, { cache: "no-store" });
+      const res = await fetch("/api/matches", { cache: "no-store" });
       const data = await res.json();
       setMatches(data.matches);
       setLastUpdated(new Date());
@@ -72,13 +69,9 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    const hasLive = matches.some((m) => LIVE_STATUSES.includes(m.status.short));
-    if (!hasLive) return;
-
     const interval = setInterval(() => {
       if (!document.hidden) {
-        const dateStr = formatDateISO(new Date());
-        fetch(`/api/matches?date=${dateStr}`)
+        fetch("/api/matches", { cache: "no-store" })
           .then((r) => r.json())
           .then((data) => {
             setMatches(data.matches);
@@ -90,8 +83,7 @@ export default function HomePage() {
 
     const onVisibility = () => {
       if (document.hidden) return;
-      const dateStr = formatDateISO(new Date());
-      fetch(`/api/matches?date=${dateStr}`)
+      fetch("/api/matches", { cache: "no-store" })
         .then((r) => r.json())
         .then((data) => {
           setMatches(data.matches);
@@ -105,7 +97,7 @@ export default function HomePage() {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [matches]);
+  }, []);
 
   const liveMatches = matches.filter((m) => LIVE_STATUSES.includes(m.status.short));
   const filteredMatches = showLiveOnly ? liveMatches : matches;

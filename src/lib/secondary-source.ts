@@ -14,7 +14,7 @@ function eventBase(): string {
 }
 
 const AGENDA_CACHE_TTL = 5 * 60 * 1000;
-const AGENDA_CACHE_KEY = "secondary:agenda:v2";
+const AGENDA_CACHE_KEY = "secondary:agenda:v3";
 
 export interface SecondaryEmbed {
   id: string; // raw base64 "r" param (decodes to the stream URL)
@@ -27,6 +27,7 @@ export interface SecondaryMatch {
   awayTeam: string;
   league: string;
   dateISO: string;
+  dateInferred?: boolean;
   sources: SecondaryEmbed[];
 }
 
@@ -145,7 +146,9 @@ export function parseSecondaryAgenda(html: string): SecondaryMatch[] {
           }
         });
         const slug = `${homeTeam.toLowerCase().replace(/\s+/g, "-")}-vs-${awayTeam.toLowerCase().replace(/\s+/g, "-")}`;
-        return [{ slug, homeTeam, awayTeam, league, dateISO, sources }];
+        // This feed supplies a clock time, not a calendar date. Keep it usable
+        // for stream lookup, but never treat today's fallback as fixture proof.
+        return [{ slug, homeTeam, awayTeam, league, dateISO, dateInferred: true, sources }];
       });
     } catch {
       return [];

@@ -47,6 +47,44 @@ function flMatch(overrides: Partial<{ homeTeam: string; awayTeam: string; league
 }
 
 describe("/api/matches", () => {
+  it("rejects expired and invalid kickoffs from every source, preserving live and upcoming games", async () => {
+    const now = Date.parse("2026-10-30T20:00:00-03:00");
+    const clock = jest.spyOn(Date, "now").mockReturnValue(now);
+    const entries = [
+      flMatch({ dateISO: "2026-10-29T20:00:00-03:00" }),
+      flMatch({ dateISO: "2026-10-30T17:00:00-03:00" }),
+      flMatch({ dateISO: "invalid" }),
+      flMatch({ homeTeam: "Racing", awayTeam: "Independiente", dateISO: "2026-10-30T19:00:00-03:00" }),
+      flMatch({ homeTeam: "Talleres", awayTeam: "Belgrano", dateISO: "2026-10-30T21:00:00-03:00" }),
+    ];
+    try {
+      for (const source of [fetchAgenda, fetchSecondaryAgenda, fetchEventAgenda]) {
+        for (const mock of [fetchAgenda, fetchSecondaryAgenda, fetchEventAgenda]) {
+          (mock as jest.Mock).mockResolvedValue([]);
+        }
+        (source as jest.Mock).mockResolvedValue(entries.map((entry) => ({
+          ...entry, sources: [{ id: "1", name: "Canal" }],
+        })));
+        const response = await GET(makeRequest("2026-10-30"));
+        const data = await response.json();
+        expect(data.matches.map((match: { homeTeam: { name: string } }) => match.homeTeam.name))
+          .toEqual(["Racing", "Talleres"]);
+        expect(response.headers.get("Cache-Control")).toBe("no-store");
+      }
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("does not republish undated secondary events as today's fixtures", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([{
+      ...flMatch(), dateInferred: true, sources: [{ id: "1", name: "Canal" }],
+    }]);
+    const response = await GET(makeRequest(todayISO()));
+    expect((await response.json()).matches).toEqual([]);
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);

@@ -114,6 +114,7 @@ describe("parseSecondaryAgenda", () => {
       sources: [{ id: "QUJDRA==", name: "TNT Sports" }],
     });
     expect(matches[0].dateISO).toMatch(/^\d{4}-\d{2}-\d{2}T17:30:00-03:00$/);
+    expect(matches[0].dateInferred).toBe(true);
   });
 });
 
@@ -145,7 +146,7 @@ Copa Argentina: Platense vs Estudiantes LP
 
   beforeEach(async () => {
     await deleteCache("secondary:agenda");
-    await deleteCache("secondary:agenda:v2");
+    await deleteCache("secondary:agenda:v3");
     (globalThis as { fetch?: unknown }).fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,

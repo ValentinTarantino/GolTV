@@ -229,7 +229,9 @@ function hashSlug(slug: string): number {
 function inferStatus(dateISO: string): "NS" | "1H" | "FT" {
   const diffMin = (new Date(dateISO).getTime() - Date.now()) / 60000;
   if (diffMin > 10) return "NS";
-  if (diffMin < -240) return "FT";
+  // Agendas have no final whistle status. Allow extra time/penalties, but
+  // don't advertise a kickoff as live for four hours.
+  if (!Number.isFinite(diffMin) || diffMin <= -180) return "FT";
   return "1H";
 }
 
@@ -298,6 +300,7 @@ export async function GET(request: NextRequest) {
 
   // Secondary fixture: only contributes matches the primary fixture is missing.
   for (const secMatch of secondaryAgenda) {
+    if (secMatch.dateInferred) continue;
     if (!isMenFootballMatch(secMatch.league, secMatch.homeTeam, secMatch.awayTeam)) continue;
 
     if (secMatch.sources.length === 0) continue;
@@ -432,5 +435,5 @@ export async function GET(request: NextRequest) {
     m.awayTeam.logo = logoMap.get(m.awayTeam.name) ?? "";
   }
 
-  return Response.json({ matches, date });
+  return Response.json({ matches, date }, { headers: { "Cache-Control": "no-store" } });
 }
