@@ -5,7 +5,7 @@ export const leagueNames: Record<string, string> = {
   "Liga de Primera": "First Division",
   "Campeonato Nacional": "First Division",
   "Copa Chile": "Chile Cup",
-  "Brasileirão Serie A": "Serie A",
+  "Brasileirão Serie A": "Brasileirão",
   "Copa do Brasil": "Brazil Cup",
   "Liga 1": "Liga 1",
   "Copa Perú": "Peru Cup",
