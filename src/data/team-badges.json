@@ -1,0 +1,1415 @@
+[
+  {
+    "id": "espn-18418",
+    "country": "Estados Unidos",
+    "names": [
+      "Atlanta United FC",
+      "Atlanta"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/18418.png",
+    "file": "/badges/espn-18418.png"
+  },
+  {
+    "id": "espn-20906",
+    "country": "Estados Unidos",
+    "names": [
+      "Austin FC",
+      "Austin"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/20906.png",
+    "file": "/badges/espn-20906.png"
+  },
+  {
+    "id": "espn-9720",
+    "country": "Estados Unidos",
+    "names": [
+      "CF Montréal"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9720.png",
+    "file": "/badges/espn-9720.png"
+  },
+  {
+    "id": "espn-21300",
+    "country": "Estados Unidos",
+    "names": [
+      "Charlotte FC",
+      "Charlotte"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/21300.png",
+    "file": "/badges/espn-21300.png"
+  },
+  {
+    "id": "espn-182",
+    "country": "Estados Unidos",
+    "names": [
+      "Chicago Fire FC",
+      "Chicago",
+      "Chicago Fire"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/182.png",
+    "file": "/badges/espn-182.png"
+  },
+  {
+    "id": "espn-184",
+    "country": "Estados Unidos",
+    "names": [
+      "Colorado Rapids",
+      "Colorado"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/184.png",
+    "file": "/badges/espn-184.png"
+  },
+  {
+    "id": "espn-183",
+    "country": "Estados Unidos",
+    "names": [
+      "Columbus Crew",
+      "Columbus"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/183.png",
+    "file": "/badges/espn-183.png"
+  },
+  {
+    "id": "espn-193",
+    "country": "Estados Unidos",
+    "names": [
+      "D.C. United"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/193.png",
+    "file": "/badges/espn-193.png"
+  },
+  {
+    "id": "espn-18267",
+    "country": "Estados Unidos",
+    "names": [
+      "FC Cincinnati",
+      "Cincinnati"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/18267.png",
+    "file": "/badges/espn-18267.png"
+  },
+  {
+    "id": "espn-185",
+    "country": "Estados Unidos",
+    "names": [
+      "FC Dallas",
+      "Dallas"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/185.png",
+    "file": "/badges/espn-185.png"
+  },
+  {
+    "id": "espn-6077",
+    "country": "Estados Unidos",
+    "names": [
+      "Houston Dynamo FC",
+      "Houston",
+      "Houston Dynamo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/6077.png",
+    "file": "/badges/espn-6077.png"
+  },
+  {
+    "id": "espn-20232",
+    "country": "Estados Unidos",
+    "names": [
+      "Inter Miami CF",
+      "Miami",
+      "Inter Miami"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/20232.png",
+    "file": "/badges/espn-20232.png"
+  },
+  {
+    "id": "espn-187",
+    "country": "Estados Unidos",
+    "names": [
+      "LA Galaxy",
+      "Los Angeles Galaxy"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/187.png",
+    "file": "/badges/espn-187.png"
+  },
+  {
+    "id": "espn-18966",
+    "country": "Estados Unidos",
+    "names": [
+      "LAFC",
+      "Los Angeles FC"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
+    "file": "/badges/espn-18966.png"
+  },
+  {
+    "id": "espn-17362",
+    "country": "Estados Unidos",
+    "names": [
+      "Minnesota United FC",
+      "Minnesota",
+      "Minnesota United"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/17362.png",
+    "file": "/badges/espn-17362.png"
+  },
+  {
+    "id": "espn-18986",
+    "country": "Estados Unidos",
+    "names": [
+      "Nashville SC",
+      "Nashville"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/18986.png",
+    "file": "/badges/espn-18986.png"
+  },
+  {
+    "id": "espn-189",
+    "country": "Estados Unidos",
+    "names": [
+      "New England Revolution",
+      "New England",
+      "Revolution"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/189.png",
+    "file": "/badges/espn-189.png"
+  },
+  {
+    "id": "espn-17606",
+    "country": "Estados Unidos",
+    "names": [
+      "New York City FC",
+      "NYCFC",
+      "New York City"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/17606.png",
+    "file": "/badges/espn-17606.png"
+  },
+  {
+    "id": "espn-12011",
+    "country": "Estados Unidos",
+    "names": [
+      "Orlando City SC",
+      "Orlando",
+      "Orlando City"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/12011.png",
+    "file": "/badges/espn-12011.png"
+  },
+  {
+    "id": "espn-10739",
+    "country": "Estados Unidos",
+    "names": [
+      "Philadelphia Union",
+      "Philadelphia"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/10739.png",
+    "file": "/badges/espn-10739.png"
+  },
+  {
+    "id": "espn-9723",
+    "country": "Estados Unidos",
+    "names": [
+      "Portland Timbers",
+      "Portland"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9723.png",
+    "file": "/badges/espn-9723.png"
+  },
+  {
+    "id": "espn-4771",
+    "country": "Estados Unidos",
+    "names": [
+      "Real Salt Lake",
+      "Salt Lake"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4771.png",
+    "file": "/badges/espn-4771.png"
+  },
+  {
+    "id": "espn-190",
+    "country": "Estados Unidos",
+    "names": [
+      "Red Bull New York",
+      "Red Bull NY",
+      "New York RB",
+      "New York Red Bulls",
+      "NYRB",
+      "RBNY"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/190.png",
+    "file": "/badges/espn-190.png"
+  },
+  {
+    "id": "espn-22529",
+    "country": "Estados Unidos",
+    "names": [
+      "San Diego FC",
+      "San Diego"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/22529.png",
+    "file": "/badges/espn-22529.png"
+  },
+  {
+    "id": "espn-191",
+    "country": "Estados Unidos",
+    "names": [
+      "San Jose Earthquakes",
+      "San Jose",
+      "SJ Earthquakes"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/191.png",
+    "file": "/badges/espn-191.png"
+  },
+  {
+    "id": "espn-9726",
+    "country": "Estados Unidos",
+    "names": [
+      "Seattle Sounders FC",
+      "Seattle"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9726.png",
+    "file": "/badges/espn-9726.png"
+  },
+  {
+    "id": "espn-186",
+    "country": "Estados Unidos",
+    "names": [
+      "Sporting Kansas City",
+      "Kansas City"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/186.png",
+    "file": "/badges/espn-186.png"
+  },
+  {
+    "id": "espn-21812",
+    "country": "Estados Unidos",
+    "names": [
+      "St. Louis CITY SC",
+      "St. Louis",
+      "St. Louis City",
+      "STL City"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/21812.png",
+    "file": "/badges/espn-21812.png"
+  },
+  {
+    "id": "espn-7318",
+    "country": "Estados Unidos",
+    "names": [
+      "Toronto FC",
+      "Toronto"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7318.png",
+    "file": "/badges/espn-7318.png"
+  },
+  {
+    "id": "espn-9727",
+    "country": "Estados Unidos",
+    "names": [
+      "Vancouver Whitecaps",
+      "Vancouver"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9727.png",
+    "file": "/badges/espn-9727.png"
+  },
+  {
+    "id": "espn-96",
+    "country": "España",
+    "names": [
+      "Alavés"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/96.png",
+    "file": "/badges/espn-96.png"
+  },
+  {
+    "id": "espn-93",
+    "country": "España",
+    "names": [
+      "Athletic Club",
+      "Athletic"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/93.png",
+    "file": "/badges/espn-93.png"
+  },
+  {
+    "id": "espn-1068",
+    "country": "España",
+    "names": [
+      "Atlético Madrid",
+      "Atlético"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/1068.png",
+    "file": "/badges/espn-1068.png"
+  },
+  {
+    "id": "espn-83",
+    "country": "España",
+    "names": [
+      "Barcelona"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/83.png",
+    "file": "/badges/espn-83.png"
+  },
+  {
+    "id": "espn-85",
+    "country": "España",
+    "names": [
+      "Celta Vigo",
+      "Celta de Vigo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/85.png",
+    "file": "/badges/espn-85.png"
+  },
+  {
+    "id": "espn-90",
+    "country": "España",
+    "names": [
+      "Deportivo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/90.png",
+    "file": "/badges/espn-90.png"
+  },
+  {
+    "id": "espn-3751",
+    "country": "España",
+    "names": [
+      "Elche"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3751.png",
+    "file": "/badges/espn-3751.png"
+  },
+  {
+    "id": "espn-88",
+    "country": "España",
+    "names": [
+      "Espanyol"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/88.png",
+    "file": "/badges/espn-88.png"
+  },
+  {
+    "id": "espn-2922",
+    "country": "España",
+    "names": [
+      "Getafe"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2922.png",
+    "file": "/badges/espn-2922.png"
+  },
+  {
+    "id": "espn-1538",
+    "country": "España",
+    "names": [
+      "Levante"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/1538.png",
+    "file": "/badges/espn-1538.png"
+  },
+  {
+    "id": "espn-99",
+    "country": "España",
+    "names": [
+      "Málaga",
+      "Malaga CF"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/99.png",
+    "file": "/badges/espn-99.png"
+  },
+  {
+    "id": "espn-97",
+    "country": "España",
+    "names": [
+      "Osasuna"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/97.png",
+    "file": "/badges/espn-97.png"
+  },
+  {
+    "id": "espn-87",
+    "country": "España",
+    "names": [
+      "Racing Santander",
+      "Racing"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/87.png",
+    "file": "/badges/espn-87.png"
+  },
+  {
+    "id": "espn-101",
+    "country": "España",
+    "names": [
+      "Rayo Vallecano",
+      "Rayo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/101.png",
+    "file": "/badges/espn-101.png"
+  },
+  {
+    "id": "espn-244",
+    "country": "España",
+    "names": [
+      "Real Betis",
+      "Betis"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/244.png",
+    "file": "/badges/espn-244.png"
+  },
+  {
+    "id": "espn-86",
+    "country": "España",
+    "names": [
+      "Real Madrid"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
+    "file": "/badges/espn-86.png"
+  },
+  {
+    "id": "espn-89",
+    "country": "España",
+    "names": [
+      "Real Sociedad"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/89.png",
+    "file": "/badges/espn-89.png"
+  },
+  {
+    "id": "espn-243",
+    "country": "España",
+    "names": [
+      "Sevilla"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/243.png",
+    "file": "/badges/espn-243.png"
+  },
+  {
+    "id": "espn-94",
+    "country": "España",
+    "names": [
+      "Valencia"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/94.png",
+    "file": "/badges/espn-94.png"
+  },
+  {
+    "id": "espn-102",
+    "country": "España",
+    "names": [
+      "Villarreal"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/102.png",
+    "file": "/badges/espn-102.png"
+  },
+  {
+    "id": "espn-2737",
+    "country": "España",
+    "names": [
+      "Albacete",
+      "Albacete Balompie"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2737.png",
+    "file": "/badges/espn-2737.png"
+  },
+  {
+    "id": "espn-6832",
+    "country": "España",
+    "names": [
+      "Almería",
+      "UD Almeria"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/6832.png",
+    "file": "/badges/espn-6832.png"
+  },
+  {
+    "id": "espn-12597",
+    "country": "España",
+    "names": [
+      "Burgos"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/12597.png",
+    "file": "/badges/espn-12597.png"
+  },
+  {
+    "id": "espn-11487",
+    "country": "España",
+    "names": [
+      "CD Sabadell",
+      "Sabadell",
+      "CE Sabadell"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/11487.png",
+    "file": "/badges/espn-11487.png"
+  },
+  {
+    "id": "espn-4438",
+    "country": "España",
+    "names": [
+      "Castellón"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4438.png",
+    "file": "/badges/espn-4438.png"
+  },
+  {
+    "id": "espn-5404",
+    "country": "España",
+    "names": [
+      "Ceuta"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/5404.png",
+    "file": "/badges/espn-5404.png"
+  },
+  {
+    "id": "espn-3842",
+    "country": "España",
+    "names": [
+      "Cádiz"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3842.png",
+    "file": "/badges/espn-3842.png"
+  },
+  {
+    "id": "espn-8447",
+    "country": "España",
+    "names": [
+      "Córdoba",
+      "Cordoba CF"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/8447.png",
+    "file": "/badges/espn-8447.png"
+  },
+  {
+    "id": "espn-3752",
+    "country": "España",
+    "names": [
+      "Eibar",
+      "SD Eibar"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3752.png",
+    "file": "/badges/espn-3752.png"
+  },
+  {
+    "id": "espn-7320",
+    "country": "España",
+    "names": [
+      "Eldense"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7320.png",
+    "file": "/badges/espn-7320.png"
+  },
+  {
+    "id": "espn-20179",
+    "country": "España",
+    "names": [
+      "FC Andorra"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/20179.png",
+    "file": "/badges/espn-20179.png"
+  },
+  {
+    "id": "espn-9812",
+    "country": "España",
+    "names": [
+      "Girona"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9812.png",
+    "file": "/badges/espn-9812.png"
+  },
+  {
+    "id": "espn-3747",
+    "country": "España",
+    "names": [
+      "Granada"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3747.png",
+    "file": "/badges/espn-3747.png"
+  },
+  {
+    "id": "espn-98",
+    "country": "España",
+    "names": [
+      "Las Palmas"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/98.png",
+    "file": "/badges/espn-98.png"
+  },
+  {
+    "id": "espn-17534",
+    "country": "España",
+    "names": [
+      "Leganés"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/17534.png",
+    "file": "/badges/espn-17534.png"
+  },
+  {
+    "id": "espn-84",
+    "country": "España",
+    "names": [
+      "Mallorca"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/84.png",
+    "file": "/badges/espn-84.png"
+  },
+  {
+    "id": "espn-131858",
+    "country": "España",
+    "names": [
+      "RC Celta Fortuna",
+      "Celta Fortuna",
+      "Celta de Vigo II",
+      "Celta Vigo II"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/131858.png",
+    "file": "/badges/espn-131858.png"
+  },
+  {
+    "id": "espn-92",
+    "country": "España",
+    "names": [
+      "Real Oviedo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/92.png",
+    "file": "/badges/espn-92.png"
+  },
+  {
+    "id": "espn-20983",
+    "country": "España",
+    "names": [
+      "Real Sociedad II"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/20983.png",
+    "file": "/badges/espn-20983.png"
+  },
+  {
+    "id": "espn-95",
+    "country": "España",
+    "names": [
+      "Real Valladolid",
+      "Valladolid"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/95.png",
+    "file": "/badges/espn-95.png"
+  },
+  {
+    "id": "espn-3788",
+    "country": "España",
+    "names": [
+      "Sporting Gijón",
+      "Gijón"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3788.png",
+    "file": "/badges/espn-3788.png"
+  },
+  {
+    "id": "espn-245",
+    "country": "España",
+    "names": [
+      "Tenerife"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/245.png",
+    "file": "/badges/espn-245.png"
+  },
+  {
+    "id": "espn-103",
+    "country": "Italia",
+    "names": [
+      "AC Milan",
+      "Milan"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/103.png",
+    "file": "/badges/espn-103.png"
+  },
+  {
+    "id": "espn-104",
+    "country": "Italia",
+    "names": [
+      "AS Roma"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png",
+    "file": "/badges/espn-104.png"
+  },
+  {
+    "id": "espn-105",
+    "country": "Italia",
+    "names": [
+      "Atalanta"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/105.png",
+    "file": "/badges/espn-105.png"
+  },
+  {
+    "id": "espn-107",
+    "country": "Italia",
+    "names": [
+      "Bologna"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/107.png",
+    "file": "/badges/espn-107.png"
+  },
+  {
+    "id": "espn-2925",
+    "country": "Italia",
+    "names": [
+      "Cagliari"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2925.png",
+    "file": "/badges/espn-2925.png"
+  },
+  {
+    "id": "espn-2572",
+    "country": "Italia",
+    "names": [
+      "Como"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png",
+    "file": "/badges/espn-2572.png"
+  },
+  {
+    "id": "espn-109",
+    "country": "Italia",
+    "names": [
+      "Fiorentina"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/109.png",
+    "file": "/badges/espn-109.png"
+  },
+  {
+    "id": "espn-4057",
+    "country": "Italia",
+    "names": [
+      "Frosinone"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4057.png",
+    "file": "/badges/espn-4057.png"
+  },
+  {
+    "id": "espn-3263",
+    "country": "Italia",
+    "names": [
+      "Genoa",
+      "Genova",
+      "Genoa CFC",
+      "Genova FC"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3263.png",
+    "file": "/badges/espn-3263.png"
+  },
+  {
+    "id": "espn-110",
+    "country": "Italia",
+    "names": [
+      "Internazionale",
+      "Inter Milan",
+      "Inter",
+      "Internazionale Milano",
+      "FC Internazionale"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/110.png",
+    "file": "/badges/espn-110.png"
+  },
+  {
+    "id": "espn-111",
+    "country": "Italia",
+    "names": [
+      "Juventus"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/111.png",
+    "file": "/badges/espn-111.png"
+  },
+  {
+    "id": "espn-112",
+    "country": "Italia",
+    "names": [
+      "Lazio"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/112.png",
+    "file": "/badges/espn-112.png"
+  },
+  {
+    "id": "espn-113",
+    "country": "Italia",
+    "names": [
+      "Lecce"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/113.png",
+    "file": "/badges/espn-113.png"
+  },
+  {
+    "id": "espn-4007",
+    "country": "Italia",
+    "names": [
+      "Monza"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4007.png",
+    "file": "/badges/espn-4007.png"
+  },
+  {
+    "id": "espn-114",
+    "country": "Italia",
+    "names": [
+      "Napoli"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/114.png",
+    "file": "/badges/espn-114.png"
+  },
+  {
+    "id": "espn-115",
+    "country": "Italia",
+    "names": [
+      "Parma"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/115.png",
+    "file": "/badges/espn-115.png"
+  },
+  {
+    "id": "espn-3997",
+    "country": "Italia",
+    "names": [
+      "Sassuolo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3997.png",
+    "file": "/badges/espn-3997.png"
+  },
+  {
+    "id": "espn-239",
+    "country": "Italia",
+    "names": [
+      "Torino"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/239.png",
+    "file": "/badges/espn-239.png"
+  },
+  {
+    "id": "espn-118",
+    "country": "Italia",
+    "names": [
+      "Udinese"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/118.png",
+    "file": "/badges/espn-118.png"
+  },
+  {
+    "id": "espn-17530",
+    "country": "Italia",
+    "names": [
+      "Venezia"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/17530.png",
+    "file": "/badges/espn-17530.png"
+  },
+  {
+    "id": "espn-598",
+    "country": "Alemania",
+    "names": [
+      "1. FC Union Berlin",
+      "Union Berlin"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/598.png",
+    "file": "/badges/espn-598.png"
+  },
+  {
+    "id": "espn-131",
+    "country": "Alemania",
+    "names": [
+      "Bayer Leverkusen",
+      "Leverkusen"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/131.png",
+    "file": "/badges/espn-131.png"
+  },
+  {
+    "id": "espn-132",
+    "country": "Alemania",
+    "names": [
+      "Bayern Munich",
+      "Bayern",
+      "Bayern München",
+      "Bayern Múnich"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/132.png",
+    "file": "/badges/espn-132.png"
+  },
+  {
+    "id": "espn-124",
+    "country": "Alemania",
+    "names": [
+      "Borussia Dortmund",
+      "Dortmund"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/124.png",
+    "file": "/badges/espn-124.png"
+  },
+  {
+    "id": "espn-268",
+    "country": "Alemania",
+    "names": [
+      "Borussia Mönchengladbach",
+      "Gladbach",
+      "Borussia M'gladbach"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/268.png",
+    "file": "/badges/espn-268.png"
+  },
+  {
+    "id": "espn-125",
+    "country": "Alemania",
+    "names": [
+      "Eintracht Frankfurt",
+      "Frankfurt"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/125.png",
+    "file": "/badges/espn-125.png"
+  },
+  {
+    "id": "espn-3841",
+    "country": "Alemania",
+    "names": [
+      "FC Augsburg",
+      "Augsburg",
+      "Augsburgo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3841.png",
+    "file": "/badges/espn-3841.png"
+  },
+  {
+    "id": "espn-122",
+    "country": "Alemania",
+    "names": [
+      "FC Cologne",
+      "Cologne"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/122.png",
+    "file": "/badges/espn-122.png"
+  },
+  {
+    "id": "espn-127",
+    "country": "Alemania",
+    "names": [
+      "Hamburg SV",
+      "Hamburg"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/127.png",
+    "file": "/badges/espn-127.png"
+  },
+  {
+    "id": "espn-2950",
+    "country": "Alemania",
+    "names": [
+      "Mainz"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2950.png",
+    "file": "/badges/espn-2950.png"
+  },
+  {
+    "id": "espn-11420",
+    "country": "Alemania",
+    "names": [
+      "RB Leipzig"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/11420.png",
+    "file": "/badges/espn-11420.png"
+  },
+  {
+    "id": "espn-126",
+    "country": "Alemania",
+    "names": [
+      "SC Freiburg",
+      "Freiburg",
+      "Friburgo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/126.png",
+    "file": "/badges/espn-126.png"
+  },
+  {
+    "id": "espn-3307",
+    "country": "Alemania",
+    "names": [
+      "SC Paderborn 07",
+      "Paderborn"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3307.png",
+    "file": "/badges/espn-3307.png"
+  },
+  {
+    "id": "espn-10388",
+    "country": "Alemania",
+    "names": [
+      "SV Elversberg",
+      "Elversberg"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/10388.png",
+    "file": "/badges/espn-10388.png"
+  },
+  {
+    "id": "espn-133",
+    "country": "Alemania",
+    "names": [
+      "Schalke 04",
+      "Schalke"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/133.png",
+    "file": "/badges/espn-133.png"
+  },
+  {
+    "id": "espn-7911",
+    "country": "Alemania",
+    "names": [
+      "TSG Hoffenheim",
+      "Hoffenheim"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7911.png",
+    "file": "/badges/espn-7911.png"
+  },
+  {
+    "id": "espn-134",
+    "country": "Alemania",
+    "names": [
+      "VfB Stuttgart",
+      "Stuttgart"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/134.png",
+    "file": "/badges/espn-134.png"
+  },
+  {
+    "id": "espn-137",
+    "country": "Alemania",
+    "names": [
+      "Werder Bremen",
+      "Bremen"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/137.png",
+    "file": "/badges/espn-137.png"
+  },
+  {
+    "id": "espn-6418",
+    "country": "Alemania",
+    "names": [
+      "1. FC Heidenheim 1846",
+      "Heidenheim",
+      "FC Heidenheim"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/6418.png",
+    "file": "/badges/espn-6418.png"
+  },
+  {
+    "id": "espn-10382",
+    "country": "Alemania",
+    "names": [
+      "1. FC Magdeburg",
+      "Magdeburg"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/10382.png",
+    "file": "/badges/espn-10382.png"
+  },
+  {
+    "id": "espn-269",
+    "country": "Alemania",
+    "names": [
+      "1. FC Nürnberg"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/269.png",
+    "file": "/badges/espn-269.png"
+  },
+  {
+    "id": "espn-2506",
+    "country": "Alemania",
+    "names": [
+      "Arminia Bielefeld",
+      "Bielefeld"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2506.png",
+    "file": "/badges/espn-2506.png"
+  },
+  {
+    "id": "espn-7017",
+    "country": "Alemania",
+    "names": [
+      "Dynamo Dresden",
+      "D Dresden"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7017.png",
+    "file": "/badges/espn-7017.png"
+  },
+  {
+    "id": "espn-123",
+    "country": "Alemania",
+    "names": [
+      "Energie Cottbus",
+      "Cottbus"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/123.png",
+    "file": "/badges/espn-123.png"
+  },
+  {
+    "id": "espn-2428",
+    "country": "Alemania",
+    "names": [
+      "Hannover 96",
+      "Hannover"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2428.png",
+    "file": "/badges/espn-2428.png"
+  },
+  {
+    "id": "espn-129",
+    "country": "Alemania",
+    "names": [
+      "Hertha Berlin",
+      "Hertha"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/129.png",
+    "file": "/badges/espn-129.png"
+  },
+  {
+    "id": "espn-7884",
+    "country": "Alemania",
+    "names": [
+      "Holstein Kiel"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7884.png",
+    "file": "/badges/espn-7884.png"
+  },
+  {
+    "id": "espn-130",
+    "country": "Alemania",
+    "names": [
+      "Kaiserslautern"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/130.png",
+    "file": "/badges/espn-130.png"
+  },
+  {
+    "id": "espn-4471",
+    "country": "Alemania",
+    "names": [
+      "Karlsruher SC",
+      "Karlsruher"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4471.png",
+    "file": "/badges/espn-4471.png"
+  },
+  {
+    "id": "espn-3812",
+    "country": "Alemania",
+    "names": [
+      "SV Darmstadt 98",
+      "Darmstadt"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3812.png",
+    "file": "/badges/espn-3812.png"
+  },
+  {
+    "id": "espn-3070",
+    "country": "Alemania",
+    "names": [
+      "SpVgg Greuther Fürth",
+      "Greuther Furth"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3070.png",
+    "file": "/badges/espn-3070.png"
+  },
+  {
+    "id": "espn-270",
+    "country": "Alemania",
+    "names": [
+      "St. Pauli"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/270.png",
+    "file": "/badges/espn-270.png"
+  },
+  {
+    "id": "espn-3067",
+    "country": "Alemania",
+    "names": [
+      "TSV Eintracht Braunschweig",
+      "E Braunschweig"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3067.png",
+    "file": "/badges/espn-3067.png"
+  },
+  {
+    "id": "espn-121",
+    "country": "Alemania",
+    "names": [
+      "VfL Bochum",
+      "Bochum"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/121.png",
+    "file": "/badges/espn-121.png"
+  },
+  {
+    "id": "espn-7013",
+    "country": "Alemania",
+    "names": [
+      "VfL Osnabruck",
+      "Osnabruck"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7013.png",
+    "file": "/badges/espn-7013.png"
+  },
+  {
+    "id": "espn-138",
+    "country": "Alemania",
+    "names": [
+      "VfL Wolfsburg",
+      "Wolfsburg",
+      "Wolfsburgo"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/138.png",
+    "file": "/badges/espn-138.png"
+  },
+  {
+    "id": "espn-6017",
+    "country": "Ecuador",
+    "names": [
+      "Aucas"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/6017.png",
+    "file": "/badges/espn-6017.png"
+  },
+  {
+    "id": "espn-2686",
+    "country": "Ecuador",
+    "names": [
+      "Barcelona SC",
+      "Barcelona"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2686.png",
+    "file": "/badges/espn-2686.png"
+  },
+  {
+    "id": "espn-1011",
+    "country": "Ecuador",
+    "names": [
+      "Delfín"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/1011.png",
+    "file": "/badges/espn-1011.png"
+  },
+  {
+    "id": "espn-4812",
+    "country": "Ecuador",
+    "names": [
+      "Deportivo Cuenca",
+      "Cuenca"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4812.png",
+    "file": "/badges/espn-4812.png"
+  },
+  {
+    "id": "espn-2668",
+    "country": "Ecuador",
+    "names": [
+      "Emelec"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2668.png",
+    "file": "/badges/espn-2668.png"
+  },
+  {
+    "id": "espn-11124",
+    "country": "Ecuador",
+    "names": [
+      "Guayaquil City FC",
+      "Guayaquil",
+      "Guayaquil City"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/11124.png",
+    "file": "/badges/espn-11124.png"
+  },
+  {
+    "id": "espn-17086",
+    "country": "Ecuador",
+    "names": [
+      "Independiente del Valle",
+      "Ind. del Valle"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/17086.png",
+    "file": "/badges/espn-17086.png"
+  },
+  {
+    "id": "espn-131702",
+    "country": "Ecuador",
+    "names": [
+      "Leones",
+      "Leones del Norte",
+      "Leones FC"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/131702.png",
+    "file": "/badges/espn-131702.png"
+  },
+  {
+    "id": "espn-21843",
+    "country": "Ecuador",
+    "names": [
+      "Libertad (Ecuador)",
+      "Libertad"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/21843.png",
+    "file": "/badges/espn-21843.png"
+  },
+  {
+    "id": "espn-4816",
+    "country": "Ecuador",
+    "names": [
+      "Liga de Quito",
+      "LDU",
+      "LDU Quito"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4816.png",
+    "file": "/badges/espn-4816.png"
+  },
+  {
+    "id": "espn-18439",
+    "country": "Ecuador",
+    "names": [
+      "Macará"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/18439.png",
+    "file": "/badges/espn-18439.png"
+  },
+  {
+    "id": "espn-10307",
+    "country": "Ecuador",
+    "names": [
+      "Manta F.C."
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/10307.png",
+    "file": "/badges/espn-10307.png"
+  },
+  {
+    "id": "espn-17176",
+    "country": "Ecuador",
+    "names": [
+      "Mushuc Runa"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/17176.png",
+    "file": "/badges/espn-17176.png"
+  },
+  {
+    "id": "espn-20695",
+    "country": "Ecuador",
+    "names": [
+      "Orense"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/20695.png",
+    "file": "/badges/espn-20695.png"
+  },
+  {
+    "id": "espn-9292",
+    "country": "Ecuador",
+    "names": [
+      "Técnico Universitario",
+      "Tecnico U."
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9292.png",
+    "file": "/badges/espn-9292.png"
+  },
+  {
+    "id": "espn-9283",
+    "country": "Ecuador",
+    "names": [
+      "Universidad Católica (Quito)",
+      "U. Católica"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9283.png",
+    "file": "/badges/espn-9283.png"
+  }
+]

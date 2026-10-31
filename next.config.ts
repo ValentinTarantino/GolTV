@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   images: {
+    // Badge widths at 1x, 2x and 3x pixel density, including 48px desktop cards.
+    imageSizes: [32, 40, 48, 64, 80, 96, 128, 144, 192, 256, 384],
+    formats: ["image/webp"],
     remotePatterns: [
       {
         protocol: "https",
@@ -72,6 +75,18 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "i.pinimg.com",
+        pathname: "/**",
+      },
+      {
+        // ESPN badge CDN — direct URLs in the badge maps (remote crests run
+        // through /_next/image, so every badge host must be configured).
+        protocol: "https",
+        hostname: "a.espncdn.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "www.footylogos.com",
         pathname: "/**",
       },
     ],

@@ -1,5 +1,6 @@
 import { PROMIEDOS_BADGES, PROMIEDOS_ALIASES } from "./constants";
 import { POPULATED_BADGES } from "./badges-populated";
+import { getLocalTeamBadge } from "./local-team-badges";
 
 const SPORTSDB_KEY = "123";
 const SPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json";
@@ -492,36 +493,6 @@ const NATIONAL_TEAM_BADGES: Record<string, string> = {
   azerbaiyan: "https://flagcdn.com/w160/az.png",
 };
 
-const LEAGUE_COUNTRY_FLAGS: Record<string, string> = {
-  argentina: "https://flagcdn.com/w160/ar.png",
-  brasil: "https://flagcdn.com/w160/br.png",
-  brazil: "https://flagcdn.com/w160/br.png",
-  chile: "https://flagcdn.com/w160/cl.png",
-  colombia: "https://flagcdn.com/w160/co.png",
-  peru: "https://flagcdn.com/w160/pe.png",
-  "perú": "https://flagcdn.com/w160/pe.png",
-  ecuador: "https://flagcdn.com/w160/ec.png",
-  uruguay: "https://flagcdn.com/w160/uy.png",
-  paraguay: "https://flagcdn.com/w160/py.png",
-  italia: "https://flagcdn.com/w160/it.png",
-  italy: "https://flagcdn.com/w160/it.png",
-  espana: "https://flagcdn.com/w160/es.png",
-  españa: "https://flagcdn.com/w160/es.png",
-  spain: "https://flagcdn.com/w160/es.png",
-  inglaterra: "https://flagcdn.com/w160/gb-eng.png",
-  england: "https://flagcdn.com/w160/gb-eng.png",
-  alemania: "https://flagcdn.com/w160/de.png",
-  germany: "https://flagcdn.com/w160/de.png",
-  "estados unidos": "https://flagcdn.com/w160/us.png",
-  "united states": "https://flagcdn.com/w160/us.png",
-};
-
-function getCountryFlag(country?: string): string {
-  if (!country) return "";
-  const normalizedCountry = normalize(country);
-  return LEAGUE_COUNTRY_FLAGS[normalizedCountry] || "";
-}
-
 function getSearchVariations(name: string): string[] {
   const words = name.split(/\s+/);
   const variations: string[] = [name];
@@ -546,27 +517,22 @@ function getSearchVariations(name: string): string[] {
     .slice(0, 2);
 }
 
-async function searchTeam(query: string): Promise<SportsDBTeam[]> {
+async function searchTeam(query: string): Promise<SportsDBTeam[] | null> {
   const url = `${SPORTSDB_BASE}/${SPORTSDB_KEY}/searchteams.php?t=${encodeURIComponent(query)}`;
   await acquireSearchSlot();
   try {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-        const res = await fetch(url, { signal: controller.signal });
-
-        clearTimeout(timeoutId);
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
 
         if (res.status === 429 || res.status >= 500) {
           if (attempt < 2) {
             await sleep(1000 * (attempt + 1));
             continue;
           }
-          return [];
+          return null;
         }
-        if (!res.ok) return [];
+        if (!res.ok) return null;
         const data: SportsDBResponse = await res.json();
         return data.teams ?? [];
       } catch {
@@ -574,101 +540,22 @@ async function searchTeam(query: string): Promise<SportsDBTeam[]> {
           await sleep(1000 * (attempt + 1));
           continue;
         }
-        return [];
+        return null;
       }
     }
-    return [];
+    return null;
   } finally {
-    releaseSearchSlot();
     await sleep(SEARCH_DELAY_MS);
+    releaseSearchSlot();
   }
 }
 
 export async function getTeamLogo(teamName: string, country?: string): Promise<string> {
+  const known = peekTeamLogo(teamName, country);
+  if (known !== null) return known;
   const key = normalize(teamName);
-  const fallbackFlag = getCountryFlag(country);
-  if (!key) return fallbackFlag;
-
+  if (!key) return "";
   const cacheKey = country ? `${key}-${normalize(country)}` : key;
-
-  // Hardcoded disambiguation: Liverpool Montevideo vs Liverpool FC (England)
-  if (key === "liverpool" && (country === "Uruguay" || country === "Uruguay" )) {
-    return "https://r2.thesportsdb.com/images/media/team/badge/0xat6f1678717839.png";
-  }
-
-  const directBadge = DIRECT_TEAM_BADGES[key];
-  if (directBadge) return directBadge;
-
-  const aliasKey = PROMIEDOS_ALIASES[key];
-  const apiFootballUrl = apiFootballBadge(aliasKey || key);
-  if (apiFootballUrl && /(?:academy|^cr)/i.test(teamName)) return apiFootballUrl;
-  const promiedosUrl = PROMIEDOS_BADGES[aliasKey || key] || PROMIEDOS_BADGES[teamName.toLowerCase()];
-  if (promiedosUrl) return promiedosUrl;
-
-  const populatedUrl = POPULATED_BADGES[aliasKey || key] || POPULATED_BADGES[key];
-  if (populatedUrl) return populatedUrl;
-
-
-  const nationalTeamBadge = NATIONAL_TEAM_BADGES[key];
-  if (nationalTeamBadge) return nationalTeamBadge;
-
-  // Direct country matching for Ireland - special case
-  if (key === "irland" || key === "ireland" || key === "republicofireland") {
-    return "https://flagcdn.com/w160/ie.png";
-  }
-
-  // Club teams that get incorrectly matched to country flags due to substring matching
-  const CLUB_OVERRIDES: Record<string, string> = {
-    "antofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
-    "deportesantofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
-    "roma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
-    "asroma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
-    "deportivorecoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
-    "recoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
-  };
-  if (CLUB_OVERRIDES[key]) return CLUB_OVERRIDES[key];
-
-  // Check if it's a national team first - improved matching
-  const normalizedTeamName = teamName.toLowerCase();
-  
-  // Skip country flag matching for known club teams to avoid false positives
-  const knownClubPatterns = [
-    'fc', 'united', 'city', 'real', 'sporting', 'inter', 'dynamo', 
-    'rapids', 'sounders', 'timbers', 'crew', 'union', 'revolution',
-    'galaxy', 'fire', 'earthquakes', 'whitecaps', 'whitecap',
-    'rangers', 'celtic', 'bayern', 'dortmund', 'schalke',
-    'juventus', 'milan', 'napoli', 'roma', 'lazio', 'inter',
-    'barcelona', 'madrid', 'atletico', 'sevilla', 'valencia',
-    'manchester', 'liverpool', 'chelsea', 'arsenal', 'tottenham',
-    'paris', 'marseille', 'lyon', 'monaco', 'lille',
-    'benfica', 'porto', 'sporting', 'ajax', 'psv', 'feyenoord',
-    'river', 'boca', 'independiente', 'racing', 'sanlorenzo',
-    'flamengo', 'palmeiras', 'santos', 'corinthians', 'vasco',
-    'universitario', 'alianza', 'melgar', 'cristal', 'sporting'
-  ];
-  
-  const isLikelyClub = knownClubPatterns.some(pattern => 
-    key.includes(pattern) || normalizedTeamName.includes(pattern)
-  );
-  
-  if (!isLikelyClub) {
-    for (const [c, flagUrl] of Object.entries(COUNTRY_FLAGS)) {
-      const countryLower = c.toLowerCase();
-      const normalizedCountry = normalize(c);
-      // Check if team name contains country name or vice versa
-      if (normalizedTeamName.includes(countryLower) || countryLower.includes(normalizedTeamName)
-        || key === normalizedCountry || key.includes(normalizedCountry) || normalizedCountry.includes(key)) {
-        return flagUrl;
-      }
-      // Check for more specific matches
-      if (normalizedTeamName === countryLower || key === normalizedCountry) {
-        return flagUrl;
-      }
-    }
-  }
-
-
-
   const cached = logoCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
@@ -691,9 +578,11 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
       }
 
       const variations = getSearchVariations(searchName);
+      let unavailable = false;
 
       for (const query of variations) {
         const teams = await searchTeam(query);
+        if (teams === null) { unavailable = true; continue; }
         if (teams.length === 0) continue;
 
         const match = findBestMatch(teams, teamName) || (mappedAliasKey ? findBestMatch(teams, mappedAliasKey) : null) || (key === "liverpool" ? findBestMatch(teams, "Liverpool Montevideo") : null);
@@ -704,10 +593,9 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
         }
       }
 
-      negativeCache.set(cacheKey, Date.now() + NEGATIVE_CACHE_TTL_MS);
+      if (!unavailable) negativeCache.set(cacheKey, Date.now() + NEGATIVE_CACHE_TTL_MS);
       return NATIONAL_TEAM_BADGES[key] || "";
     } catch {
-      negativeCache.set(cacheKey, Date.now() + NEGATIVE_CACHE_TTL_MS);
       return NATIONAL_TEAM_BADGES[key] || "";
     } finally {
       pendingLookups.delete(cacheKey);
@@ -719,6 +607,8 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
 }
 
 export function peekTeamLogo(teamName: string, country?: string): string | null {
+  const localBadge = getLocalTeamBadge(teamName, country);
+  if (localBadge) return localBadge;
   const key = normalize(teamName);
   if (!key) return null;
 
@@ -755,6 +645,9 @@ export function peekTeamLogo(teamName: string, country?: string): string | null 
     "recoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
   };
   if (CLUB_OVERRIDES[key]) return CLUB_OVERRIDES[key];
+
+  const flag = Object.entries(COUNTRY_FLAGS).find(([name]) => normalize(name) === key)?.[1];
+  if (flag) return flag;
 
   const cacheKey = country ? `${key}-${normalize(country)}` : key;
   const cached = logoCache.get(cacheKey);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Play } from "lucide-react";
@@ -12,11 +13,15 @@ import { useTimeZone } from "@/contexts/TimeZoneContext";
 
 interface MatchCardProps {
   match: Match;
+  prioritizeLogos?: boolean;
 }
 
-export default function MatchCard({ match }: MatchCardProps) {
+export default function MatchCard({ match, prioritizeLogos = false }: MatchCardProps) {
   const { t, language } = useLanguage();
   const { timeZone } = useTimeZone();
+  // Optimizer failures (a badge host rejecting the /_next/image fetch) fall
+  // back to the raw remote URL instead of leaving a broken image.
+  const [crestFallback, setCrestFallback] = useState<{ home: boolean; away: boolean }>({ home: false, away: false });
   const live = isLive(match.status.short);
   const finished = isFinished(match.status.short);
   const upcoming = isUpcoming(match.status.short);
@@ -65,8 +70,11 @@ export default function MatchCard({ match }: MatchCardProps) {
                 alt={match.homeTeam.name}
                 fill
                 className="object-contain"
-                sizes="40px"
-                unoptimized
+                sizes="(max-width: 639px) 40px, 48px"
+                loading={prioritizeLogos ? "eager" : "lazy"}
+                fetchPriority={prioritizeLogos ? "high" : "auto"}
+                unoptimized={crestFallback.home}
+                onError={() => setCrestFallback((f) => (f.home ? f : { ...f, home: true }))}
               />
             ) : null}
           </div>
@@ -129,8 +137,11 @@ export default function MatchCard({ match }: MatchCardProps) {
                 alt={match.awayTeam.name}
                 fill
                 className="object-contain"
-                sizes="40px"
-                unoptimized
+                sizes="(max-width: 639px) 40px, 48px"
+                loading={prioritizeLogos ? "eager" : "lazy"}
+                fetchPriority={prioritizeLogos ? "high" : "auto"}
+                unoptimized={crestFallback.away}
+                onError={() => setCrestFallback((f) => (f.away ? f : { ...f, away: true }))}
               />
             ) : null}
           </div>

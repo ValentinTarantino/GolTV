@@ -64,6 +64,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`${spaceGrotesk.variable} h-full`}>
+      {/* League crests are rendered unoptimized (MatchList / leagues page);
+          warm the CDN connections while the HTML parses. */}
+      <link rel="preconnect" href="https://media.api-sports.io" />
+      <link rel="preconnect" href="https://r2.thesportsdb.com" />
       <body className="min-h-full flex flex-col font-sans antialiased">
         <LanguageProvider>
           <TimeZoneProvider>

@@ -2,6 +2,7 @@ import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 import { isMenFootballMatch } from "./constants";
 import { matchTeamsPair } from "./team-matching";
+import { cleanAgendaText } from "./agenda-text";
 
 const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
 
@@ -11,7 +12,7 @@ const FL_EMBED_BASE = process.env.EMBED_SOURCE_BASE!;
 const FL_STREAM_CACHE_TTL = 30 * 60 * 1000;
 const FL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
 
-const FL_AGENDA_CACHE_KEY = "fl:agenda";
+const FL_AGENDA_CACHE_KEY = "fl:agenda:v2";
 
 interface AgendaEmbed {
   id: string;
@@ -94,7 +95,7 @@ function parseStrapiEmbeds(raw: StrapiDiary["embeds"]): AgendaEmbed[] {
 }
 
 function parseDescription(desc: string): { league: string; homeTeam: string; awayTeam: string } {
-  const cleaned = desc.replace(/\n/g, " ").trim();
+  const cleaned = cleanAgendaText(desc);
   const colonIdx = cleaned.indexOf(":");
   if (colonIdx === -1) {
     const vsMatch = cleaned.match(/^(.+?)\s+vs\s+(.+)$/i);
@@ -114,7 +115,7 @@ function parseDescription(desc: string): { league: string; homeTeam: string; awa
   return { league, homeTeam: vsMatch[1].trim(), awayTeam: vsMatch[2].trim() };
 }
 
-function parseStrapiAgenda(data: StrapiDiary[]): AgendaMatch[] {
+export function parseStrapiAgenda(data: StrapiDiary[]): AgendaMatch[] {
   const matches: AgendaMatch[] = [];
 
   for (const raw of data) {

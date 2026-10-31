@@ -452,7 +452,7 @@ const SAUDI_PRO_LEAGUE_TEAMS = [
   "al raed", "al batin", "al wehda", "al ittifaq", "al hamriyah",
 ];
 
-const TEAM_DISPLAY_NAMES: Record<string, string> = {
+export const TEAM_DISPLAY_NAMES: Record<string, string> = {
   "brighton & hove albion": "Brighton",
   "brighton & hove albion fc": "Brighton",
   "manchester united": "Man Utd",

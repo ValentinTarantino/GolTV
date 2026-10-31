@@ -23,6 +23,7 @@ import { GET } from "@/app/api/matches/route";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
+import { peekTeamLogo } from "@/lib/team-logos";
 
 function makeRequest(date?: string) {
   const url = date
@@ -47,6 +48,23 @@ function flMatch(overrides: Partial<{ homeTeam: string; awayTeam: string; league
 }
 
 describe("/api/matches", () => {
+  it("does not overwrite badges of names shared across countries", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({ homeTeam: "Barcelona", awayTeam: "Sevilla", league: "LaLiga", slug: "barcelona-es" }),
+      flMatch({ homeTeam: "Barcelona", awayTeam: "Emelec", league: "Liga Pro", slug: "barcelona-ec" }),
+    ]);
+    (peekTeamLogo as jest.Mock).mockImplementation((name, country) => `/badges/${country}-${name}.png`);
+    try {
+      const { matches } = await (await GET(makeRequest())).json();
+      expect(matches).toHaveLength(2);
+      expect(matches.find((match: { league: { country: string } }) => match.league.country === "España").homeTeam.logo)
+        .toBe("/badges/España-Barcelona.png");
+      expect(matches.find((match: { league: { country: string } }) => match.league.country === "Ecuador").homeTeam.logo)
+        .toBe("/badges/Ecuador-Barcelona.png");
+    } finally {
+      (peekTeamLogo as jest.Mock).mockReturnValue(null);
+    }
+  });
   it("rejects expired and invalid kickoffs from every source, preserving live and upcoming games", async () => {
     const now = Date.parse("2026-10-30T20:00:00-03:00");
     const clock = jest.spyOn(Date, "now").mockReturnValue(now);
@@ -87,8 +105,59 @@ describe("/api/matches", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (fetchAgenda as jest.Mock).mockResolvedValue([]);
     (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);
     (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
+  });
+
+  it.each(["event-only", "all-sources"])("merges original agenda variants through the shared pipeline (%s)", async (mode) => {
+    const pairs = [
+      ["Primera División", "Racing", "Cerro Largo", "Primera División de Uruguay", "Racing de Montevideo", "Cerro Largo"],
+      ["Primera División", "Peñarol", "Wanderers", "Primera División de Uruguay", "Peñarol", "Montevideo Wanderers"],
+      ["Bundesliga", "Bayern München", "Borussia Dortmund", "Bundesliga", "Bayern Múnich", "Borussia Dortmund"],
+      ["LaLiga", "Levante", "Atlético Madrid", "LaLiga", "Levante", "Atlético de Madrid"],
+      ["Premier League", "Tottenham Hotspur", "Crystal Palace", "Premier League", "Tottenham", "Crystal Palace"],
+      ["Premier League", "Manchester City", "Brighton &amp; Hove Albion", "Premier League", "Man City", "Brighton"],
+      ["Liga Profesional", "Deportivo Riestra", "Talleres Córdoba", "Liga Profesional Argentina", "Deportivo Riestra", "Talleres de Córdoba"],
+      ["Bundesliga", "Augsburg", "Freiburg", "Bundesliga", "Augsburgo", "Friburgo"],
+      ["Bundesliga", "Borussia M'gladbach", "Paderborn", "Bundesliga", "Borussia Mönchengladbach", "SC Paderborn 07"],
+      ["Premier League", "Coventry City", "Sunderland", "Premier League", "Coventry", "Sunderland"],
+    ];
+    const dateISO = new Date(Date.now() + 60 * 60_000).toISOString();
+    const first = pairs.map(([league, homeTeam, awayTeam], i) =>
+      flMatch({ league, homeTeam, awayTeam, dateISO, slug: `primary-${i}` }));
+    const second = pairs.map(([, , , league, homeTeam, awayTeam], i) => ({
+      league, homeTeam, awayTeam, dateISO, slug: `event-${i}`, sources: [{ id: "e1", name: "Channel" }],
+    }));
+    if (mode === "all-sources") {
+      (fetchAgenda as jest.Mock).mockResolvedValue(first);
+      (fetchSecondaryAgenda as jest.Mock).mockResolvedValue(second);
+    }
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      ...first.map((entry) => ({ ...entry, sources: [{ id: "e2", name: "Channel" }] })), ...second,
+    ]);
+    const response = await GET(makeRequest());
+    const matches = (await response.json()).matches;
+    expect(matches).toHaveLength(pairs.length);
+    expect(matches.map((match: { _eventSlug: string }) => match._eventSlug)).toEqual(first.map((entry) => entry.slug));
+    expect(matches[5].awayTeam.name).toBe("Brighton & Hove Albion");
+    if (mode === "all-sources") {
+      expect(matches.every((match: { _eventSources?: unknown[] }) => match._eventSources?.length === 1)).toBe(true);
+    }
+  });
+
+  it("combines distinct signals of duplicate primary records without mutating the source cache", async () => {
+    const first = flMatch({ homeTeam: "Tottenham", awayTeam: "Crystal Palace", slug: "first" });
+    const second = flMatch({ homeTeam: "Tottenham Hotspur", awayTeam: "Crystal Palace", slug: "second",
+      embeds: [{ id: "e2", name: "Other channel", embedIframe: "https://example.com/embed/2" }],
+    });
+    (fetchAgenda as jest.Mock).mockResolvedValue([first, second, second]);
+    const response = await GET(makeRequest());
+    const { matches } = await response.json();
+    expect(matches).toHaveLength(1);
+    expect(matches[0]._eventSlug).toBe("first");
+    expect(matches[0]._eventSources).toEqual([...first.embeds, ...second.embeds]);
+    expect(first.embeds).toHaveLength(1);
   });
 
   it("returns matches with correct structure", async () => {

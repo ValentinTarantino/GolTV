@@ -1,3 +1,4 @@
+import { cleanAgendaText } from "./agenda-text";
 import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 import { isMenFootballMatch } from "./constants";
@@ -14,7 +15,7 @@ const PL_STREAM_CACHE_TTL = 30 * 60 * 1000;
 const PL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
 
 const PL_COOLDOWN_KEY = "pl:cooldown:until";
-const PL_AGENDA_CACHE_KEY = "pl:agenda";
+const PL_AGENDA_CACHE_KEY = "pl:agenda:v2";
 
 /** Resolve provider wrapper pages to the actual media URL when exposed. */
 async function resolvePlaybackUrl(url: string): Promise<{ url: string; kind: "hls" | "iframe" }> {
@@ -56,19 +57,9 @@ export interface EventMatch {
   sources: EventEmbed[];
 }
 
-function decodeHtmlEntities(str: string): string {
-  return str
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-    .replace(/"/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#039;/g, "'");
-}
+const decodeHtmlEntities = cleanAgendaText;
 
-function parseAgendaHTML(html: string): EventMatch[] {
+export function parseAgendaHTML(html: string): EventMatch[] {
   const matches: EventMatch[] = [];
 
   const eventRegex = /<div[^>]*class="[^"]*source-agenda-event[^"]*"[^>]*data-source-instant="([^"]*)"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*source-agenda-event[^"]*"|<div class="[^"]*channels-title)/g;

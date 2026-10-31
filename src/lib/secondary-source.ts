@@ -1,3 +1,4 @@
+import { cleanAgendaText } from "./agenda-text";
 import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 import { isMenFootballMatch } from "./constants";
@@ -14,7 +15,7 @@ function eventBase(): string {
 }
 
 const AGENDA_CACHE_TTL = 5 * 60 * 1000;
-const AGENDA_CACHE_KEY = "secondary:agenda:v3";
+const AGENDA_CACHE_KEY = "secondary:agenda:v4";
 
 export interface SecondaryEmbed {
   id: string; // raw base64 "r" param (decodes to the stream URL)
@@ -36,17 +37,7 @@ const MONTHS_ES: Record<string, number> = {
   julio: 7, agosto: 8, septiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
 };
 
-function decodeHtmlEntities(str: string): string {
-  return str
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/i, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#039;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
-}
+const decodeHtmlEntities = cleanAgendaText;
 
 function stripTags(str: string): string {
   return decodeHtmlEntities(str.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();

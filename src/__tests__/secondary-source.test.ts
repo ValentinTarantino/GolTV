@@ -146,7 +146,7 @@ Copa Argentina: Platense vs Estudiantes LP
 
   beforeEach(async () => {
     await deleteCache("secondary:agenda");
-    await deleteCache("secondary:agenda:v3");
+    await deleteCache("secondary:agenda:v4");
     (globalThis as { fetch?: unknown }).fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,

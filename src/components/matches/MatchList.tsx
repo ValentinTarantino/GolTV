@@ -101,7 +101,7 @@ export default function MatchList({ matches }: MatchListProps) {
               const identity = sourceKey
                 ? `${group.leagueId}-${sourceKey}`
                 : `${group.leagueId}-${match.id}-${match.timestamp}-${match.homeTeam.name}-${match.awayTeam.name}`;
-              return <MatchCard key={`${identity}-${index}`} match={match} />;
+              return <MatchCard key={`${identity}-${index}`} match={match} prioritizeLogos={groupIndex === 0 && index < 2} />;
             })}
           </div>
         </section>
