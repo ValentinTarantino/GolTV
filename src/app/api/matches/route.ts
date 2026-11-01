@@ -1,5 +1,5 @@
 import { fixtureTeamPair } from "@/lib/fixture-identity";
-import { cleanAgendaText } from "@/lib/agenda-text";
+import { cleanAgendaText, cleanAgendaTeamName } from "@/lib/agenda-text";
 import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
@@ -159,8 +159,8 @@ export async function GET(request: NextRequest) {
     if (raw.dateInferred || !raw.hasStreams) continue;
     const entry = {
       ...raw,
-      homeTeam: cleanAgendaText(raw.homeTeam),
-      awayTeam: cleanAgendaText(raw.awayTeam),
+      homeTeam: cleanAgendaTeamName(raw.homeTeam, raw.league),
+      awayTeam: cleanAgendaTeamName(raw.awayTeam, raw.league),
       league: cleanAgendaText(raw.league),
     };
     if (!isMenFootballMatch(entry.league, entry.homeTeam, entry.awayTeam)) continue;

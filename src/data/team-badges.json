@@ -1,5 +1,26 @@
 [
   {
+    "id": "espn-4129",
+    "country": "Chile",
+    "names": ["Everton", "Everton CD", "Everton de Viña del Mar", "Everton de Vina"],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4129.png",
+    "file": "/badges/espn-4129.png"
+  },
+  {
+    "id": "espn-368",
+    "country": "Inglaterra",
+    "names": ["Everton", "Everton FC"],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/368.png",
+    "file": "/badges/espn-368.png"
+  },
+  {
+    "id": "espn-4137",
+    "country": "Chile",
+    "names": ["La Serena", "Deportes La Serena", "CD La Serena"],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4137.png",
+    "file": "/badges/espn-4137.png"
+  },
+  {
     "id": "espn-18418",
     "country": "Estados Unidos",
     "names": [
@@ -811,8 +832,8 @@
     "names": [
       "Juventus"
     ],
-    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/111.png",
-    "file": "/badges/espn-111.png"
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500-dark/111.png",
+    "file": "/badges/espn-111-dark.png"
   },
   {
     "id": "espn-112",

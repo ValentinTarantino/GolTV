@@ -10,3 +10,17 @@ export function cleanAgendaText(value: string): string {
   }
   return text.replace(/\s+/g, " ").trim();
 }
+
+/** Some providers repeat the competition label inside the team's text. */
+export function cleanAgendaTeamName(value: string, league: string): string {
+  let name = cleanAgendaText(value);
+  const key = (text: string) => cleanAgendaText(text).replace(/:$/, "").trim()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const competition = key(league);
+  while (competition && name.includes(":")) {
+    const colon = name.indexOf(":");
+    if (key(name.slice(0, colon)) !== competition) break;
+    name = name.slice(colon + 1).trim();
+  }
+  return name;
+}

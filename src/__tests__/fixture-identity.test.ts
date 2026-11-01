@@ -1,7 +1,7 @@
 /** @jest-environment node */
 import { canonicalTeamForDedup, fixtureTeamPair } from "@/lib/fixture-identity";
 import { TEAM_DISPLAY_NAMES } from "@/lib/constants";
-import { cleanAgendaText } from "@/lib/agenda-text";
+import { cleanAgendaText, cleanAgendaTeamName } from "@/lib/agenda-text";
 import { parseStrapiAgenda } from "@/lib/agenda-source";
 import { parseAgendaHTML } from "@/lib/event-source";
 
@@ -40,6 +40,11 @@ describe("fixture identity", () => {
 });
 
 describe("agenda text ingestion", () => {
+  it("removes only repeated labels of the actual competition", () => {
+    expect(cleanAgendaTeamName("Copa do Brasil: Copa do Brasil: Palmeiras", "Copa do Brasil")).toBe("Palmeiras");
+    expect(cleanAgendaTeamName("Other: Palmeiras", "Copa do Brasil")).toBe("Other: Palmeiras");
+    expect(cleanAgendaTeamName("Palmeiras", "Copa do Brasil")).toBe("Palmeiras");
+  });
   it("decodes named, numeric, repeated entities and whitespace", () => {
     expect(cleanAgendaText("  Atl&eacute;tico&nbsp; de  Madrid &#38; Brighton &amp;amp; Hove "))
       .toBe("Atlético de Madrid & Brighton & Hove");

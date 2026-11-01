@@ -6,6 +6,14 @@ import { getLocalTeamBadge } from "@/lib/local-team-badges";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 
 describe("local club crests", () => {
+  it("uses a visible Juventus crest and separates the Chilean and English Everton", async () => {
+    expect(peekTeamLogo("Juventus", "Italia")).toBe("/badges/espn-111-dark.png");
+    await expect(getTeamLogo("Juventus", "Italia")).resolves.toBe("/badges/espn-111-dark.png");
+    expect(peekTeamLogo("La Serena", "Chile")).toBe("/badges/espn-4137.png");
+    expect(peekTeamLogo("Everton", "Chile")).toBe("/badges/espn-4129.png");
+    expect(peekTeamLogo("Everton", "Inglaterra")).toBe("/badges/espn-368.png");
+    expect(getLocalTeamBadge("Everton")).toBeNull();
+  });
   it("every registered alias resolves to a real local PNG without any network requests", async () => {
     const originalFetch = globalThis.fetch;
     const fetchMock = jest.fn().mockRejectedValue(new Error("offline"));

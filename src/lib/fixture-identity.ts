@@ -65,10 +65,14 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
   39: { coventry: "coventrycity" },
   78: {
+    koln: "koln", "1fckoln": "koln",
+    eintrachtfrancfort: "eintrachtfrankfurt",
     augsburgo: "augsburg", friburgo: "freiburg", wolfsburgo: "wolfsburg",
     borussiamgladbach: "borussiamonchengladbach",
     paderborn: "paderborn07", scpaderborn07: "paderborn07",
   },
+  135: { genova: "genoa", napoles: "napoli" },
+  128: { gimnasiam: "gimnasiamendoza", gimnasiademendoza: "gimnasiamendoza" },
   // Pelota Libre lists the same 2026 Copa del Rey tie as both
   // "Auriense - Deportivo La Coruña" and "Auriense Cented Academy - Deportivo".
   // Keep these aliases scoped to this competition because "Deportivo" is
@@ -83,11 +87,15 @@ const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
     deportivodeacoruna: "deportivolacoruna",
   },
   268: {
+    torque: "montevideocitytorque", atleticotorque: "montevideocitytorque",
+    liverpooldemontevideo: "liverpool",
     racing: "racingmontevideo", racingclub: "racingmontevideo",
     racingdemontevideo: "racingmontevideo", racingclubmontevideo: "racingmontevideo",
     wanderers: "montevideowanderers",
   },
   930: {
+    torque: "montevideocitytorque", atleticotorque: "montevideocitytorque",
+    liverpooldemontevideo: "liverpool",
     racing: "racingmontevideo", racingclub: "racingmontevideo",
     racingdemontevideo: "racingmontevideo", racingclubmontevideo: "racingmontevideo",
     wanderers: "montevideowanderers",

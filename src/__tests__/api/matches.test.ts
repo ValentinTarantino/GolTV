@@ -48,6 +48,37 @@ function flMatch(overrides: Partial<{ homeTeam: string; awayTeam: string; league
 }
 
 describe("/api/matches", () => {
+  it.each([true, false])("merges production provider variants even when primary availability is %s", async (primaryAvailable) => {
+    const pairs = [
+      ["Bundesliga", "Union Berlin", "Köln", "Unión Berlín", "1. FC Köln"],
+      ["Bundesliga", "Eintracht Frankfurt", "Hamburger SV", "Eintracht Fráncfort", "Hamburger SV"],
+      ["Liga AUF Uruguaya", "Boston River", "Torque", "Boston River", "Atletico Torque"],
+      ["Liga AUF Uruguaya", "Liverpool", "Juventud", "Liverpool de Montevideo", "Juventud"],
+      ["Serie A", "Lecce", "Genoa", "Lecce", "Génova"],
+      ["Serie A", "Juventus", "Napoli", "Juventus", "Nápoles"],
+      ["Liga Profesional", "Lanús", "Gimnasia Mendoza", "Lanús", "Gimnasia M."],
+      ["Copa do Brasil", "Palmeiras", "Vasco da Gama", "Copa do Brasil: Palmeiras", "Vasco da Gama"],
+      ["Copa do Brasil", "Grêmio", "Atlético Mineiro", "Copa do Brasil: Grêmio", "Atlético Mineiro"],
+    ];
+    const originals = pairs.map(([league, homeTeam, awayTeam], index) => flMatch({
+      league, homeTeam, awayTeam, slug: `primary-${index}`,
+    }));
+    const variants = pairs.map(([league, , , homeTeam, awayTeam], index) => ({
+      league, homeTeam, awayTeam, slug: `event-${index}`,
+      dateISO: originals[index].dateISO, sources: [{ id: "1", name: "Channel" }],
+    }));
+    (fetchAgenda as jest.Mock).mockResolvedValue(primaryAvailable ? originals : []);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      ...originals.map((entry) => ({ ...entry, sources: [{ id: "1", name: "Channel" }] })),
+      ...variants,
+    ]);
+    const { matches } = await (await GET(makeRequest())).json();
+    expect(matches).toHaveLength(pairs.length);
+    expect(matches.map((match: { homeTeam: { name: string }; awayTeam: { name: string } }) =>
+      [match.homeTeam.name, match.awayTeam.name]))
+      .toEqual(pairs.map(([, home, away]) => [home, away]));
+  });
   it("does not overwrite badges of names shared across countries", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({ homeTeam: "Barcelona", awayTeam: "Sevilla", league: "LaLiga", slug: "barcelona-es" }),
