@@ -102,7 +102,16 @@ const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
     wanderers: "montevideowanderers",
   },
   239: { alianza: "alianzavalledupar", alianzafc: "alianzavalledupar" },
-  281: { alianza: "alianzalima" },
+  // Providers shorten Asociación Deportiva Tarma to ADT, while others use
+  // ADT de Tarma / Asociación Deportiva de Tarma for the same Liga 1 club.
+  281: {
+    alianza: "alianzalima",
+    adt: "asociaciondeportivatarma",
+    adttarma: "asociaciondeportivatarma",
+    adtdetarma: "asociaciondeportivatarma",
+    asociaciondeportivatarma: "asociaciondeportivatarma",
+    asociaciondeportivadetarma: "asociaciondeportivatarma",
+  },
 };
 
 const TEAM_NAME_DESIGNATORS = new Set([
