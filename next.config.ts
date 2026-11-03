@@ -117,6 +117,12 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // The /p4 player proxy must stay frameable by our own watch page;
+        // later entries override the same header key from the catch-all above.
+        source: "/p4/:path*",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
     ];
   },
 };

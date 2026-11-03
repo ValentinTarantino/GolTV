@@ -36,7 +36,8 @@ export function useIframeChannelBridge(url: string, { channel, onChannels }: Ifr
 
   useEffect(() => {
     if (!enabled) return;
-    const origin = new URL(url).origin;
+    // Relative proxy URLs (/p4/...) resolve against our own origin.
+    const origin = new URL(url, window.location.origin).origin;
     const receive = (event: MessageEvent) => {
       if (event.origin !== origin || event.source !== frame.current?.contentWindow) return;
       const data = event.data;
@@ -64,7 +65,7 @@ export function useIframeChannelBridge(url: string, { channel, onChannels }: Ifr
     if (!enabled || !ready.current || !channel?.streamId || sent.current === channel.id) return;
     frame.current?.contentWindow?.postMessage({ msgEventType: "FROM_PARENT_SITE", val: {
       evType: 104, _si: { streamId: channel.streamId, siteType: channel.siteType, name: channel.name, oriName: channel.name },
-    } }, new URL(url).origin);
+    } }, new URL(url, window.location.origin).origin);
     sent.current = channel.id;
   }, [channel, enabled, url]);
   return frame;

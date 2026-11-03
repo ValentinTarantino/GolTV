@@ -13,6 +13,10 @@ jest.mock("@/lib/event-source", () => ({
   fetchEventAgenda: jest.fn(),
 }));
 
+jest.mock("@/lib/player-five-source", () => ({
+  fetchPlayerFiveAgenda: jest.fn().mockResolvedValue([]),
+}));
+
 jest.mock("@/lib/team-logos", () => ({
   getTeamLogo: jest.fn().mockResolvedValue(""),
   peekTeamLogo: jest.fn().mockReturnValue(null),
@@ -23,6 +27,7 @@ import { GET } from "@/app/api/matches/route";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
+import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
 import { peekTeamLogo } from "@/lib/team-logos";
 
 function makeRequest(date?: string) {
@@ -48,6 +53,17 @@ function flMatch(overrides: Partial<{ homeTeam: string; awayTeam: string; league
 }
 
 describe("/api/matches", () => {
+  it("adds Primera Nacional from player five and selects its player on opening", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
+    const fixture = { homeTeam: "Quilmes", awayTeam: "Chacarita", league: "Primera Nacional",
+      dateISO: new Date().toISOString(), slug: "player-five-test", hasStreams: true };
+    (fetchPlayerFiveAgenda as jest.Mock).mockResolvedValueOnce([fixture, fixture]);
+    const { matches } = await (await GET(makeRequest())).json();
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({ league: { id: 129 }, _preferredPlayer: "5", homeTeam: { name: "Quilmes" } });
+  });
   it.each([true, false])("merges production provider variants even when primary availability is %s", async (primaryAvailable) => {
     const pairs = [
       ["Bundesliga", "Union Berlin", "Köln", "Unión Berlín", "1. FC Köln"],

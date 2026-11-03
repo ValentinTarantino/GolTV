@@ -175,6 +175,12 @@ async function findProviderMatch(home: string, away: string): Promise<ProviderMa
 // Player-domain resolution
 // ---------------------------------------------------------------------------
 
+/**
+ * Route prefix of the same-origin player proxy (src/app/p4). The raw provider
+ * URL would be blanked by its frame checks; the proxied path survives them.
+ */
+export const PLAYER4_PREFIX = "/p4";
+
 /** ROT47 decode — the params endpoint returns its JSON body shifted by 47. */
 function rot47(s: string): string {
   let out = "";
@@ -233,8 +239,9 @@ async function discoverPlayerDomain(): Promise<string> {
 /**
  * Return the base URL of the clean player iframe.
  * Priority: env `PLAYER_TWO_PLAYER_URL` → dynamic discovery → empty (skip).
+ * Also used by src/lib/player4-proxy.ts to resolve the proxied upstream.
  */
-async function playerBase(): Promise<string> {
+export async function playerBase(): Promise<string> {
   const envUrl = process.env.PLAYER_TWO_PLAYER_URL?.trim().replace(/\/$/, "");
   if (envUrl) return envUrl;
   return discoverPlayerDomain();
@@ -262,7 +269,9 @@ export async function findPlayerTwoStreams(home: string, away: string): Promise<
     }
     // mdata = base64(matchId + "_" + sportType).  sportType 1 = football.
     const mdata = Buffer.from(`${match.id}_1`, "utf8").toString("base64");
-    const url = `${base}/es/player.html?mdata=${mdata}&ilang=es`;
+    // Emit the proxied path: the raw provider URL fails the provider's own
+    // embedding checks (judgeValid + frame trap), which /p4 bypasses server-side.
+    const url = `${PLAYER4_PREFIX}/es/player.html?mdata=${mdata}&ilang=es`;
     return [{
       id: `player-two-${match.id}`,
       name: "Señal principal",

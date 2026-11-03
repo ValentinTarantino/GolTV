@@ -64,6 +64,7 @@ const MESSI_CUP_LEAGUE: LeagueConfig = {
  * Libertadores/Sudamericana, y top Europa (Champions, Europa, La Liga, Premier).
  */
 export const SUPPORTED_LEAGUES: LeagueConfig[] = [
+  { id: 129, name: "Primera Nacional", country: "Argentina", countryFlag: "🇦🇷", slug: "primera-nacional", season: 2026 },
   // Argentina
   { id: 128, name: "Liga Profesional", country: "Argentina", countryFlag: "🇦🇷", slug: "liga-argentina", season: 2026 },
   { id: 130, name: "Copa Argentina", country: "Argentina", countryFlag: "🇦🇷", slug: "copa-argentina", season: 2026 },

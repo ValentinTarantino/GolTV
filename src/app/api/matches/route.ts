@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
+import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam, isMenFootballMatch, SUPPORTED_LEAGUES } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import type { Match } from "@/lib/types";
@@ -138,10 +139,11 @@ export async function GET(request: NextRequest) {
   if ("error" in validation) return validation.error;
 
   const requestedDate = validation.data.date;
-  const [flAgenda, secondaryAgenda, eventAgenda] = await Promise.all([
+  const [flAgenda, secondaryAgenda, eventAgenda, playerFiveAgenda] = await Promise.all([
     fetchAgenda(),
     fetchSecondaryAgenda(),
     fetchEventAgenda(),
+    fetchPlayerFiveAgenda(),
   ]);
 
   const date = requestedDate || getArgentinaToday();
@@ -151,6 +153,7 @@ export async function GET(request: NextRequest) {
     ...flAgenda.map((entry) => ({ ...entry, dateInferred: false, fixtureStatus: undefined, hasStreams: entry.embeds.length > 0 })),
     ...secondaryAgenda.map((entry) => ({ ...entry, embeds: undefined, hasStreams: entry.sources.length > 0 })),
     ...eventAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, fixtureStatus: undefined, hasStreams: entry.sources.length > 0 })),
+    ...playerFiveAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, fixtureStatus: undefined, preferredPlayer: "5" as const })),
   ];
   const seenMatches = new Map<string, SeenFixture[]>();
   const matches: Match[] = [];
@@ -165,7 +168,9 @@ export async function GET(request: NextRequest) {
     };
     if (!isMenFootballMatch(entry.league, entry.homeTeam, entry.awayTeam)) continue;
     if (!(toArgentinaDate(entry.dateISO) === date || isNearNow(entry.dateISO))) continue;
-    const league = classifyAgendaLeague(entry.league, entry.homeTeam, entry.awayTeam);
+    const league = "preferredPlayer" in entry
+      ? SUPPORTED_LEAGUES.find(league => league.id === 129)
+      : classifyAgendaLeague(entry.league, entry.homeTeam, entry.awayTeam);
     if (!league) continue;
     const status = entry.fixtureStatus ?? inferStatus(entry.dateISO);
     // Keep explicitly confirmed finals on their Argentine calendar day. An
@@ -225,6 +230,7 @@ export async function GET(request: NextRequest) {
       channels: [],
       broadcastChannels: getBroadcastChannels(league.id),
       _eventSlug: entry.slug,
+      ...("preferredPlayer" in entry ? { _preferredPlayer: entry.preferredPlayer } : {}),
       ...(entry.embeds ? { _eventSources: [...entry.embeds] } : {}),
     });
   }

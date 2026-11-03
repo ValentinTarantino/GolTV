@@ -172,7 +172,13 @@ function WatchPageInner({
           <div className="animate-fade-in">
             <NetworkNotice />
             <div className="mb-3 flex flex-wrap gap-2" id="player-mode-selector">
-              {(["1", "2", "3", "4", "5"] as const).map((mode) => (
+              {/* Display numbers are independent of the existing provider IDs. */}
+              {([
+                { mode: "1", label: t.player.playerOne },
+                { mode: "3", label: t.player.playerTwo },
+                { mode: "4", label: t.player.playerThree },
+                { mode: "5", label: t.player.playerFourPc },
+              ] as const).map(({ mode, label }) => (
                 <button
                   key={mode}
                   type="button"
@@ -190,7 +196,7 @@ function WatchPageInner({
                   }`}
                   aria-pressed={playerMode === mode}
                 >
-                  {mode === "1" ? t.player.playerOne : mode === "2" ? t.player.playerTwo : mode === "3" ? t.player.playerThree : mode === "4" ? t.player.playerFour : t.player.playerFive}
+                  {label}
                 </button>
               ))}
             </div>

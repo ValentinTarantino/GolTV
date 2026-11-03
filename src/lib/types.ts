@@ -55,6 +55,7 @@ export interface Match {
   channels: Channel[];
   broadcastChannels?: string[];
   _streamId?: string;
+  _preferredPlayer?: "5";
   _eventSlug?: string;
   _eventSources?: { id: string; name: string; embedIframe: string }[];
 }
