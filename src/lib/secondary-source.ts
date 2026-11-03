@@ -11,6 +11,16 @@ const CACHE_TTL = 5 * 60 * 1000;
 const pending = new Map<string, Promise<unknown>>();
 const NON_FOOTBALL = /\b(nhl|nba|nfl|mlb|basketball|baseball|hockey|tennis|tenis|rugby|cricket|volleyball|handball|ufc|formula|moto\s?gp)\b/i;
 
+// The source currently publishes these two Argentine fixtures with their
+// playback pages crossed. Keep the correction limited to this exact fixture
+// pair and only apply it while both entries are present in the agenda.
+const CROSSED_FIXTURE_SIGNALS = [
+  [
+    { home: "Atletico Tucuman", away: "Argentinos Juniors" },
+    { home: "Independiente Rivadavia", away: "Banfield" },
+  ],
+] as const;
+
 export interface SecondaryEmbed {
   id: string; // Absolute channel page URL, resolved server-side before playback.
   name: string;
@@ -189,8 +199,19 @@ export async function findSecondaryStreams(homeTeam: string, awayTeam: string): 
   const base = agendaUrl();
   if (!base) return [];
   const agenda = await fetchSecondaryAgenda();
-  const sources = agenda.filter((match) => matchTeamsPair(match.homeTeam, match.awayTeam, homeTeam, awayTeam))
-    .flatMap((match) => match.sources);
+  const requestedMatch = agenda.find((match) => matchTeamsPair(match.homeTeam, match.awayTeam, homeTeam, awayTeam));
+  if (!requestedMatch) return [];
+
+  const crossedPair = CROSSED_FIXTURE_SIGNALS.find((pair) =>
+    pair.some((fixture) => matchTeamsPair(fixture.home, fixture.away, homeTeam, awayTeam))
+  );
+  const crossedFixture = crossedPair?.find((fixture) =>
+    !matchTeamsPair(fixture.home, fixture.away, homeTeam, awayTeam)
+  );
+  const correctedMatch = crossedFixture && agenda.find((match) =>
+    matchTeamsPair(match.homeTeam, match.awayTeam, crossedFixture.home, crossedFixture.away)
+  );
+  const sources = (correctedMatch ?? requestedMatch).sources;
   const unique = [...new Map(sources.map((source) => [source.id, source])).values()];
   const hosts = wrapperHosts(base);
   // Bound work per request and isolate a failing channel from other signals.
