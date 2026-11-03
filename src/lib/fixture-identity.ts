@@ -2,6 +2,10 @@ import { TEAM_DISPLAY_NAMES } from "./constants";
 import { cleanAgendaText } from "./agenda-text";
 
 const TEAM_DEDUP_ALIASES: Record<string, string> = {
+  psg: "parissaintgermain",
+  parissg: "parissaintgermain",
+  parissaintgermain: "parissaintgermain",
+  parissaintgermainfc: "parissaintgermain",
   bayern: "bayernmunich",
   bayernmunchen: "bayernmunich",
   bayernmunich: "bayernmunich",
