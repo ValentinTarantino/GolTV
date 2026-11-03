@@ -148,9 +148,9 @@ export async function GET(request: NextRequest) {
   // Every source enters the same normalization and identity pipeline. Source
   // slugs remain playback locators, never the identity of a football fixture.
   const agenda = [
-    ...flAgenda.map((entry) => ({ ...entry, dateInferred: false, hasStreams: entry.embeds.length > 0 })),
+    ...flAgenda.map((entry) => ({ ...entry, dateInferred: false, fixtureStatus: undefined, hasStreams: entry.embeds.length > 0 })),
     ...secondaryAgenda.map((entry) => ({ ...entry, embeds: undefined, hasStreams: entry.sources.length > 0 })),
-    ...eventAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, hasStreams: entry.sources.length > 0 })),
+    ...eventAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, fixtureStatus: undefined, hasStreams: entry.sources.length > 0 })),
   ];
   const seenMatches = new Map<string, SeenFixture[]>();
   const matches: Match[] = [];
@@ -167,9 +167,11 @@ export async function GET(request: NextRequest) {
     if (!(toArgentinaDate(entry.dateISO) === date || isNearNow(entry.dateISO))) continue;
     const league = classifyAgendaLeague(entry.league, entry.homeTeam, entry.awayTeam);
     if (!league) continue;
-    const status = inferStatus(entry.dateISO);
-    // Expired records cannot claim the identity of a rescheduled fixture.
-    if (status === "FT") continue;
+    const status = entry.fixtureStatus ?? inferStatus(entry.dateISO);
+    // Keep explicitly confirmed finals on their Argentine calendar day. An
+    // expired undated/inferred listing still cannot claim a rescheduled game.
+    if (status === "PST" || status === "CANC") continue;
+    if (status === "FT" && (entry.fixtureStatus !== "FT" || toArgentinaDate(entry.dateISO) !== date)) continue;
 
     const id = hashSlug(entry.slug);
     const duplicateIndex = findDuplicateFixture(seenMatches, entry.dateISO, league.id, entry.homeTeam, entry.awayTeam, id, matches.length);
@@ -177,6 +179,15 @@ export async function GET(request: NextRequest) {
       // Multiple primary records can carry different channels for one game.
       // Keep them on the winning fixture instead of discarding their signals.
       const existing = matches[duplicateIndex];
+      // A verified final whistle wins over another agenda's clock-based guess,
+      // without replacing the primary fixture's identity or stream sources.
+      if (entry.fixtureStatus && Math.abs(existing.timestamp * 1000 - Date.parse(entry.dateISO)) <= 60 * 60_000) {
+        existing.status = {
+          short: status,
+          long: status === "FT" ? "Finalizado" : status === "NS" ? "Próximamente" : "En Juego",
+          elapsed: null,
+        };
+      }
       if (entry.embeds) {
         const sources = existing._eventSources ?? [];
         const urls = new Set(sources.map((source) => source.embedIframe));
@@ -207,7 +218,7 @@ export async function GET(request: NextRequest) {
       timestamp: Math.floor(new Date(entry.dateISO).getTime() / 1000),
       status: {
         short: status,
-        long: status === "NS" ? "Próximamente" : "En Juego",
+        long: status === "FT" ? "Finalizado" : status === "NS" ? "Próximamente" : "En Juego",
         elapsed: null,
       },
       score: { home: null, away: null },

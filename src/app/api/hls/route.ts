@@ -1,10 +1,6 @@
 import { isAllowedStreamUrl, rewriteHlsPlaylist } from "@/lib/hls-proxy";
 
-// Player 4 (futbolvideos) HLS relay: the ftlly.com CDN serves our server on
-// every attempt but intermittently denies the browser itself (403 +
-// `x-deny-reason: wrong_domain`) for the same URL and headers. Playlists and
-// segments are fetched here and relayed with permissive CORS so hls.js works
-// from any origin. See src/lib/hls-proxy.ts for the URL rules.
+// Server-side HLS relay for the allowlisted providers in src/lib/hls-proxy.ts.
 
 const UPSTREAM_TIMEOUT_MS = 45_000;
 
@@ -55,7 +51,8 @@ export async function GET(request: Request): Promise<Response> {
     if (isPlaylist) {
       // Live playlists must never be cached: they change every few seconds.
       const text = await upstreamRes.text();
-      return new Response(rewriteHlsPlaylist(text, upstream), {
+      const finalUrl = upstreamRes.url ? new URL(upstreamRes.url) : upstream;
+      return new Response(rewriteHlsPlaylist(text, finalUrl), {
         status: upstreamRes.status,
         headers: {
           ...CORS_HEADERS,

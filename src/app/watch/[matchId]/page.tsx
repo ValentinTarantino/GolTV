@@ -11,6 +11,7 @@ import ChatBox from "@/components/chat/ChatBox";
 import LiveBadge from "@/components/matches/LiveBadge";
 import ViewerBadge from "@/components/matches/ViewerBadge";
 import { PlayerSkeleton } from "@/components/ui/Skeleton";
+import NetworkNotice from "@/components/ui/NetworkNotice";
 import { isLive, isUpcoming, isViewable, isFinished } from "@/lib/utils";
 import type { Match, Channel } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -27,11 +28,12 @@ function WatchPageInner({
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   // Honor ?player=N in the URL (shared links / reloads) — anything else falls
   // back to the default player.
   const playerParam = searchParams.get("player");
-  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4">(
-    playerParam === "2" || playerParam === "3" || playerParam === "4" ? playerParam : "1"
+  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4" | "5">(
+    playerParam === "2" || playerParam === "3" || playerParam === "4" || playerParam === "5" ? playerParam : "1"
   );
 
   useEffect(() => {
@@ -41,18 +43,20 @@ function WatchPageInner({
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
 
     const fetchMatch = async () => {
       setIsLoading(true);
       try {
         const sp = new URLSearchParams(searchParams.toString());
         sp.set("player", playerMode);
+        if (retryAttempt > 0) sp.set("refresh", "1");
         const qs = sp.toString();
         const url = `/api/matches/${matchId}${qs ? `?${qs}` : ""}`;
         const res = await fetch(url, { cache: "no-store", signal: controller.signal });
-        if (res.ok && !cancelled) {
+        if (res.ok) {
           const data = await res.json();
-          if (data.match) {
+          if (!cancelled && !controller.signal.aborted && data.match) {
             setMatch(data.match);
             setActiveChannel(data.match.channels[0] ?? null);
           }
@@ -60,13 +64,14 @@ function WatchPageInner({
       } catch {
         if (!cancelled) { /* Match not found */ }
       } finally {
+        clearTimeout(timeout);
         if (!cancelled) setIsLoading(false);
       }
     };
 
     fetchMatch();
-    return () => { cancelled = true; controller.abort(); };
-  }, [matchId, searchParams, playerMode]);
+    return () => { cancelled = true; clearTimeout(timeout); controller.abort(); };
+  }, [matchId, searchParams, playerMode, retryAttempt]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -80,7 +85,7 @@ function WatchPageInner({
     }
   }, [isLoading, match]);
 
-  if (isLoading) {
+  if (isLoading && !match) {
     return (
       <div className="mx-auto max-w-5xl px-3 sm:px-4 md:px-6 py-4 sm:py-6">
         <PlayerSkeleton />
@@ -136,13 +141,14 @@ function WatchPageInner({
             id="watch-league-header"
           >
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className={`relative isolate h-10 w-10 flex-shrink-0 border-2 border-black shadow-brutal-sm sm:h-12 sm:w-12 md:h-14 md:w-14 ${match.league.id === 9901 || match.league.id === 268 ? "bg-black" : "bg-white"}`}>
+              <div className={`relative isolate h-10 w-10 flex-shrink-0 border-2 border-black shadow-brutal-sm sm:h-12 sm:w-12 md:h-14 md:w-14 ${match.league.id === 9901 || match.league.id === 268 || match.league.id === 57 ? "bg-black" : "bg-white"}`}>
               {match.league.logo ? (
                 <div className="absolute inset-1">
                   <Image
                     src={match.league.logo}
                     alt={match.league.name}
                     fill
+                    unoptimized
                     className="object-contain"
                     sizes="48px"
                   />
@@ -164,8 +170,9 @@ function WatchPageInner({
           </div>
 
           <div className="animate-fade-in">
+            <NetworkNotice />
             <div className="mb-3 flex flex-wrap gap-2" id="player-mode-selector">
-              {(["1", "2", "3", "4"] as const).map((mode) => (
+              {(["1", "2", "3", "4", "5"] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
@@ -183,17 +190,23 @@ function WatchPageInner({
                   }`}
                   aria-pressed={playerMode === mode}
                 >
-                  {mode === "1" ? t.player.playerOne : mode === "2" ? t.player.playerTwo : mode === "3" ? t.player.playerThree : t.player.playerFour}
+                  {mode === "1" ? t.player.playerOne : mode === "2" ? t.player.playerTwo : mode === "3" ? t.player.playerThree : mode === "4" ? t.player.playerFour : t.player.playerFive}
                 </button>
               ))}
             </div>
-            {activeChannel ? (
+            {isLoading ? <PlayerSkeleton /> : activeChannel ? (
               <VideoPlayer
                 url={activeChannel.url}
                 title={`${match.homeTeam.name} vs ${match.awayTeam.name}`}
                 headers={activeChannel.headers}
                 kind={activeChannel.kind}
-                borderlessFullscreen={playerMode === "4"}
+                channel={activeChannel}
+                onChannels={(channels) => {
+                  if (playerMode !== "2") return;
+                  setMatch(current => current ? { ...current, channels } : current);
+                  setActiveChannel(current => channels.find(c => c.id === current?.id) ?? channels[0] ?? current);
+                }}
+                borderlessFullscreen={playerMode === "2"}
               />
             ) : (
               <div className="relative w-full aspect-video bg-black overflow-hidden border-3 sm:border-4 border-white shadow-brutal flex flex-col items-center justify-center gap-2 sm:gap-3 p-4 sm:p-6 text-center">
@@ -225,21 +238,7 @@ function WatchPageInner({
                     <button
                       type="button"
                       onClick={() => {
-                        setIsLoading(true);
-                        const sp = new URLSearchParams(searchParams.toString());
-                        sp.set("player", playerMode);
-                        sp.set("refresh", "1");
-                        const qs = sp.toString();
-                        fetch(`/api/matches/${matchId}?${qs}`, { cache: "no-store" })
-                          .then((r) => r.json())
-                          .then((data) => {
-                            if (data.match) {
-                              setMatch(data.match);
-                              setActiveChannel(data.match.channels[0] ?? null);
-                            }
-                          })
-                          .catch(() => {})
-                          .finally(() => setIsLoading(false));
+                        setRetryAttempt((value) => value + 1);
                       }}
                       className="mt-1.5 sm:mt-2 bg-accent-primary text-black font-black uppercase text-[10px] sm:text-xs px-3 sm:px-4 py-1.5 sm:py-2 border-2 border-black shadow-btn hover:-translate-y-0.5 transition-all"
                       id="watch-retry-stream"

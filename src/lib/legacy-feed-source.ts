@@ -4,7 +4,7 @@ import { getCache, setCache, deleteCache, acquireLock, releaseLock } from "./cac
 import { toHlsProxyUrl } from "./hls-proxy";
 import { matchTeamsPair } from "./team-matching";
 
-// FutbolVideos (cdn.strm-api.org) returns its match list AES-256-GCM encrypted.
+// The legacy feed returns its match list AES-256-GCM encrypted.
 // The body is `k1` + customBase64( reverse( iv(12) || ciphertext || tag(16) ) ).
 // The custom base64 uses a shuffled alphabet: to decode you reverse the string
 // and map each character by its index into the standard base64 alphabet.
@@ -12,18 +12,18 @@ const STD_B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+
 const CUSTOM_B64 = "MiljRIn9PX1o63wGBYTtFsKmEkSur-pC_U02cvzAdy5e8ZqLDgJ4OhVN7QbHxfWa";
 
 function apiUrl(): string {
-  return process.env.FUTBOLVIDEOS_API_URL ?? "";
+  return process.env.LEGACY_FEED_API_URL ?? "";
 }
 
 function aesKeyHex(): string {
-  return process.env.FUTBOLVIDEOS_KEY ?? "";
+  return process.env.LEGACY_FEED_KEY ?? "";
 }
 
 /**
- * Decrypts a FutbolVideos API body into its plaintext JSON.
+ * Decrypts a LegacyFeed API body into its plaintext JSON.
  * Exported for tests; the key and endpoint come from env (never hardcoded).
  */
-export function decryptFutbolVideosBody(raw: string, keyHex: string): string {
+export function decryptLegacyFeedBody(raw: string, keyHex: string): string {
   if (!raw.startsWith("k1")) throw new Error("unexpected payload prefix");
 
   const key = Buffer.from(keyHex, "hex");
@@ -55,7 +55,7 @@ export function decryptFutbolVideosBody(raw: string, keyHex: string): string {
   return pt.toString("utf8");
 }
 
-export interface FutbolVideosStream {
+export interface LegacyFeedStream {
   id: string | number;
   name?: string;
   language?: string;
@@ -65,14 +65,14 @@ export interface FutbolVideosStream {
   real_url?: string | null;
 }
 
-export interface FutbolVideosMatch {
+export interface LegacyFeedMatch {
   id: number;
   title?: string;
   league?: string;
   sport?: string;
   home?: { name?: string };
   away?: { name?: string };
-  streams?: FutbolVideosStream[];
+  streams?: LegacyFeedStream[];
 }
 
 /**
@@ -80,9 +80,9 @@ export interface FutbolVideosMatch {
  * both team names. The latin endpoint is already football-only, but we filter
  * defensively in case the payload grows to other sports.
  */
-export function parseFutbolVideosMatches(json: string): FutbolVideosMatch[] {
+export function parseLegacyFeedMatches(json: string): LegacyFeedMatch[] {
   try {
-    const data = JSON.parse(json) as { matches?: FutbolVideosMatch[] };
+    const data = JSON.parse(json) as { matches?: LegacyFeedMatch[] };
     return (data.matches ?? []).filter(
       (m) => m.sport === "futbol" && !!m.home?.name && !!m.away?.name
     );
@@ -92,20 +92,20 @@ export function parseFutbolVideosMatches(json: string): FutbolVideosMatch[] {
 }
 
 const MATCHES_CACHE_TTL = 5 * 60 * 1000;
-const MATCHES_CACHE_KEY = "futbolvideos:latin:v1";
+const MATCHES_CACHE_KEY = "legacy-feed:latin:v1";
 
 const RESOLVED_TTL = 5 * 60 * 1000;
 const resolvedCache = new Map<string, { channels: Channel[]; expiresAt: number }>();
 
 /** Clears module-level caches. Test-only — not used by the app at runtime. */
-export async function __resetFutbolVideosCachesForTests(): Promise<void> {
+export async function __resetLegacyFeedCachesForTests(): Promise<void> {
   resolvedCache.clear();
   await deleteCache(MATCHES_CACHE_KEY);
 }
 
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-const REFERER = "https://futbolvideos.net/";
+const REFERER = process.env.LEGACY_FEED_REFERER?.trim() ?? "";
 const M3U8_RE = /https?:\/\/[^\s"'\\]+\.m3u8[^\s"'\\]*/;
 const IFRAME_RE = /<iframe[^>]*\bsrc=["']([^"']+)["']/i;
 
@@ -117,7 +117,7 @@ const IFRAME_RE = /<iframe[^>]*\bsrc=["']([^"']+)["']/i;
  * `access-control-allow-origin: *`). Returns "" when no stream is found.
  */
 async function resolveHlsUrl(pageUrl: string): Promise<string> {
-  const headers = { "User-Agent": BROWSER_UA, Referer: REFERER };
+  const headers = { "User-Agent": BROWSER_UA, ...(REFERER ? { Referer: REFERER } : {}) };
   const get = async (url: string) => {
     const res = await fetch(url, { headers, redirect: "follow", signal: AbortSignal.timeout(15000) });
     if (!res.ok) return "";
@@ -142,18 +142,18 @@ async function resolveHlsUrl(pageUrl: string): Promise<string> {
   }
 }
 
-async function fetchFutbolVideosMatches(): Promise<FutbolVideosMatch[]> {
+async function fetchLegacyFeedMatches(): Promise<LegacyFeedMatch[]> {
   const url = apiUrl();
   const key = aesKeyHex();
   if (!url || !key) return [];
 
-  const cached = await getCache<FutbolVideosMatch[]>(MATCHES_CACHE_KEY);
+  const cached = await getCache<LegacyFeedMatch[]>(MATCHES_CACHE_KEY);
   if (cached) return cached;
 
   const lockKey = `${MATCHES_CACHE_KEY}:lock`;
   const lockAcquired = await acquireLock(lockKey, 10000);
   if (!lockAcquired) {
-    const stale = await getCache<FutbolVideosMatch[]>(MATCHES_CACHE_KEY);
+    const stale = await getCache<LegacyFeedMatch[]>(MATCHES_CACHE_KEY);
     return stale ?? [];
   }
 
@@ -168,28 +168,28 @@ async function fetchFutbolVideosMatches(): Promise<FutbolVideosMatch[]> {
     });
 
     if (!res.ok) {
-      console.warn(`[futbolvideos] HTTP error: ${res.status}`);
+      console.warn(`[legacy-feed] HTTP error: ${res.status}`);
       await releaseLock(lockKey);
-      const stale = await getCache<FutbolVideosMatch[]>(MATCHES_CACHE_KEY);
+      const stale = await getCache<LegacyFeedMatch[]>(MATCHES_CACHE_KEY);
       return stale ?? [];
     }
 
     const raw = await res.text();
-    const matches = parseFutbolVideosMatches(decryptFutbolVideosBody(raw, key));
+    const matches = parseLegacyFeedMatches(decryptLegacyFeedBody(raw, key));
 
     await setCache(MATCHES_CACHE_KEY, matches, MATCHES_CACHE_TTL);
     await releaseLock(lockKey);
     return matches;
   } catch (error) {
-    console.warn("[futbolvideos] Failed to fetch matches:", error);
+    console.warn("[legacy-feed] Failed to fetch matches:", error);
     await releaseLock(lockKey);
-    const stale = await getCache<FutbolVideosMatch[]>(MATCHES_CACHE_KEY);
+    const stale = await getCache<LegacyFeedMatch[]>(MATCHES_CACHE_KEY);
     return stale ?? [];
   }
 }
 
 /**
- * Channels for a match from the FutbolVideos latin feed.
+ * Channels for a match from the LegacyFeed latin feed.
  *
  * The feed lists two kinds of entries per stream: a "generated" wrapper on
  * kora-plus.li (which sends X-Frame-Options and refuses to be embedded) and the
@@ -204,11 +204,11 @@ async function fetchFutbolVideosMatches(): Promise<FutbolVideosMatch[]> {
  * preferred) plus the frameable tvf90 page as an extra "Web" iframe channel.
  * Signals with no resolvable m3u8 only yield the iframe channel.
  */
-export async function findFutbolVideosStreams(
+export async function findLegacyFeedStreams(
   homeTeam: string,
   awayTeam: string
 ): Promise<Channel[]> {
-  const matches = await fetchFutbolVideosMatches();
+  const matches = await fetchLegacyFeedMatches();
   if (matches.length === 0) return [];
 
   const match = matches.find(
@@ -219,14 +219,14 @@ export async function findFutbolVideosStreams(
   );
   if (!match || !match.streams || match.streams.length === 0) return [];
 
-  const cacheKey = `futbolvideos:resolved:${match.id}`;
+  const cacheKey = `legacy-feed:resolved:${match.id}`;
   const cached = resolvedCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return cached.channels;
 
   // Source URL per underlying stream: the frameable tvf90 page. For generated
   // entries that is real_url; for native entries it is embed_url. Dedup so the
   // same stream isn't resolved twice.
-  const bySource = new Map<string, FutbolVideosStream>();
+  const bySource = new Map<string, LegacyFeedStream>();
   for (const stream of match.streams) {
     const source = stream.origin === "native" ? stream.embed_url : stream.real_url || stream.embed_url;
     if (!source || bySource.has(source)) continue;
@@ -262,20 +262,20 @@ export async function findFutbolVideosStreams(
   for (const { source, label, hls } of resolved) {
     if (hls) {
       channels.push({
-        id: `futbolvideos-${channels.length + 1}`,
+        id: `legacy-feed-${channels.length + 1}`,
         name: label,
         url: toHlsProxyUrl(hls),
         kind: "hls",
       });
       channels.push({
-        id: `futbolvideos-${channels.length + 1}`,
+        id: `legacy-feed-${channels.length + 1}`,
         name: `${label} · Web`,
         url: source,
         kind: "iframe",
       });
     } else {
       channels.push({
-        id: `futbolvideos-${channels.length + 1}`,
+        id: `legacy-feed-${channels.length + 1}`,
         name: label,
         url: source,
         kind: "iframe",

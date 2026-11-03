@@ -6,6 +6,7 @@ import { Play, Pause, Maximize, Volume2, VolumeX, AlertCircle, RefreshCw, Settin
 import { useLanguage } from "@/contexts/LanguageContext";
 import FootballLoader from "@/components/ui/FootballLoader";
 import IframePlayer from "./IframePlayer";
+import type { IframeChannelBridgeProps } from "./useIframeChannelBridge";
 
 interface HlsPlayerProps {
   url: string;
@@ -486,7 +487,7 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
     </div>
   );
 }
-interface VideoPlayerProps {
+interface VideoPlayerProps extends IframeChannelBridgeProps {
   url: string;
   title?: string;
   headers?: Record<string, string>;
@@ -494,9 +495,9 @@ interface VideoPlayerProps {
   borderlessFullscreen?: boolean;
 }
 
-export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen }: VideoPlayerProps) {
+export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen, channel, onChannels }: VideoPlayerProps) {
   if (kind === "iframe") {
-    return <IframePlayer url={url} title={title} />;
+    return <IframePlayer url={url} title={title} channel={channel} onChannels={onChannels} />;
   }
   return <HlsPlayer url={url} title={title} headers={headers} borderlessFullscreen={borderlessFullscreen} />;
 }

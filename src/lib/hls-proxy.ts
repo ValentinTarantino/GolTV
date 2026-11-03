@@ -1,13 +1,9 @@
 /**
  * Helpers for the HLS relay route (`/api/hls`).
  *
- * The Player 4 CDN (ftlly.com) serves playlists and segments to our server on
- * every attempt but intermittently answers the browser itself with
- * `403 + x-deny-reason: wrong_domain` for the exact same URL and headers, so
- * the client never gets the stream. The route fetches upstream server-side and
- * relays the bytes with `Access-Control-Allow-Origin: *`; playlists are
- * rewritten so every playlist line and `URI="…"` attribute also resolves back
- * through the relay (segments included).
+ * HLS relay helpers for approved providers whose playlists need server-side
+ * fetching or CORS support. The relay returns the media bytes to the app and
+ * rewrites playlist and URI references so segments also pass through it.
  */
 
 /** Only these hosts (and their subdomains) may be relayed — not an open proxy. */

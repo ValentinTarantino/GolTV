@@ -1,24 +1,18 @@
+import { createHash } from "node:crypto";
+import { load } from "cheerio/slim";
 import { cleanAgendaText } from "./agenda-text";
-import type { Channel } from "./types";
-import { getCache, setCache, acquireLock, releaseLock } from "./cache";
+import type { Channel, MatchStatusShort } from "./types";
+import { confirmSecondaryMlsDates } from "./secondary-schedule";
+import { getCache, setCache } from "./cache";
 import { isMenFootballMatch } from "./constants";
 import { matchTeamsPair } from "./team-matching";
 
-const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
-
-function agendaUrl(): string {
-  return process.env.SECONDARY_AGENDA_URL ?? "";
-}
-
-function eventBase(): string {
-  return process.env.SECONDARY_EVENT_BASE ?? "";
-}
-
-const AGENDA_CACHE_TTL = 5 * 60 * 1000;
-const AGENDA_CACHE_KEY = "secondary:agenda:v4";
+const CACHE_TTL = 5 * 60 * 1000;
+const pending = new Map<string, Promise<unknown>>();
+const NON_FOOTBALL = /\b(nhl|nba|nfl|mlb|basketball|baseball|hockey|tennis|tenis|rugby|cricket|volleyball|handball|ufc|formula|moto\s?gp)\b/i;
 
 export interface SecondaryEmbed {
-  id: string; // raw base64 "r" param (decodes to the stream URL)
+  id: string; // Absolute channel page URL, resolved server-side before playback.
   name: string;
 }
 
@@ -29,306 +23,187 @@ export interface SecondaryMatch {
   league: string;
   dateISO: string;
   dateInferred?: boolean;
+  fixtureStatus?: MatchStatusShort;
   sources: SecondaryEmbed[];
 }
 
-const MONTHS_ES: Record<string, number> = {
-  enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
-  julio: 7, agosto: 8, septiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
-};
-
-const decodeHtmlEntities = cleanAgendaText;
-
-function stripTags(str: string): string {
-  return decodeHtmlEntities(str.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+function httpsUrl(value: string, base?: string): URL | null {
+  try {
+    const url = new URL(value, base);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    return url;
+  } catch {
+    return null;
+  }
 }
 
-function extractEventsArray(script: string): string | null {
-  const assignment = /(?:const|let|var)\s+EVENTOS_DATA\s*=\s*\[/i.exec(script);
-  if (!assignment) return null;
-  const start = script.indexOf("[", assignment.index);
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let i = start; i < script.length; i++) {
-    const char = script[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (char === "\\") escaped = true;
-      else if (char === '"') inString = false;
-      continue;
-    }
-    if (char === '"') inString = true;
-    else if (char === "[") depth++;
-    else if (char === "]" && --depth === 0) return script.slice(start, i + 1);
-  }
-  return null;
+function agendaUrl(): string {
+  return httpsUrl(process.env.SECONDARY_AGENDA_URL?.trim() ?? "")?.href ?? "";
 }
 
-function parseDescription(desc: string): { league: string; homeTeam: string; awayTeam: string } {
-  const cleaned = stripTags(desc);
-  const colonIdx = cleaned.indexOf(":");
-  if (colonIdx === -1) {
-    const vsMatch = cleaned.match(/^(.+?)\s+vs\s+(.+)$/i);
-    if (vsMatch) {
-      return { league: "Internacional", homeTeam: vsMatch[1].trim(), awayTeam: vsMatch[2].trim() };
-    }
-    return { league: "Internacional", homeTeam: cleaned, awayTeam: "" };
-  }
-
-  const league = cleaned.slice(0, colonIdx).trim();
-  const teams = cleaned.slice(colonIdx + 1).trim();
-  const vsMatch = teams.match(/^(.+?)\s+vs\s+(.+)$/i);
-  if (!vsMatch) {
-    return { league, homeTeam: teams, awayTeam: "" };
-  }
-
-  return { league, homeTeam: vsMatch[1].trim(), awayTeam: vsMatch[2].trim() };
+function cacheKey(type: string, url: string): string {
+  return "secondary:roja:v1:" + type + ":" + createHash("sha256").update(url).digest("hex");
 }
 
-/**
- * The agenda shows the Argentine wall-clock date as the day header and the
- * kick-off as a UTC+1 clock reading. Converting back: ARS time = (shown - 4h) mod 24
- * on the header's date (verified against known kick-offs, e.g. a 01:15 entry
- * under "Jueves 1 de Octubre" = Oct 1 21:15 ARS).
- */
-function toArgentinaISO(year: number, month: number, day: number, time: string): string | null {
-  const [hRaw, mRaw] = time.split(":");
-  const h = parseInt(hRaw, 10);
-  const m = parseInt(mRaw, 10);
-  if (Number.isNaN(h) || Number.isNaN(m)) return null;
-
-  const arsH = (h - 4 + 24) % 24;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${year}-${pad(month)}-${pad(day)}T${pad(arsH)}:${pad(m)}:00-03:00`;
+async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const hit = await getCache<T>(key);
+  if (hit !== null) return hit;
+  const inFlight = pending.get(key);
+  if (inFlight) return inFlight as Promise<T>;
+  const work = (async () => {
+    const value = await fetcher();
+    await setCache(key, value, CACHE_TTL);
+    return value;
+  })();
+  pending.set(key, work);
+  try {
+    return await work;
+  } finally {
+    pending.delete(key);
+  }
 }
 
-export function parseSecondaryAgenda(html: string): SecondaryMatch[] {
-  const scriptData = extractEventsArray(html);
-  if (scriptData) {
-    try {
-      const events = JSON.parse(scriptData) as Array<{
-        titulo?: string;
-        hora?: string;
-        clase?: string;
-        canales?: Array<{ nombre?: string; url?: string }>;
-      }>;
-      const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+/** The table repeats each fixture for every signal and promotional link. */
+export function parseSecondaryAgenda(html: string, baseUrl = agendaUrl()): SecondaryMatch[] {
+  const base = httpsUrl(baseUrl);
+  if (!base) return [];
+  const $ = load(html);
+  const fixtures = new Map<string, SecondaryMatch>();
 
-      return events.flatMap((event) => {
-        const { league, homeTeam, awayTeam } = parseDescription(event.titulo ?? "");
-        if (!homeTeam || !awayTeam) return [];
-        if (!isMenFootballMatch(`${event.clase ?? ""} ${league}`, homeTeam, awayTeam)) return [];
-        if (NON_FOOTBALL_TEXT.test(`${event.clase ?? ""} ${league} ${homeTeam} ${awayTeam}`)) return [];
-        if (!/^\d{1,2}:\d{2}$/.test(event.hora ?? "")) return [];
-
-        const [hourText, minuteText] = (event.hora as string).split(":");
-        const hour = Number(hourText);
-        if (hour > 23 || Number(minuteText) > 59) return [];
-        const dateISO = `${today}T${String((hour - 4 + 24) % 24).padStart(2, "0")}:${minuteText}:00-03:00`;
-        const sources = (event.canales ?? []).flatMap((channel) => {
-          if (!channel.nombre || !channel.url) return [];
-          try {
-            const encoded = channel.url.match(/[?&]r=([^&#]+)/)?.[1];
-            return encoded ? [{ id: decodeURIComponent(encoded), name: channel.nombre }] : [];
-          } catch {
-            return [];
-          }
-        });
-        const slug = `${homeTeam.toLowerCase().replace(/\s+/g, "-")}-vs-${awayTeam.toLowerCase().replace(/\s+/g, "-")}`;
-        // This feed supplies a clock time, not a calendar date. Keep it usable
-        // for stream lookup, but never treat today's fallback as fixture proof.
-        return [{ slug, homeTeam, awayTeam, league, dateISO, dateInferred: true, sources }];
-      });
-    } catch {
-      return [];
-    }
-  }
-
-  type Token =
-    | { kind: "day"; index: number; year: number; month: number; day: number }
-    | { kind: "item"; index: number; text: string; time: string; block: string };
-
-  const tokens: Token[] = [];
-
-  const dayRegex = /<b>Agenda\s*-\s*[A-Za-z\u00C0-\u024F]+\s+(\d{1,2})\s+de\s+([A-Za-z\u00C0-\u024F]+)\s+(\d{4})<\/b>/gi;
-  let dayMatch: RegExpExecArray | null;
-  while ((dayMatch = dayRegex.exec(html)) !== null) {
-    const month = MONTHS_ES[dayMatch[2].toLowerCase()];
-    if (!month) continue;
-    tokens.push({
-      kind: "day",
-      index: dayMatch.index,
-      day: parseInt(dayMatch[1], 10),
-      month,
-      year: parseInt(dayMatch[3], 10),
+  $("table tr").each((_, row) => {
+    const league = cleanAgendaText($(row).find("b").first().text()).replace(/^LaLiga EA Sports$/i, "LaLiga");
+    if (!league || NON_FOOTBALL.test(league)) return;
+    $(row).find("a[href]").each((_, anchor) => {
+      const teams = cleanAgendaText($(anchor).text()).match(/^(.+?)\s+vs\.?\s+(.+)$/i);
+      if (!teams) return;
+      const homeTeam = teams[1].trim();
+      const awayTeam = teams[2].trim();
+      if (!isMenFootballMatch(league, homeTeam, awayTeam)) return;
+      const url = httpsUrl($(anchor).attr("href") ?? "", base.href);
+      // Off-site promotional homepages are not playback candidates.
+      if (!url || url.origin !== base.origin || !/\.php$/i.test(url.pathname)
+        || url.pathname === base.pathname || /\/index\.php$/i.test(url.pathname)) return;
+      url.hash = "";
+      const key = JSON.stringify([league.toLowerCase(), homeTeam.toLowerCase(), awayTeam.toLowerCase()]);
+      const fixture: SecondaryMatch = fixtures.get(key) ?? {
+        slug: (homeTeam + "-vs-" + awayTeam).toLowerCase().replace(/\s+/g, "-"),
+        homeTeam, awayTeam, league,
+        // No calendar date or source timezone is published. These records
+        // enrich Player 3 only; never invent a kickoff or a live fixture card.
+        dateISO: "", dateInferred: true, sources: [],
+      };
+      const name = url.pathname.split("/").pop()!.replace(/\.php$/i, "").replace(/-/g, " ");
+      if (!fixture.sources.some((source) => source.id === url.href)) {
+        fixture.sources.push({ id: url.href, name });
+      }
+      fixtures.set(key, fixture);
     });
-  }
+  });
+  return [...fixtures.values()];
+}
 
-  const itemRegex = /<li class="[^"]*">\s*<a href="#">([\s\S]*?)<span class="t">(\d{1,2}:\d{2})<\/span><\/a>\s*<ul>([\s\S]*?)<\/ul>\s*<\/li>/g;
-  let itemMatch: RegExpExecArray | null;
-  while ((itemMatch = itemRegex.exec(html)) !== null) {
-    tokens.push({
-      kind: "item",
-      index: itemMatch.index,
-      text: itemMatch[1],
-      time: itemMatch[2],
-      block: itemMatch[3],
-    });
-  }
-
-  tokens.sort((a, b) => a.index - b.index);
-
-  const matches: SecondaryMatch[] = [];
-  let currentDay: { year: number; month: number; day: number } | null = null;
-
-  for (const token of tokens) {
-    if (token.kind === "day") {
-      currentDay = { year: token.year, month: token.month, day: token.day };
-      continue;
-    }
-    if (!currentDay) continue;
-
-    const { league, homeTeam, awayTeam } = parseDescription(token.text);
-    if (!homeTeam || !awayTeam) continue;
-    if (!isMenFootballMatch(league, homeTeam, awayTeam) || NON_FOOTBALL_TEXT.test(`${league} ${homeTeam} ${awayTeam}`)) continue;
-
-    const dateISO = toArgentinaISO(currentDay.year, currentDay.month, currentDay.day, token.time);
-    if (!dateISO) continue;
-
-    const sources: SecondaryEmbed[] = [];
-    const sourceRegex = /<a\b[^>]*href="([^"]*\/eventos\.html\?[^"#]*\br=([^&"#]+)[^"#]*)"[^>]*>([\s\S]*?)<\/a>/gi;
-    let sourceMatch: RegExpExecArray | null;
-    while ((sourceMatch = sourceRegex.exec(token.block)) !== null) {
-      const name = stripTags(sourceMatch[3].split(/<span\b/i)[0]);
-      if (!name) continue;
-      sources.push({ id: decodeURIComponent(sourceMatch[2]), name });
-    }
-
-    const slug = `${homeTeam.toLowerCase().replace(/\s+/g, "-")}-vs-${awayTeam.toLowerCase().replace(/\s+/g, "-")}`;
-
-    matches.push({ slug, homeTeam, awayTeam, league, dateISO, sources });
-  }
-
-  return matches;
+async function fetchHtml(url: string, signal: AbortSignal): Promise<string> {
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html,application/xhtml+xml" },
+    cache: "no-store",
+    // Do not follow arbitrary redirects beyond configured wrapper hosts.
+    redirect: "error",
+    signal,
+  });
+  if (!response.ok) throw new Error("HTTP " + response.status);
+  return response.text();
 }
 
 export async function fetchSecondaryAgenda(): Promise<SecondaryMatch[]> {
   const url = agendaUrl();
   if (!url) return [];
-
-  const cached = await getCache<SecondaryMatch[]>(AGENDA_CACHE_KEY);
-  if (cached) return cached;
-
-  const lockKey = `${AGENDA_CACHE_KEY}:lock`;
-  const lockAcquired = await acquireLock(lockKey, 10000);
-  if (!lockAcquired) {
-    const stale = await getCache<SecondaryMatch[]>(AGENDA_CACHE_KEY);
-    return stale ?? [];
-  }
-
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-      },
-      signal: AbortSignal.timeout(15000),
+    const matches = await cached(cacheKey("agenda", url), async () => {
+      const matches = parseSecondaryAgenda(await fetchHtml(url, AbortSignal.timeout(15000)), url);
+      // A transient challenge/empty page must not poison the cache.
+      if (!matches.length) throw new Error("No football fixtures found");
+      return matches;
     });
-
-    if (!res.ok) {
-      console.warn(`[secondary] HTTP error: ${res.status}`);
-      await releaseLock(lockKey);
-      const stale = await getCache<SecondaryMatch[]>(AGENDA_CACHE_KEY);
-      return stale ?? [];
-    }
-
-    const html = await res.text();
-    const matches = parseSecondaryAgenda(html);
-
-    await setCache(AGENDA_CACHE_KEY, matches, AGENDA_CACHE_TTL);
-    await releaseLock(lockKey);
-    return matches;
-  } catch (error) {
-    console.warn("[secondary] Failed to fetch agenda:", error);
-    await releaseLock(lockKey);
-    const stale = await getCache<SecondaryMatch[]>(AGENDA_CACHE_KEY);
-    return stale ?? [];
-  }
-}
-
-function decodeStreamUrl(encoded: string): string {
-  const candidates = [encoded];
-  try {
-    candidates.push(atob(encoded));
+    return await confirmSecondaryMlsDates(matches);
   } catch {
-    // Some agenda links store the destination as a plain query parameter.
+    console.warn("[secondary] Agenda unavailable");
+    return [];
   }
-
-  for (const candidate of candidates) {
-    try {
-      const value = candidate.trim();
-      if (/^https?:\/\//i.test(value)) {
-        const parsed = new URL(value);
-        if (/\/(eventos\.html|index\.php)$/i.test(parsed.pathname)) {
-          const nested = parsed.searchParams.get("r");
-          if (nested && nested !== encoded) {
-            const nestedUrl = decodeStreamUrl(nested);
-            if (nestedUrl) return nestedUrl;
-          }
-        }
-        return value;
-      }
-
-      // The base64 payload may itself be a wrapper URL or contain iframe markup.
-      const iframeSrc = value.match(/<iframe\b[^>]*\bsrc=["']([^"']+)["']/i)?.[1];
-      if (iframeSrc) {
-        const absolute = new URL(iframeSrc, eventBase()).toString();
-        if (absolute !== value) {
-          const nestedUrl = decodeStreamUrl(absolute);
-          if (nestedUrl) return nestedUrl;
-        }
-      }
-      const nestedParam = value.match(/[?&]r=([^&\s"']+)/i)?.[1];
-      if (nestedParam && nestedParam !== encoded) {
-        const nestedUrl = decodeStreamUrl(decodeURIComponent(nestedParam));
-        if (nestedUrl) return nestedUrl;
-      }
-    } catch {
-      // Try the next representation; caller can still use the wrapper URL.
-    }
-  }
-  return "";
 }
 
-/**
- * Channels for a match from the secondary agenda. The wrapper page only
- * decodes a base64 `r` param and iframes the result, so we decode it here and
- * embed the bare player directly — no scraped-site chrome (header/footer/borders)
- * in the player. Falls back to the wrapper URL when decoding fails.
- */
-export async function findSecondaryStreams(
-  homeTeam: string,
-  awayTeam: string
-): Promise<Channel[]> {
-  const base = eventBase();
-  if (!base) return [];
-
-  const agenda = await fetchSecondaryAgenda();
-  if (agenda.length === 0) return [];
-
-  const match = agenda.find((m) => matchTeamsPair(m.homeTeam, m.awayTeam, homeTeam, awayTeam));
-  if (!match || match.sources.length === 0) return [];
-
-  return match.sources.map((source, index) => {
-    const direct = decodeStreamUrl(source.id);
-    return {
-      id: `secondary-${index + 1}`,
-      name: source.name,
-      url: direct || `${base}?r=${source.id}`,
-      kind: "iframe" as const,
-    };
+/** Extract content players, excluding advertising/navbar/tracking frames. */
+export function extractSecondaryPlayer(html: string, pageUrl: string): string | null {
+  const $ = load(html);
+  const frames = $("iframe[src], iframe[data-src]").toArray().filter((frame) => {
+    const element = $(frame);
+    if (element.is("[hidden], [aria-hidden='true']")) return false;
+    if (element.parents("[hidden], [aria-hidden='true']").length) return false;
+    if (/(?:navbar|advert|banner|tracking)/i.test((element.attr("id") ?? "") + " " + (element.attr("class") ?? ""))) return false;
+    if ([element.attr("width"), element.attr("height")].some((size) => size !== undefined && Number(size) <= 1)) return false;
+    return ![frame, ...element.parents().toArray()].some((node) =>
+      /(?:display\s*:\s*none|visibility\s*:\s*hidden)/i.test($(node).attr("style") ?? ""));
   });
+  const rank = (frame: typeof frames[number]) => {
+    const element = $(frame);
+    return Number(element.is("[allowfullscreen], [allow*='fullscreen']")) * 2
+      + Number(element.parents(".embed-responsive, .post-body, #player").length > 0);
+  };
+  frames.sort((a, b) => rank(b) - rank(a));
+  for (const frame of frames) {
+    const element = $(frame);
+    const url = httpsUrl(element.attr("src") || element.attr("data-src") || "", pageUrl);
+    if (url) return url.href;
+  }
+  return null;
+}
+
+function wrapperHosts(baseUrl: string): Set<string> {
+  return new Set([
+    new URL(baseUrl).host,
+    ...(process.env.SECONDARY_PLAYER_WRAPPER_HOSTS ?? "")
+      .split(",").map((host) => host.trim().toLowerCase()).filter(Boolean),
+  ]);
+}
+
+async function resolvePlayer(pageUrl: string, hosts: Set<string>): Promise<string> {
+  const key = cacheKey("player", [...hosts].sort().join(",") + "|" + pageUrl);
+  return cached(key, async () => {
+    let current = pageUrl;
+    const visited = new Set<string>();
+    const signal = AbortSignal.timeout(20000);
+    for (let depth = 0; depth < 4; depth++) {
+      if (visited.has(current)) throw new Error("Player wrapper cycle");
+      visited.add(current);
+      const url = httpsUrl(current);
+      if (!url || !hosts.has(url.host)) throw new Error("Invalid wrapper");
+      const next = extractSecondaryPlayer(await fetchHtml(current, signal), current);
+      if (!next) throw new Error("Player iframe missing");
+      if (!hosts.has(new URL(next).host)) return next;
+      current = next;
+    }
+    throw new Error("Player wrapper depth exceeded");
+  });
+}
+
+export async function findSecondaryStreams(homeTeam: string, awayTeam: string): Promise<Channel[]> {
+  const base = agendaUrl();
+  if (!base) return [];
+  const agenda = await fetchSecondaryAgenda();
+  const sources = agenda.filter((match) => matchTeamsPair(match.homeTeam, match.awayTeam, homeTeam, awayTeam))
+    .flatMap((match) => match.sources);
+  const unique = [...new Map(sources.map((source) => [source.id, source])).values()];
+  const hosts = wrapperHosts(base);
+  // Bound work per request and isolate a failing channel from other signals.
+  const resolved = await Promise.all(unique.slice(0, 8).map(async (source): Promise<Channel | null> => {
+    try {
+      return {
+        id: "secondary-" + createHash("sha256").update(source.id).digest("hex").slice(0, 12),
+        name: source.name, url: await resolvePlayer(source.id, hosts), kind: "iframe",
+      };
+    } catch {
+      return null;
+    }
+  }));
+  const channels = resolved.filter((channel): channel is Channel => channel !== null);
+  return [...new Map(channels.map((channel) => [channel.url, channel])).values()];
 }

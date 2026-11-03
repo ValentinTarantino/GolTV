@@ -63,6 +63,7 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
 };
 
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
+  332: { newengland: "newenglandrevolution" },
   39: { coventry: "coventrycity" },
   78: {
     koln: "koln", "1fckoln": "koln",

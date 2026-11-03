@@ -22,12 +22,17 @@ jest.mock("@/lib/secondary-source", () => ({
   findSecondaryStreams: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock("@/lib/player-two-source", () => ({
+  findPlayerTwoStreams: jest.fn().mockResolvedValue([]),
+}));
+
 import { GET } from "@/app/api/matches/[matchId]/route";
 import { getMatchById } from "@/lib/api-football";
 import { getStreamsForMatch } from "@/lib/streaming";
 import { findAgendaStreams } from "@/lib/agenda-source";
 import { findEventStreams } from "@/lib/event-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
+import { findPlayerTwoStreams } from "@/lib/player-two-source";
 import type { Match } from "@/lib/types";
 
 function makeMatch(overrides: Partial<Match> = {}): Match {
@@ -81,7 +86,7 @@ describe("/api/matches/[matchId]", () => {
       { id: "ch1", name: "Canal 1", url: "http://stream.m3u8" },
     ]);
 
-    const req = makeRequest("http://localhost/api/matches/12345");
+    const req = makeRequest("http://localhost/api/matches/12345?player=3");
     const res = await GET(req, { params: Promise.resolve({ matchId: "12345" }) });
     const data = await res.json();
 
@@ -101,7 +106,7 @@ describe("/api/matches/[matchId]", () => {
 
     const sources = JSON.stringify([{ id: "s1", name: "Test", embedIframe: "https://example.com/embed" }]);
       const req = makeRequest(
-        `http://localhost/api/matches/99999?eventSlug=test-slug&eventSources=${encodeURIComponent(sources)}&home=Boca&away=River&league=Liga`
+        `http://localhost/api/matches/99999?player=3&eventSlug=test-slug&eventSources=${encodeURIComponent(sources)}&home=Boca&away=River&league=Liga`
       );
     const res = await GET(req, {
       params: Promise.resolve({ matchId: "99999" }),
@@ -118,7 +123,7 @@ describe("/api/matches/[matchId]", () => {
     (getStreamsForMatch as jest.Mock).mockResolvedValue([]);
 
     const req = makeRequest(
-      "http://localhost/api/matches/99999?streamId=abc123&home=Boca&away=River&league=Liga"
+      "http://localhost/api/matches/99999?player=3&streamId=abc123&home=Boca&away=River&league=Liga"
     );
     const res = await GET(req, {
       params: Promise.resolve({ matchId: "99999" }),
@@ -131,14 +136,14 @@ describe("/api/matches/[matchId]", () => {
     expect(getStreamsForMatch).toHaveBeenCalledWith("Boca", "River", "abc123");
   });
 
-  it("uses the event source when player=2", async () => {
+  it("uses the event source when player=4", async () => {
     (getMatchById as jest.Mock).mockResolvedValue(null);
     (findEventStreams as jest.Mock).mockResolvedValue([
       { id: "pl1", name: "PL Stream", url: "http://pl.stream" },
     ]);
 
     const req = makeRequest(
-      "http://localhost/api/matches/99999?player=2&home=Boca&away=River&league=Liga"
+      "http://localhost/api/matches/99999?player=4&home=Boca&away=River&league=Liga"
     );
     const res = await GET(req, {
       params: Promise.resolve({ matchId: "99999" }),
@@ -148,14 +153,14 @@ describe("/api/matches/[matchId]", () => {
     expect(findEventStreams).toHaveBeenCalledWith("Boca", "River");
   });
 
-  it("uses the secondary source when player=3", async () => {
+  it("uses the secondary source when player=1", async () => {
     (getMatchById as jest.Mock).mockResolvedValue(null);
     (findSecondaryStreams as jest.Mock).mockResolvedValue([
       { id: "secondary-1", name: "TyC Sports", url: "https://example.com/eventos.html?r=ABC", kind: "iframe" },
     ]);
 
     const req = makeRequest(
-      "http://localhost/api/matches/99999?player=3&home=Platense&away=Estudiantes&league=Copa%20Argentina"
+      "http://localhost/api/matches/99999?player=1&home=Platense&away=Estudiantes&league=Copa%20Argentina"
     );
     const res = await GET(req, {
       params: Promise.resolve({ matchId: "99999" }),
@@ -167,13 +172,13 @@ describe("/api/matches/[matchId]", () => {
     expect(data.match.channels[0].kind).toBe("iframe");
   });
 
-  it("does not reuse player 1 channels when player 3 has no signal", async () => {
+  it("does not reuse player 3 channels when player 1 has no signal", async () => {
     (getMatchById as jest.Mock).mockResolvedValue(makeMatch({
-      channels: [{ id: "fl-old", name: "Player 1", url: "https://example.com/player-one" }],
+      channels: [{ id: "fl-old", name: "Player 3", url: "https://example.com/player-three" }],
     }));
     (findSecondaryStreams as jest.Mock).mockResolvedValue([]);
 
-    const req = makeRequest("http://localhost/api/matches/12345?player=3");
+    const req = makeRequest("http://localhost/api/matches/12345?player=1");
     const res = await GET(req, { params: Promise.resolve({ matchId: "12345" }) });
     const data = await res.json();
 
@@ -181,14 +186,14 @@ describe("/api/matches/[matchId]", () => {
     expect(data.match.channels).toEqual([]);
   });
 
-  it("resolves primary-agenda channels for secondary-only matches (player=1)", async () => {
+  it("resolves primary-agenda channels for secondary-only matches (player=3)", async () => {
     (getMatchById as jest.Mock).mockResolvedValue(null);
     (findAgendaStreams as jest.Mock).mockResolvedValue([
       { id: "a1", name: "Canal", url: "https://example.com/embed" },
     ]);
 
     const req = makeRequest(
-      "http://localhost/api/matches/99999?home=Platense&away=Estudiantes&league=Copa%20Argentina"
+      "http://localhost/api/matches/99999?player=3&home=Platense&away=Estudiantes&league=Copa%20Argentina"
     );
     const res = await GET(req, {
       params: Promise.resolve({ matchId: "99999" }),
@@ -198,5 +203,25 @@ describe("/api/matches/[matchId]", () => {
     expect(res.status).toBe(200);
     expect(findAgendaStreams).toHaveBeenCalledWith("Platense", "Estudiantes");
     expect(data.match.channels.length).toBeGreaterThan(0);
+  });
+
+  it("uses the player-two source when player=2", async () => {
+    (getMatchById as jest.Mock).mockResolvedValue(null);
+    (findPlayerTwoStreams as jest.Mock).mockResolvedValue([
+      { id: "player-two-12345", name: "PlayerTwo", url: "https://player.test/es/player.html?mdata=MTIzNDVfMQ==&ilang=es", kind: "iframe" },
+    ]);
+
+    const req = makeRequest(
+      "http://localhost/api/matches/99999?player=2&home=Boca&away=River&league=Liga"
+    );
+    const res = await GET(req, {
+      params: Promise.resolve({ matchId: "99999" }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(findPlayerTwoStreams).toHaveBeenCalledWith("Boca", "River");
+    expect(data.match.channels[0].kind).toBe("iframe");
+    expect(data.match.channels[0].url).toContain("player.html?mdata=");
   });
 });

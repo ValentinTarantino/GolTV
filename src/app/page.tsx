@@ -4,6 +4,7 @@ import { useState, useEffect, useSyncExternalStore } from "react";
 import { Zap, Filter, RefreshCw } from "lucide-react";
 import MatchList from "@/components/matches/MatchList";
 import { MatchSkeleton } from "@/components/ui/Skeleton";
+import NetworkNotice from "@/components/ui/NetworkNotice";
 import { LIVE_STATUSES } from "@/lib/constants";
 import type { Match } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -104,6 +105,8 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 py-6 sm:py-8" id="home-page">
+      <NetworkNotice />
+
       {/* Filters */}
       <div className="mb-6 sm:mb-8 flex flex-wrap items-center gap-3 sm:gap-4 animate-fade-in bg-accent-primary border-3 sm:border-4 border-black p-3 sm:p-4 shadow-brutal transform rotate-1">
         <div className="flex flex-col mr-1 sm:mr-2">

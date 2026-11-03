@@ -3,11 +3,11 @@
  */
 import { createCipheriv, randomBytes } from "node:crypto";
 import {
-  decryptFutbolVideosBody,
-  parseFutbolVideosMatches,
-  findFutbolVideosStreams,
-  __resetFutbolVideosCachesForTests,
-} from "@/lib/futbolvideos-source";
+  decryptLegacyFeedBody,
+  parseLegacyFeedMatches,
+  findLegacyFeedStreams,
+  __resetLegacyFeedCachesForTests,
+} from "@/lib/legacy-feed-source";
 
 const STD_B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const CUSTOM_B64 = "MiljRIn9PX1o63wGBYTtFsKmEkSur-pC_U02cvzAdy5e8ZqLDgJ4OhVN7QbHxfWa";
@@ -17,7 +17,7 @@ const KEY_HEX = "bea5b79ffc81d51f86c123dce2426cd9d0a457b91199768dcb7950ff75e41c9
 /** Client-facing relay URL for an HLS channel (the CDN blocks the browser). */
 const proxied = (upstream: string) => `/api/hls?u=${encodeURIComponent(upstream)}`;
 
-// Reverses decryptFutbolVideosBody: encrypts plaintext into the `k1` + custom
+// Reverses decryptLegacyFeedBody: encrypts plaintext into the `k1` + custom
 // base64 format the source expects, so tests can round-trip deterministically.
 function encryptToCustomFormat(plaintext: string, keyHex: string): string {
   const key = Buffer.from(keyHex, "hex");
@@ -92,46 +92,46 @@ function makePayload(matchId = 1162): string {
   });
 }
 
-describe("decryptFutbolVideosBody", () => {
+describe("decryptLegacyFeedBody", () => {
   it("round-trips a payload through the custom base64 + AES-GCM format", () => {
     const plaintext = makePayload();
     const encrypted = encryptToCustomFormat(plaintext, KEY_HEX);
-    expect(decryptFutbolVideosBody(encrypted, KEY_HEX)).toBe(plaintext);
+    expect(decryptLegacyFeedBody(encrypted, KEY_HEX)).toBe(plaintext);
   });
 
   it("throws on a payload without the k1 prefix", () => {
-    expect(() => decryptFutbolVideosBody("nope", KEY_HEX)).toThrow(/prefix/);
+    expect(() => decryptLegacyFeedBody("nope", KEY_HEX)).toThrow(/prefix/);
   });
 
   it("throws on a payload with an invalid key length", () => {
     const encrypted = encryptToCustomFormat("{}", KEY_HEX);
-    expect(() => decryptFutbolVideosBody(encrypted, "abcd")).toThrow(/key length/);
+    expect(() => decryptLegacyFeedBody(encrypted, "abcd")).toThrow(/key length/);
   });
 
   it("throws when the key does not match (auth tag failure)", () => {
     const encrypted = encryptToCustomFormat(makePayload(), KEY_HEX);
     const wrongKey = "0".repeat(64);
-    expect(() => decryptFutbolVideosBody(encrypted, wrongKey)).toThrow();
+    expect(() => decryptLegacyFeedBody(encrypted, wrongKey)).toThrow();
   });
 });
 
-describe("parseFutbolVideosMatches", () => {
+describe("parseLegacyFeedMatches", () => {
   it("keeps only football matches with both team names", () => {
-    const matches = parseFutbolVideosMatches(makePayload());
+    const matches = parseLegacyFeedMatches(makePayload());
     expect(matches).toHaveLength(1);
     expect(matches[0].home?.name).toBe("Santos");
     expect(matches[0].away?.name).toBe("Palmeiras");
   });
 
   it("returns [] on malformed JSON", () => {
-    expect(parseFutbolVideosMatches("not json")).toEqual([]);
+    expect(parseLegacyFeedMatches("not json")).toEqual([]);
   });
 });
 
-describe("findFutbolVideosStreams", () => {
+describe("findLegacyFeedStreams", () => {
   const originalEnv = {
-    url: process.env.FUTBOLVIDEOS_API_URL,
-    key: process.env.FUTBOLVIDEOS_KEY,
+    url: process.env.LEGACY_FEED_API_URL,
+    key: process.env.LEGACY_FEED_KEY,
   };
   const originalFetch = globalThis.fetch;
   const API = "https://cdn.strm-api.org/api/v1/latin/matches";
@@ -144,16 +144,16 @@ describe("findFutbolVideosStreams", () => {
     });
 
   beforeEach(async () => {
-    process.env.FUTBOLVIDEOS_API_URL = API;
-    process.env.FUTBOLVIDEOS_KEY = KEY_HEX;
-    await __resetFutbolVideosCachesForTests();
+    process.env.LEGACY_FEED_API_URL = API;
+    process.env.LEGACY_FEED_KEY = KEY_HEX;
+    await __resetLegacyFeedCachesForTests();
   });
 
   afterEach(() => {
-    if (originalEnv.url === undefined) delete process.env.FUTBOLVIDEOS_API_URL;
-    else process.env.FUTBOLVIDEOS_API_URL = originalEnv.url;
-    if (originalEnv.key === undefined) delete process.env.FUTBOLVIDEOS_KEY;
-    else process.env.FUTBOLVIDEOS_KEY = originalEnv.key;
+    if (originalEnv.url === undefined) delete process.env.LEGACY_FEED_API_URL;
+    else process.env.LEGACY_FEED_API_URL = originalEnv.url;
+    if (originalEnv.key === undefined) delete process.env.LEGACY_FEED_KEY;
+    else process.env.LEGACY_FEED_KEY = originalEnv.key;
 
     if (originalFetch) globalThis.fetch = originalFetch;
     else delete (globalThis as { fetch?: typeof fetch }).fetch;
@@ -170,7 +170,7 @@ describe("findFutbolVideosStreams", () => {
         '<script>var s="https://cdn-b.example.com/premiere1hd/mono.m3u8?token=bbb"</script>',
     });
 
-    const channels = await findFutbolVideosStreams("Santos", "Palmeiras");
+    const channels = await findLegacyFeedStreams("Santos", "Palmeiras");
 
     // 2 distinct streams → each yields HLS first, then the frameable web player.
     expect(channels).toHaveLength(4);
@@ -194,7 +194,7 @@ describe("findFutbolVideosStreams", () => {
         '<script>var s="https://b.example.com/premiere1/mono.m3u8?token=bbb"</script>',
     });
 
-    const channels = await findFutbolVideosStreams("Santos", "Palmeiras");
+    const channels = await findLegacyFeedStreams("Santos", "Palmeiras");
 
     // 1.php and 2.php are separate buttons on the site, so they stay separate
     // signals (each with its HLS channel + web fallback) even though both
@@ -217,7 +217,7 @@ describe("findFutbolVideosStreams", () => {
       "https://tvf90.com/2.php?stream=premiere1": "<html>no stream</html>",
     });
 
-    const channels = await findFutbolVideosStreams("Santos", "Palmeiras");
+    const channels = await findLegacyFeedStreams("Santos", "Palmeiras");
 
     // The feed lists 1.php twice (generated + native); it must collapse to a
     // single HLS channel + a single web fallback, not two of each.
@@ -240,7 +240,7 @@ describe("findFutbolVideosStreams", () => {
       "https://tvf90.com/2.php?stream=premiere1": "<html><body>no stream</body></html>",
     });
 
-    const channels = await findFutbolVideosStreams("Santos", "Palmeiras");
+    const channels = await findLegacyFeedStreams("Santos", "Palmeiras");
 
     expect(channels).toHaveLength(2);
     expect(channels.every((c) => c.kind === "iframe")).toBe(true);
@@ -251,13 +251,13 @@ describe("findFutbolVideosStreams", () => {
     const encrypted = encryptToCustomFormat(makePayload(), KEY_HEX);
     globalThis.fetch = routeFetch({ [API]: encrypted });
 
-    await expect(findFutbolVideosStreams("Boca", "River")).resolves.toEqual([]);
+    await expect(findLegacyFeedStreams("Boca", "River")).resolves.toEqual([]);
   });
 
   it("returns [] when env vars are missing", async () => {
-    delete process.env.FUTBOLVIDEOS_API_URL;
+    delete process.env.LEGACY_FEED_API_URL;
     globalThis.fetch = jest.fn() as unknown as typeof fetch;
-    await expect(findFutbolVideosStreams("Santos", "Palmeiras")).resolves.toEqual([]);
+    await expect(findLegacyFeedStreams("Santos", "Palmeiras")).resolves.toEqual([]);
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

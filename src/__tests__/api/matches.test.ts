@@ -134,12 +134,73 @@ describe("/api/matches", () => {
     expect((await response.json()).matches).toEqual([]);
   });
 
+  it.each([false, true])("includes confirmed Miami MLS fixture once when other agendas are available: %s", async (otherAvailable) => {
+    jest.setSystemTime(new Date("2026-11-01T22:00:00-03:00"));
+    const entry = {
+      homeTeam: "New England Revolution", awayTeam: "Inter Miami CF", league: "MLS",
+      slug: "inter-miami-cf-vs-new-england-revolution", dateISO: "2026-11-02T00:00Z",
+      dateInferred: false, fixtureStatus: "LIVE", sources: [{ id: "https://agenda.test/bein.php", name: "bein" }],
+    };
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([entry]);
+    if (otherAvailable) {
+      (fetchAgenda as jest.Mock).mockResolvedValue([flMatch({
+        homeTeam: "New England", awayTeam: "Inter Miami", league: "MLS", dateISO: entry.dateISO,
+        slug: "new-england-vs-inter-miami",
+      })]);
+      (fetchEventAgenda as jest.Mock).mockResolvedValue([{ ...entry, homeTeam: "New England", awayTeam: "Inter Miami" }]);
+    }
+    const { matches } = await (await GET(makeRequest())).json();
+    expect(matches).toHaveLength(1);
+    expect(matches[0].league.id).toBe(332);
+    expect(matches[0].timestamp).toBe(Date.parse(entry.dateISO) / 1000);
+    expect(matches[0].channels).toEqual([]);
+    expect(matches[0].homeTeam.name).toBe(otherAvailable ? "New England" : "New England Revolution");
+  });
+
+  it.each(["PST", "CANC"])("does not advertise a confirmed %s MLS fixture as live", async (fixtureStatus) => {
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([{
+      ...flMatch({ homeTeam: "New England", awayTeam: "Inter Miami", league: "MLS" }),
+      dateInferred: false, fixtureStatus, sources: [{ id: "1", name: "Channel" }],
+    }]);
+    expect((await (await GET(makeRequest())).json()).matches).toEqual([]);
+  });
+
+  it.each([false, true])("retains Miami's confirmed final in the daily fixture, including primary duplicate: %s", async (primaryAvailable) => {
+    jest.setSystemTime(new Date("2026-11-01T23:20:00-03:00"));
+    const entry = {
+      homeTeam: "New England Revolution", awayTeam: "Inter Miami CF", league: "MLS",
+      dateISO: "2026-11-02T00:00Z", slug: "inter-miami-cf-vs-new-england-revolution",
+      dateInferred: false, fixtureStatus: "FT", sources: [{ id: "1", name: "Channel" }],
+    };
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([entry]);
+    if (primaryAvailable) (fetchAgenda as jest.Mock).mockResolvedValue([flMatch({
+      homeTeam: "New England", awayTeam: "Inter Miami", league: "MLS", dateISO: entry.dateISO,
+    })]);
+    const { matches } = await (await GET(makeRequest())).json();
+    expect(matches).toHaveLength(1);
+    expect(matches[0].league.id).toBe(332);
+    expect(matches[0].status).toMatchObject({ short: "FT", long: "Finalizado" });
+    expect(matches[0].awayTeam.name).toMatch(/Inter Miami/);
+    // It remains visible after the old three-hour expiry, until the day ends.
+    jest.setSystemTime(new Date("2026-11-01T23:59:00-03:00"));
+    expect((await (await GET(makeRequest())).json()).matches).toHaveLength(1);
+    jest.setSystemTime(new Date("2026-11-02T00:05:00-03:00"));
+    expect((await (await GET(makeRequest())).json()).matches).toHaveLength(0);
+  });
+
   beforeEach(() => {
+    // Fixed kickoff examples must not expire when this suite runs at night.
+    jest.useFakeTimers({
+      now: new Date("2026-11-01T12:00:00-03:00"),
+      doNotFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate", "nextTick", "performance", "queueMicrotask", "hrtime"],
+    });
     jest.clearAllMocks();
     (fetchAgenda as jest.Mock).mockResolvedValue([]);
     (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);
     (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
   });
+
+  afterEach(() => jest.useRealTimers());
 
   it.each(["event-only", "all-sources"])("merges original agenda variants through the shared pipeline (%s)", async (mode) => {
     const pairs = [

@@ -60,6 +60,9 @@ export interface Match {
 }
 
 export interface Channel {
+  provider?: "iframe-bridge";
+  streamId?: number;
+  siteType?: number;
   id: string;
   name: string;
   url: string;

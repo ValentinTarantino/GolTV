@@ -1,183 +1,181 @@
-/**
- * @jest-environment node
- */
-import { parseSecondaryAgenda, findSecondaryStreams } from "@/lib/secondary-source";
-import { deleteCache } from "@/lib/cache";
+/** @jest-environment node */
+import { extractSecondaryPlayer, fetchSecondaryAgenda, findSecondaryStreams, parseSecondaryAgenda } from "@/lib/secondary-source";
+import { getCache, setCache } from "@/lib/cache";
 
-const HTML = `
-<ul class="menu">
-<center><div><b>Agenda - Jueves 1 de Octubre 2026</b></div></center>
-<li class="AR"><a href="#">
-Copa Argentina: Platense vs Estudiantes LP
-<span class="t">01:15</span></a>
-<ul>
-<li class="subitem1"><a href="/eventos.html?r=QUJDRA==" target="_blank">TyC Sports<span>Calidad 720p</span></a></li>
-</ul>
-</li>
-<li class="AR"><a href="#">
-Liga Profesional: Independiente vs Instituto
-<span class="t">23:15</span></a>
-<ul>
-<li class="subitem1"><a href="/eventos.html?r=RUNBRAA=" target="_blank">ESPN Premium<span>Calidad 720p</span></a></li>
-<li class="subitem1"><a href="/eventos.html?r=VE5UQ==" target="_blank">TNT Sports<span>Calidad 720p</span></a></li>
-</ul>
-</li>
-<li class="AR"><a href="#">Texto sin partido<span class="t">10:00</span></a><ul></ul></li>
-<center><div><b>Agenda - Sábado 3 de Octubre 2026</b></div></center>
-<li class="AR"><a href="#">
-Liga Profesional: Boca Juniors vs Union Santa Fe
-<span class="t">04:30</span></a>
-<ul>
-<li class="subitem1"><a href="/eventos.html?r=RElT" target="_blank">Disney+<span>Calidad 720p</span></a></li>
-</ul>
-</li>
-</ul>
-`;
+jest.mock("@/lib/cache", () => ({ getCache: jest.fn(), setCache: jest.fn() }));
+
+const BASE = "https://agenda.test/index.php";
+const row = (teams: string, path = "/canal-1.php", league = "Futbol Argentina") =>
+  `<tr><td><b>${league}</b>:<a href="${path}">${teams}</a><ml/td><td><span class="t">4:30PM</span></td></tr>`;
+const HTML = `<table>
+  ${row("Belgrano vs Barracas Central")}
+  ${row("Belgrano vs Barracas Central", "https://promo.test/?gtm_latency=1")}
+  ${row("Belgrano vs Barracas Central", "/canal-2.php")}
+  ${row("Belgrano vs Barracas Central")}
+  ${row("Elche vs Valencia", "/directv.php", "LaLiga EA Sports")}
+  ${row("Lakers vs Jazz", "/nba.php", "NBA")}
+  ${row("Dallas Cowboys vs Arizona Cardinals", "/nfl.php", "NFL")}
+  ${row("Gran Premio México Carrera", "/formula.php", "Fórmula 1")}
+  ${row("Boca vs River", "/women.php", "Liga Femenina")}
+</table>`;
 
 describe("parseSecondaryAgenda", () => {
-  it("parses matches, leagues, teams and sources", () => {
-    const matches = parseSecondaryAgenda(HTML);
-
-    expect(matches).toHaveLength(3);
-
+  it("reads the malformed table, merges signals and ignores promos/non-football", () => {
+    const matches = parseSecondaryAgenda(HTML, BASE);
+    expect(matches).toHaveLength(2);
     expect(matches[0]).toMatchObject({
-      homeTeam: "Platense",
-      awayTeam: "Estudiantes LP",
-      league: "Copa Argentina",
-      sources: [{ id: "QUJDRA==", name: "TyC Sports" }],
+      homeTeam: "Belgrano", awayTeam: "Barracas Central", league: "Futbol Argentina",
+      slug: "belgrano-vs-barracas-central", dateInferred: true, dateISO: "",
+      sources: [
+        { id: "https://agenda.test/canal-1.php", name: "canal 1" },
+        { id: "https://agenda.test/canal-2.php", name: "canal 2" },
+      ],
+    });
+    expect(matches[1].league).toBe("LaLiga");
+  });
+
+  it("decodes team entities and resolves absolute URLs with query parameters", () => {
+    const matches = parseSecondaryAgenda("<table>" + row("Lan&uacute;s vs Gimnasia Mendoza",
+      "https://agenda.test/player.php?one=1&amp;two=2") + "</table>", BASE);
+    expect(matches[0].homeTeam).toBe("Lanús");
+    expect(matches[0].sources[0].id).toBe("https://agenda.test/player.php?one=1&two=2");
+  });
+
+  it.each(["javascript:alert(1)", "http://agenda.test/a.php", "https://other.test/a.php", "/index.php", "#", "https://user:pass@agenda.test/a.php"])(
+    "rejects non-channel link %s", (link) => {
+      expect(parseSecondaryAgenda("<table>" + row("Boca vs River", link) + "</table>", BASE)).toEqual([]);
     });
 
-    expect(matches[1]).toMatchObject({
-      homeTeam: "Independiente",
-      awayTeam: "Instituto",
-      league: "Liga Profesional",
-    });
-    expect(matches[1].sources).toHaveLength(2);
-    expect(matches[1].sources[1]).toEqual({ id: "VE5UQ==", name: "TNT Sports" });
-  });
-
-  it("converts shown times to Argentine time (UTC+1 clock -> ARS)", () => {
-    const matches = parseSecondaryAgenda(HTML);
-
-    // 01:15 shown under Oct 1 => (1 - 4) mod 24 = 21:15 on Oct 1 (AR)
-    expect(matches[0].dateISO).toBe("2026-10-01T21:15:00-03:00");
-    // 23:15 shown under Oct 1 => 19:15 on Oct 1
-    expect(matches[1].dateISO).toBe("2026-10-01T19:15:00-03:00");
-    // 04:30 shown under Oct 3 => 00:30 on Oct 3
-    expect(matches[2].dateISO).toBe("2026-10-03T00:30:00-03:00");
-  });
-
-  it("switches day headers and skips items without a team pairing", () => {
-    const matches = parseSecondaryAgenda(HTML);
-
-    // "Texto sin partido" (no "vs") is skipped; Boca appears under the second header
-    expect(matches.map((m) => m.homeTeam)).toEqual(["Platense", "Independiente", "Boca Juniors"]);
-    expect(matches[2].dateISO.startsWith("2026-10-03")).toBe(true);
-  });
-
-  it("generates a stable slug from the teams", () => {
-    const matches = parseSecondaryAgenda(HTML);
-    expect(matches[0].slug).toBe("platense-vs-estudiantes-lp");
-  });
-
-  it("returns an empty list for unrelated HTML", () => {
-    expect(parseSecondaryAgenda("<html><body>Nothing here</body></html>")).toEqual([]);
-  });
-
-  it("extracts r from absolute event URLs with additional query parameters", () => {
-    const html = `<b>Agenda - Viernes 2 de Octubre 2026</b>
-      <li class="AR"><a href="#">Copa: Boca vs River <span class="t">20:00</span></a>
-      <ul><li><a href="https://fixtures.test/eventos.html?src=agenda&amp;r=QUJDRA%3D%3D">Canal Uno</a></li></ul></li>`;
-
-    expect(parseSecondaryAgenda(html)[0].sources).toEqual([{ id: "QUJDRA==", name: "Canal Uno" }]);
-  });
-
-  it("parses the provider's current EVENTOS_DATA JavaScript feed", () => {
-    const script = `const EVENTOS_DATA = [{
-      "clase": "ARG",
-      "titulo": "Liga Profesional: Boca Juniors vs River Plate",
-      "hora": "21:30",
-      "canales": [{ "nombre": "TNT Sports", "url": "/eventos.html?r=QUJDRA%3D%3D" }]
-    }, {
-      "clase": "NBA",
-      "titulo": "NBA: Lakers vs Jazz",
-      "hora": "22:00",
-      "canales": [{ "nombre": "ESPN", "url": "/eventos.html?r=REVG" }]
-    }];`;
-    const matches = parseSecondaryAgenda(script);
-
-    expect(matches).toHaveLength(1);
-    expect(matches[0]).toMatchObject({
-      homeTeam: "Boca Juniors",
-      awayTeam: "River Plate",
-      league: "Liga Profesional",
-      sources: [{ id: "QUJDRA==", name: "TNT Sports" }],
-    });
-    expect(matches[0].dateISO).toMatch(/^\d{4}-\d{2}-\d{2}T17:30:00-03:00$/);
-    expect(matches[0].dateInferred).toBe(true);
+  it("requires an HTTPS source and never fabricates today's fixture date", () => {
+    expect(parseSecondaryAgenda(HTML, "")).toEqual([]);
+    expect(parseSecondaryAgenda("<html>No matches</html>", BASE)).toEqual([]);
+    expect(parseSecondaryAgenda(HTML, BASE).every((match) => match.dateInferred && !match.dateISO)).toBe(true);
   });
 });
 
-describe("findSecondaryStreams", () => {
-  const directUrl = "https://streamx.test/global1.php?channel=1";
-  const validR = Buffer.from(directUrl).toString("base64");
-  const undecodableR = Buffer.from("not-a-url").toString("base64");
-
-  const agendaHtml = `
-<b>Agenda - Viernes 2 de Octubre 2026</b>
-<li class="AR"><a href="#">
-Copa Argentina: Platense vs Estudiantes LP
-<span class="t">21:15</span></a>
-<ul>
-<li class="subitem1"><a href="/eventos.html?r=${validR}" target="_blank">TyC Sports<span>Calidad 720p</span></a></li>
-<li class="subitem1"><a href="/eventos.html?r=${undecodableR}" target="_blank">Otra Senal<span>Calidad 720p</span></a></li>
-</ul>
-</li>`;
-
-  beforeAll(() => {
-    process.env.SECONDARY_AGENDA_URL = "https://fixtures.test/agenda.html";
-    process.env.SECONDARY_EVENT_BASE = "https://fixtures.test/eventos.html";
+describe("extractSecondaryPlayer", () => {
+  it("selects the fullscreen content frame, excluding hidden and tracking frames", () => {
+    const html = `<iframe id="navbar-iframe" src="https://tracking.test/"></iframe>
+      <div hidden><iframe allowfullscreen src="https://ads.test/hidden"></iframe></div>
+      <iframe width="1" height="1" src="https://ads.test/pixel"></iframe>
+      <div style="visibility:hidden"><iframe src="https://ads.test/hidden2"></iframe></div>
+      <div class="post-body"><iframe allowfullscreen src="//player.test/stream/75?a=1&amp;b=2"></iframe></div>`;
+    expect(extractSecondaryPlayer(html, BASE)).toBe("https://player.test/stream/75?a=1&b=2");
   });
 
+  it("resolves relative lazy frames and rejects executable or mixed-content URLs", () => {
+    expect(extractSecondaryPlayer('<iframe data-src="/embed/1"></iframe>', BASE)).toBe("https://agenda.test/embed/1");
+    expect(extractSecondaryPlayer('<iframe src="javascript:alert(1)"></iframe><iframe src="http://player.test/"></iframe>', BASE)).toBeNull();
+    expect(extractSecondaryPlayer("<script>window.location='https://ads.test'</script>", BASE)).toBeNull();
+  });
+});
+
+describe("Player 3 integration", () => {
+  const originalFetch = global.fetch;
+  const originalAgenda = process.env.SECONDARY_AGENDA_URL;
+  const originalHosts = process.env.SECONDARY_PLAYER_WRAPPER_HOSTS;
+  const values = new Map<string, unknown>();
+  const pages = new Map<string, string>();
+  const frame = (url: string) => `<iframe allowfullscreen src="${url}"></iframe>`;
+  let fetchMock: jest.Mock;
+  let warning: jest.SpyInstance;
+
+  beforeEach(() => {
+    values.clear();
+    pages.clear();
+    jest.mocked(getCache).mockImplementation(async (key) => values.get(key) as never ?? null);
+    jest.mocked(setCache).mockImplementation(async (key, value) => { values.set(key, value); });
+    process.env.SECONDARY_AGENDA_URL = BASE;
+    process.env.SECONDARY_PLAYER_WRAPPER_HOSTS = "wrapper.test";
+    pages.set(BASE, HTML);
+    pages.set("https://agenda.test/canal-1.php", frame("https://wrapper.test/channel1"));
+    pages.set("https://agenda.test/canal-2.php", frame("https://wrapper.test/channel2"));
+    pages.set("https://wrapper.test/channel1", frame("https://player.test/stream/75"));
+    pages.set("https://wrapper.test/channel2", frame("https://player.test/stream/76"));
+    fetchMock = jest.fn(async (url: string) => ({
+      ok: pages.has(url), status: pages.has(url) ? 200 : 503, text: async () => pages.get(url) ?? "",
+    }));
+    global.fetch = fetchMock;
+    warning = jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => { warning.mockRestore(); });
   afterAll(() => {
+    global.fetch = originalFetch;
+    if (originalAgenda === undefined) delete process.env.SECONDARY_AGENDA_URL;
+    else process.env.SECONDARY_AGENDA_URL = originalAgenda;
+    if (originalHosts === undefined) delete process.env.SECONDARY_PLAYER_WRAPPER_HOSTS;
+    else process.env.SECONDARY_PLAYER_WRAPPER_HOSTS = originalHosts;
+  });
+
+  it("follows both wrapper layers and returns only bare player iframes", async () => {
+    const channels = await findSecondaryStreams("Barracas Central", "Belgrano");
+    expect(channels.map((channel) => [channel.name, channel.kind, channel.url])).toEqual([
+      ["canal 1", "iframe", "https://player.test/stream/75"],
+      ["canal 2", "iframe", "https://player.test/stream/76"],
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("player.test"), expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith(BASE, expect.objectContaining({ cache: "no-store", redirect: "error" }));
+  });
+
+  it("caches successful resolutions and coalesces concurrent lookups", async () => {
+    const [first, second] = await Promise.all([
+      findSecondaryStreams("Belgrano", "Barracas Central"),
+      findSecondaryStreams("Belgrano", "Barracas Central"),
+    ]);
+    expect(first).toHaveLength(2);
+    expect(second).toEqual(first);
+    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
+  it("deduplicates different channel pages that resolve to the same player", async () => {
+    pages.set("https://wrapper.test/channel2", frame("https://player.test/stream/75"));
+    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toHaveLength(1);
+  });
+
+  it("isolates a failing signal and retries it without caching failure", async () => {
+    pages.delete("https://wrapper.test/channel1");
+    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toHaveLength(1);
+    pages.set("https://wrapper.test/channel1", frame("https://player.test/stream/75"));
+    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toHaveLength(2);
+  });
+
+  it("handles network failure without losing successful signals", async () => {
+    const implementation = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url, init) => url.endsWith("/channel1")
+      ? Promise.reject(new Error("timeout")) : implementation(url, init));
+    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toHaveLength(1);
+  });
+
+  it("does not return wrapper chrome if a player is missing or cyclic", async () => {
+    pages.set("https://wrapper.test/channel1", "<p>Unavailable</p>");
+    pages.set("https://wrapper.test/channel2", frame("https://agenda.test/canal-2.php"));
+    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toEqual([]);
+  });
+
+  it("returns no unrelated channels for a fixture absent from the agenda", async () => {
+    expect(await findSecondaryStreams("Boca", "River")).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fall back to any hardcoded provider when config is missing", async () => {
     delete process.env.SECONDARY_AGENDA_URL;
-    delete process.env.SECONDARY_EVENT_BASE;
+    expect(await fetchSecondaryAgenda()).toEqual([]);
+    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  beforeEach(async () => {
-    await deleteCache("secondary:agenda");
-    await deleteCache("secondary:agenda:v4");
-    (globalThis as { fetch?: unknown }).fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: async () => agendaHtml,
-    });
-  });
-
-  afterAll(() => {
-    delete (globalThis as { fetch?: unknown }).fetch;
-  });
-
-  it("embeds the bare player URL decoded from r (no wrapper chrome)", async () => {
-    const channels = await findSecondaryStreams("Platense", "Estudiantes LP");
-
-    expect(channels).toHaveLength(2);
-    expect(channels[0]).toEqual({
-      id: "secondary-1",
-      name: "TyC Sports",
-      url: directUrl,
-      kind: "iframe",
-    });
-  });
-
-  it("falls back to the wrapper URL when r does not decode to an http(s) URL", async () => {
-    const channels = await findSecondaryStreams("Platense", "Estudiantes LP");
-
-    expect(channels[1].url).toBe(`https://fixtures.test/eventos.html?r=${undecodableR}`);
-  });
-
-  it("returns an empty list when no team matches", async () => {
-    const channels = await findSecondaryStreams("Boca Juniors", "River Plate");
-    expect(channels).toEqual([]);
+  it("retries failed or empty agendas and scopes caches by configured URL", async () => {
+    pages.delete(BASE);
+    expect(await fetchSecondaryAgenda()).toEqual([]);
+    pages.set(BASE, "<html>Challenge</html>");
+    expect(await fetchSecondaryAgenda()).toEqual([]);
+    pages.set(BASE, HTML);
+    expect(await fetchSecondaryAgenda()).toHaveLength(2);
+    process.env.SECONDARY_AGENDA_URL = "https://other-agenda.test/index.php";
+    expect(await fetchSecondaryAgenda()).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });
