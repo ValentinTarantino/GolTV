@@ -37,8 +37,8 @@ interface SeenFixture {
   index: number;
 }
 
-const CROSS_DATE_DUPLICATE_WINDOW_MS = 8 * 60 * 60 * 1000;
-const SAME_FIXTURE_NEXT_DAY_WINDOW_MS = 26 * 60 * 60 * 1000;
+const CROSS_DATE_DUPLICATE_WINDOW_MS = 12 * 60 * 60 * 1000; // Increased to 12 hours
+const SAME_FIXTURE_NEXT_DAY_WINDOW_MS = 36 * 60 * 60 * 1000; // Increased to 36 hours
 
 function findDuplicateFixture(
   seenMatches: Map<string, SeenFixture[]>,
@@ -50,9 +50,10 @@ function findDuplicateFixture(
   index: number
 ): number | undefined {
   const key = fixtureTeamPair(homeTeam, awayTeam, leagueId);
-  const date = toArgentinaDate(dateISO);
+  // Use UTC date instead of Argentina date to avoid timezone issues
+  const date = new Date(dateISO).toISOString().slice(0, 10);
   const kickoffTime = new Date(dateISO).toLocaleTimeString("en-GB", {
-    timeZone: "America/Argentina/Buenos_Aires",
+    timeZone: "UTC",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
@@ -60,12 +61,14 @@ function findDuplicateFixture(
   const timestamp = new Date(dateISO).getTime();
   const previous = seenMatches.get(key) ?? [];
 
-  const duplicate = previous.find((fixture) => {
+const duplicate = previous.find((fixture) => {
     const difference = Math.abs(fixture.timestamp - timestamp);
+    // More aggressive duplicate detection:
+    // 1. Same UTC date
+    // 2. Within 12 hours (cross-day matches)
+    // 3. Within 36 hours with same kickoff time (same fixture reported on adjacent days)
     return fixture.date === date
       || difference <= CROSS_DATE_DUPLICATE_WINDOW_MS
-      // Providers can publish the same fixture on adjacent days with different
-      // team spellings/slugs; their local kickoff time still identifies it.
       || (difference <= SAME_FIXTURE_NEXT_DAY_WINDOW_MS
         && (fixture.id === id || fixture.kickoffTime === kickoffTime));
   });
