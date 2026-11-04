@@ -67,6 +67,16 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
 };
 
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
+  // International feeds alternate Portuguese/Spanish names for this
+  // Champions fixture, which otherwise produces two identical cards.
+  2: {
+    porto: "fcporto", oporto: "fcporto", fcporto: "fcporto",
+    napoles: "napoli", napoli: "napoli", sscnapoli: "napoli",
+  },
+  3: {
+    olympiacos: "olympiacos", olympiakos: "olympiacos",
+    olympiakospiraeus: "olympiacos", olympiacospiraeus: "olympiacos",
+  },
   332: { newengland: "newenglandrevolution" },
   39: { coventry: "coventrycity" },
   78: {

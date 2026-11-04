@@ -193,6 +193,14 @@ describe("getTeamLogo", () => {
     }
   });
 
+  it("resolves Olympiakos Piraeus to the Olympiacos crest", async () => {
+    const crest = "https://api.promiedos.com.ar/images/team/bacd/3";
+    for (const name of ["Olympiakos", "Olympiakos Piraeus", "Olympiacos Piraeus"]) {
+      expect(peekTeamLogo(name, "Internacional")).toBe(crest);
+      await expect(getTeamLogo(name, "Internacional")).resolves.toBe(crest);
+    }
+  });
+
   it("uses official MLS crests for New York Red Bulls and New England aliases", async () => {
     const newYorkRedBullsCrest = "/badges/espn-190.png";
     const newEnglandRevolutionCrest = "/badges/espn-189.png";

@@ -66,6 +66,36 @@ describe("/api/matches", () => {
     expect(matches).toHaveLength(1);
     expect(matches[0]).toMatchObject({ league: { id: 2 }, homeTeam: { name: "Villarreal" }, awayTeam: { name: "PSG" }, _eventSources: primary.embeds });
   });
+  it("merges Porto-Napoli when Champions feeds use Oporto and N\u00e1poles", async () => {
+    const primary = flMatch({ homeTeam: "Porto", awayTeam: "Napoli", league: "Champions League", slug: "porto-napoli" });
+    (fetchAgenda as jest.Mock).mockResolvedValue([primary]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([{
+      homeTeam: "Oporto", awayTeam: "N\u00e1poles", league: "Champions League",
+      slug: "oporto-napoles", dateISO: primary.dateISO, dateInferred: false,
+      sources: [{ id: "secondary", name: "Signal" }],
+    }]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
+
+    const { matches } = await (await GET(makeRequest())).json();
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({ league: { id: 2 }, homeTeam: { name: "Porto" }, awayTeam: { name: "Napoli" } });
+  });
+  it("merges Europa League feeds that use Olympiakos Piraeus or Olympiacos", async () => {
+    const primary = flMatch({ homeTeam: "Rennes", awayTeam: "Olympiakos Piraeus", league: "Europa League", slug: "rennes-olympiakos" });
+    (fetchAgenda as jest.Mock).mockResolvedValue([primary]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([{
+      homeTeam: "Rennes", awayTeam: "Olympiacos", league: "Europa League",
+      slug: "rennes-olympiacos", dateISO: primary.dateISO, dateInferred: false,
+      sources: [{ id: "secondary", name: "Signal" }],
+    }]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
+
+    const { matches } = await (await GET(makeRequest())).json();
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({ league: { id: 3 }, homeTeam: { name: "Rennes" }, awayTeam: { name: "Olympiakos Piraeus" } });
+  });
   it("adds Primera Nacional from player five and selects its player on opening", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([]);
     (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);

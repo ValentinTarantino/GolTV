@@ -3,12 +3,14 @@ import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 import { isMenFootballMatch } from "./constants";
 import { matchTeamsPair } from "./team-matching";
+import { fetchTextWithDnsServer } from "./dns-fetch";
 
 const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
 
 const PL_BASE = process.env.EVENT_SOURCE_BASE!;
 const PL_AGENDA_URL = process.env.EVENT_AGENDA_URL!;
 const PL_PLAYBACK_URL = process.env.EVENT_PLAYBACK_URL!;
+const PL_DNS_SERVER = process.env.EVENT_SOURCE_DNS_SERVER?.trim();
 
 const PL_COOLDOWN_MS = 5 * 60 * 1000;
 const PL_STREAM_CACHE_TTL = 30 * 60 * 1000;
@@ -152,18 +154,27 @@ export async function fetchEventAgenda(): Promise<EventMatch[]> {
   }
 
   try {
-    const res = await fetch(PL_AGENDA_URL, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml",
+      "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+    };
+    let status = 0;
+    let html = "";
+    try {
+      const res = await fetch(PL_AGENDA_URL, { headers, signal: AbortSignal.timeout(15000) });
+      status = res.status;
+      html = await res.text();
+    } catch (error) {
+      if (!PL_DNS_SERVER) throw error;
+      const fallback = await fetchTextWithDnsServer(PL_AGENDA_URL, PL_DNS_SERVER, headers);
+      status = fallback.status;
+      html = fallback.text;
+    }
 
-    if (!res.ok) {
-      console.warn(`Pelota Libre agenda error: ${res.status}`);
-      if (res.status === 429 || res.status === 403) {
+    if (status < 200 || status >= 300) {
+      console.warn(`Pelota Libre agenda error: ${status}`);
+      if (status === 429 || status === 403) {
         await markRateLimited();
       }
       await releaseLock(lockKey);
@@ -171,7 +182,6 @@ export async function fetchEventAgenda(): Promise<EventMatch[]> {
       return stale ?? [];
     }
 
-    const html = await res.text();
     const matches = parseAgendaHTML(html);
 
     await setCache(PL_AGENDA_CACHE_KEY, matches, PL_AGENDA_CACHE_TTL);

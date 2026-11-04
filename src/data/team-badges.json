@@ -1,5 +1,12 @@
 [
   {
+    "id": "ferro-carril-salto",
+    "country": "Uruguay",
+    "names": ["Ferro Carril", "Ferro Carril FC", "Ferro Carril de Salto"],
+    "source": "https://x.com/_FerroCarrilFC",
+    "file": "/badges/ferro-carril-salto.png"
+  },
+  {
     "id": "espn-4129",
     "country": "Chile",
     "names": ["Everton", "Everton CD", "Everton de Viña del Mar", "Everton de Vina"],
