@@ -18,14 +18,16 @@ export default function IframePlayer(props: IframePlayerProps) {
 function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
   const { t } = useLanguage();
   const isPrimaryFeed = channel?.provider === "primary-feed";
-  const blockPopups = channel?.provider === "secondary-feed";
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [showTip, setShowTip] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
   const [attempt, setAttempt] = useState(0);
   
-  // Use proxy for futbolvivo.tv to bypass X-Frame-Options
+  // Keep the provider's published URL intact. Rewriting every iframe through
+  // our origin turns nested player pages into localhost frames, which Firefox
+  // and some providers then reject. Only the two legacy exceptions need the
+  // compatibility proxy.
   const getProxyUrl = (originalUrl: string) => {
     if (originalUrl.includes("futbolvivo.tv") || originalUrl.includes("kora-plus.mov")) {
       return `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
@@ -129,7 +131,6 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
           key={attempt}
           src={proxiedUrl}
           referrerPolicy="no-referrer"
-          sandbox={blockPopups ? "allow-scripts allow-same-origin allow-forms allow-presentation" : undefined}
           className="w-full h-full border-0"
           allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; accelerometer; gyroscope; geolocation; microphone; camera"
           allowFullScreen
