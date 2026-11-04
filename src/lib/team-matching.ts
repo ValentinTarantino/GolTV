@@ -3,7 +3,8 @@ import { PROMIEDOS_ALIASES } from "./constants";
 const TEAM_STOPWORDS = new Set([
   "fc", "cf", "sc", "ac", "afc", "cfc", "club", "de", "la", "el", "los", "las",
   "the", "united", "city", "real", "sporting", "deportivo", "cd", "ud", "ca",
-  "sa", "as", "ss", "fk", "sk", "bk", "if", "vs",
+  "sa", "as", "ss", "fk", "sk", "bk", "if", "vs", "fa", "eindhoven", "brugge", "brujas",
+  "praha", "ebbenhouten", "rotterdam", "amsterdam", "groningen", "enschede",
 ]);
 
 function normalize(s: string): string {

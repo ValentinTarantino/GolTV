@@ -286,5 +286,11 @@ export async function GET(request: NextRequest) {
     m.awayTeam.logo = logoMap.get(badgeKey(m.awayTeam.name, m.league.country)) ?? "";
   }
 
-  return Response.json({ matches, date }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ matches, date }, { 
+    headers: { 
+      "Cache-Control": "no-store, no-cache, must-revalidate, private",
+      "Pragma": "no-cache",
+      "Expires": "0"
+    } 
+  });
 }

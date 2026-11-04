@@ -59,6 +59,17 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   ligadeportivaalajuelense: "alajuelense",
   perezzeledon: "perezzeledon",
   municipalperezzeledon: "perezzeledon",
+  // Champions League dedup aliases
+  psv: "psveindhoven",
+  psveindhoven: "psveindhoven",
+  clubbrugge: "clubbrugge",
+  brugge: "clubbrugge",
+  brujas: "clubbrugge",
+  sabah: "sabah",
+  sabahfa: "sabah",
+  slavia: "slaviapraga",
+  slaviapraga: "slaviapraga",
+  praha: "slaviapraga",
   // Providers inconsistently include club abbreviations in display names.
   lebrijana: "lebrijana",
   ublebrijana: "lebrijana",
@@ -70,8 +81,19 @@ const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
   // International feeds alternate Portuguese/Spanish names for this
   // Champions fixture, which otherwise produces two identical cards.
   2: {
-    porto: "fcporto", oporto: "fcporto", fcporto: "fcporto",
-    napoles: "napoli", napoli: "napoli", sscnapoli: "napoli",
+    porto: "fcporto", oporto: "fcporto",
+    napoles: "napoli", sscnapoli: "napoli",
+    // Champions League specific dedup
+    psv: "psveindhoven", psveindhoven: "psveindhoven",
+    clubbrugge: "clubbrugge", brugge: "clubbrugge", brujas: "clubbrugge",
+    sabah: "sabah", sabahfa: "sabah",
+    slavia: "slaviapraga", slaviapraga: "slaviapraga", praha: "slaviapraga",
+    arsenal: "arsenal", arsenalfc: "arsenal",
+    dortmund: "borussiadortmund", borussiadortmund: "borussiadortmund",
+    lens: "lens", rclens: "lens",
+    como: "como", como1907: "como",
+    mancity: "mancity", manchestercity: "mancity",
+    rbleipzig: "rbleipzig", leipzig: "rbleipzig",
   },
   3: {
     olympiacos: "olympiacos", olympiakos: "olympiacos",
