@@ -72,7 +72,7 @@ describe("external player loading", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
-  it("blocks popup and top-level ad navigation only for Player 1 signals", () => {
+  it("keeps Player 1 signals on their published URL without sandbox", () => {
     const channel: Channel = {
       id: "secondary-test",
       name: "Canal de prueba",
@@ -82,6 +82,7 @@ describe("external player loading", () => {
     };
     render(<IframePlayer url={channel.url} title="Match" channel={channel} />);
     const frame = screen.getByTitle("Match");
-    expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-presentation");
+    expect(frame).toHaveAttribute("src", channel.url);
+    expect(frame).not.toHaveAttribute("sandbox");
   });
 });

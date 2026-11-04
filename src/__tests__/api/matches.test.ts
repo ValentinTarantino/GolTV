@@ -53,6 +53,38 @@ function flMatch(overrides: Partial<{ homeTeam: string; awayTeam: string; league
 }
 
 describe("/api/matches", () => {
+  it.each([true, false])("merges the live Vercel Slavia Praha/Praga duplicate with primary availability %s", async (primaryAvailable) => {
+    jest.setSystemTime(new Date("2026-11-04T16:00:00-03:00"));
+    const primary = flMatch({
+      homeTeam: "Slavia Praha", awayTeam: "Arsenal", league: "Champions League",
+      dateISO: "2026-11-04T17:00:00-03:00", slug: "slavia-praha-vs-arsenal",
+    });
+    const variant = {
+      homeTeam: "Slavia Praga", awayTeam: "Arsenal", league: "UEFA Champions League",
+      dateISO: "2026-11-04T20:00:00+00:00", slug: "slavia-praga-vs-arsenal",
+      sources: [{ id: "event-1", name: "Channel" }],
+    };
+    (fetchAgenda as jest.Mock).mockResolvedValue(primaryAvailable ? [primary] : []);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([
+      { ...primary, sources: variant.sources }, variant,
+      { ...variant, slug: "another-provider", homeTeam: "Arsenal FC", awayTeam: "SK Slavia Praha" },
+      { ...variant, slug: "different-club", homeTeam: "Slavia Sofia" },
+      { ...variant, slug: "reserve-team", homeTeam: "Slavia Praha B" },
+    ]);
+
+    const response = await GET(makeRequest("2026-11-04"));
+    const { matches } = await response.json();
+
+    expect(matches).toHaveLength(3);
+    expect(matches[0]).toMatchObject({
+      id: 856205058, league: { id: 2 }, homeTeam: { name: "Slavia Praha" },
+      awayTeam: { name: "Arsenal" }, _eventSlug: primary.slug,
+      timestamp: Date.parse(primary.dateISO) / 1000,
+    });
+    if (primaryAvailable) expect(matches[0]._eventSources).toEqual(primary.embeds);
+    expect(response.headers.get("Cache-Control")).toContain("no-store");
+  });
+
   it.each(["París Saint-Germain", "Paris SG", "Paris Saint Germain FC"])("merges Villarreal–PSG with the Champions provider variant %s", async (awayTeam) => {
     const primary = flMatch({ homeTeam: "Villarreal", awayTeam: "PSG", league: "Champions League", slug: "villarreal-vs-psg" });
     (fetchAgenda as jest.Mock).mockResolvedValue([primary]);
@@ -177,7 +209,7 @@ describe("/api/matches", () => {
         const data = await response.json();
         expect(data.matches.map((match: { homeTeam: { name: string } }) => match.homeTeam.name))
           .toEqual(["Racing", "Talleres"]);
-        expect(response.headers.get("Cache-Control")).toBe("no-store");
+        expect(response.headers.get("Cache-Control")).toContain("no-store");
       }
     } finally {
       clock.mockRestore();

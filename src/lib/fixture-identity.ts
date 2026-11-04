@@ -68,6 +68,7 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   sabah: "sabah",
   sabahfa: "sabah",
   slavia: "slaviapraga",
+  slaviapraha: "slaviapraga",
   slaviapraga: "slaviapraga",
   praha: "slaviapraga",
   // Providers inconsistently include club abbreviations in display names.
