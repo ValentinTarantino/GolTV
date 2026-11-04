@@ -71,4 +71,17 @@ describe("external player loading", () => {
     act(() => jest.advanceTimersByTime(15000));
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
+
+  it("blocks popup and top-level ad navigation only for Player 1 signals", () => {
+    const channel: Channel = {
+      id: "secondary-test",
+      name: "Canal de prueba",
+      provider: "secondary-feed",
+      url: "https://example.com/embed",
+      kind: "iframe",
+    };
+    render(<IframePlayer url={channel.url} title="Match" channel={channel} />);
+    const frame = screen.getByTitle("Match");
+    expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-presentation");
+  });
 });

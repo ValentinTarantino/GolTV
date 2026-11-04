@@ -26,6 +26,10 @@ jest.mock("@/lib/player-two-source", () => ({
   findPlayerTwoStreams: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock("@/lib/primary-player-source", () => ({
+  findPrimaryStreams: jest.fn().mockResolvedValue([]),
+}));
+
 import { GET } from "@/app/api/matches/[matchId]/route";
 import { getMatchById } from "@/lib/api-football";
 import { getStreamsForMatch } from "@/lib/streaming";
@@ -33,6 +37,7 @@ import { findAgendaStreams } from "@/lib/agenda-source";
 import { findEventStreams } from "@/lib/event-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
+import { findPrimaryStreams } from "@/lib/primary-player-source";
 import type { Match } from "@/lib/types";
 
 function makeMatch(overrides: Partial<Match> = {}): Match {
@@ -56,6 +61,16 @@ function makeRequest(url: string) {
 }
 
 describe("/api/matches/[matchId]", () => {
+  it.each([true, false])("routes the new first option to its source (registered match: %s)", async (registered) => {
+    (getMatchById as jest.Mock).mockResolvedValue(registered ? makeMatch() : null);
+    const channels = [{ id: "primary-test", name: "Señal 1", url: "https://example.com/player", kind: "iframe" }];
+    (findPrimaryStreams as jest.Mock).mockResolvedValueOnce(channels);
+    const response = await GET(makeRequest("http://localhost/api/matches/12345?player=6&home=Boca%20Juniors&away=River%20Plate"), { params: Promise.resolve({ matchId: "12345" }) });
+    const data = await response.json();
+    expect(data.match.channels).toEqual(channels);
+    expect(findPrimaryStreams).toHaveBeenCalledWith("Boca Juniors", "River Plate");
+    expect(findSecondaryStreams).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     jest.clearAllMocks();
   });

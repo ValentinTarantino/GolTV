@@ -1,4 +1,5 @@
 import { findPlayerFiveStreams } from "@/lib/player-five-source";
+import { findPrimaryStreams } from "@/lib/primary-player-source";
 import { getMatchById } from "@/lib/api-football";
 import { getStreamsForMatch } from "@/lib/streaming";
 import { getAgendaStream, findAgendaStreams } from "@/lib/agenda-source";
@@ -26,7 +27,7 @@ export async function GET(
   if ("error" in queryValidation) return queryValidation.error;
 
   const { streamId, eventSlug, eventSources, player, home, away, league } = queryValidation.data;
-  const playerMode = player === "2" || player === "3" || player === "4" || player === "5" ? player : "1";
+  const playerMode = player === "2" || player === "3" || player === "4" || player === "5" || player === "6" ? player : "1";
   const id = parseInt(matchId, 10);
 
   if (isNaN(id) && !streamId) {
@@ -41,10 +42,14 @@ export async function GET(
   if (match && (LIVE_STATUSES.includes(match.status.short) || playerMode !== "3")) {
     const channels: Channel[] = [];
 
-    if (playerMode === "1") {
-      channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));
+    if (playerMode === "6") {
+      channels.push(...await findPrimaryStreams(match.homeTeam.name, match.awayTeam.name));
+    } else if (playerMode === "1") {
+      // Player 1 now uses Primary Streams instead of Secondary
+      channels.push(...await findPrimaryStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "2") {
-      channels.push(...await findPlayerTwoStreams(match.homeTeam.name, match.awayTeam.name));
+      // Player 2 now uses Secondary Streams (old Player 1)
+      channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "4") {
       channels.push(...await findEventStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "5") {
@@ -87,8 +92,10 @@ export async function GET(
   const awayTeam = away || "Away";
   const leagueName = league || "Internacional";
 
-  if (playerMode === "1" && home && away) {
-    const channels = await findSecondaryStreams(homeTeam, awayTeam);
+  if ((playerMode === "1" || playerMode === "6") && home && away) {
+    const channels = playerMode === "6"
+      ? await findPrimaryStreams(homeTeam, awayTeam)
+      : await findSecondaryStreams(homeTeam, awayTeam);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,

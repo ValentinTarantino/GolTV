@@ -219,7 +219,10 @@ export async function findSecondaryStreams(homeTeam: string, awayTeam: string): 
     try {
       return {
         id: "secondary-" + createHash("sha256").update(source.id).digest("hex").slice(0, 12),
-        name: source.name, url: await resolvePlayer(source.id, hosts), kind: "iframe",
+        name: source.name,
+        url: await resolvePlayer(source.id, hosts),
+        kind: "iframe",
+        provider: "secondary-feed",
       };
     } catch {
       return null;

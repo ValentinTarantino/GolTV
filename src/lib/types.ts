@@ -61,7 +61,8 @@ export interface Match {
 }
 
 export interface Channel {
-  provider?: "iframe-bridge";
+  iframeReferrerPolicy?: "no-referrer";
+  provider?: "iframe-bridge" | "primary-feed" | "secondary-feed";
   streamId?: number;
   siteType?: number;
   id: string;

@@ -53,6 +53,19 @@ function flMatch(overrides: Partial<{ homeTeam: string; awayTeam: string; league
 }
 
 describe("/api/matches", () => {
+  it.each(["París Saint-Germain", "Paris SG", "Paris Saint Germain FC"])("merges Villarreal–PSG with the Champions provider variant %s", async (awayTeam) => {
+    const primary = flMatch({ homeTeam: "Villarreal", awayTeam: "PSG", league: "Champions League", slug: "villarreal-vs-psg" });
+    (fetchAgenda as jest.Mock).mockResolvedValue([primary]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([{
+      homeTeam: "Villarreal CF", awayTeam, league: "Champions League",
+      slug: "other-provider-slug", dateISO: primary.dateISO, dateInferred: false,
+      sources: [{ id: "secondary", name: "Signal" }],
+    }]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
+    const { matches } = await (await GET(makeRequest())).json();
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({ league: { id: 2 }, homeTeam: { name: "Villarreal" }, awayTeam: { name: "PSG" }, _eventSources: primary.embeds });
+  });
   it("adds Primera Nacional from player five and selects its player on opening", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([]);
     (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);

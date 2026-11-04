@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, X, Info } from "lucide-react";
+import { AlertCircle, X, Info, ExternalLink } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import FootballLoader from "@/components/ui/FootballLoader";
 import { useIframeChannelBridge, type IframeChannelBridgeProps } from "./useIframeChannelBridge";
@@ -17,21 +17,34 @@ export default function IframePlayer(props: IframePlayerProps) {
 
 function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
   const { t } = useLanguage();
+  const isPrimaryFeed = channel?.provider === "primary-feed";
+  const blockPopups = channel?.provider === "secondary-feed";
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [showTip, setShowTip] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const frame = useIframeChannelBridge(url, { channel, onChannels }, attempt);
+  
+  // Use proxy for futbolvivo.tv to bypass X-Frame-Options
+  const getProxyUrl = (originalUrl: string) => {
+    if (originalUrl.includes("futbolvivo.tv") || originalUrl.includes("kora-plus.mov")) {
+      return `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
+    }
+    return originalUrl;
+  };
+  
+  const proxiedUrl = getProxyUrl(url);
+  const frame = useIframeChannelBridge(proxiedUrl, { channel, onChannels }, attempt);
 
   useEffect(() => {
+    if (isPrimaryFeed) return;
     if (!isLoading) return;
     const timer = setTimeout(() => {
       setIsLoading(false);
       setTimedOut(true);
     }, 15000);
     return () => clearTimeout(timer);
-  }, [isLoading, attempt]);
+  }, [isPrimaryFeed, isLoading, attempt]);
 
   const dismissTip = () => {
     setShowTip(false);
@@ -57,7 +70,22 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
         </div>
       )}
 
-      {(timedOut || hasError) && (
+      {isPrimaryFeed && (
+        <div className="flex w-full aspect-video items-center justify-center">
+          <a
+            key={url}
+            href={url}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center gap-2 border-2 border-white bg-black px-3 py-2 text-xs font-bold text-white hover:border-accent-primary hover:text-accent-primary"
+          >
+            <ExternalLink size={14} />
+            {t.player.openSignalNewTab}
+          </a>
+        </div>
+      )}
+
+      {!isPrimaryFeed && (timedOut || hasError) && (
         <div role="status" className="mb-2 flex flex-wrap items-center gap-3 border-2 border-white bg-black p-3 text-sm text-white">
           <span>{t.player.externalLoadTimeout}</span>
           <button type="button" className="border-2 border-white px-3 py-1" onClick={() => {
@@ -68,8 +96,9 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
           }}>{t.player.retry}</button>
         </div>
       )}
-      <div className="relative w-full aspect-video bg-black overflow-hidden border-4 border-white shadow-brutal">
-        {isLoading && (
+      {!isPrimaryFeed && (
+        <div className="relative w-full aspect-video bg-black overflow-hidden border-4 border-white shadow-brutal">
+        {!isPrimaryFeed && isLoading && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/60 z-10">
             <div className="flex flex-col items-center gap-3">
               <FootballLoader size={56} />
@@ -78,7 +107,7 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
           </div>
         )}
 
-        {hasError && (
+        {!isPrimaryFeed && hasError && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/80 z-20">
             <div className="flex flex-col items-center gap-3 text-center px-6">
               <AlertCircle size={40} className="text-accent-red" />
@@ -89,7 +118,7 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
           </div>
         )}
 
-        {title && !isLoading && (
+        {title && !isPrimaryFeed && !isLoading && (
           <div className="pointer-events-none absolute top-0 left-0 right-0 p-3 z-10 bg-gradient-to-b from-black/60 to-transparent">
             <span className="text-xs font-medium text-white/90">{title}</span>
           </div>
@@ -98,18 +127,28 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
         <iframe
           ref={frame}
           key={attempt}
-          src={url}
+          src={proxiedUrl}
+          referrerPolicy="no-referrer"
+          sandbox={blockPopups ? "allow-scripts allow-same-origin allow-forms allow-presentation" : undefined}
           className="w-full h-full border-0"
-          allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; accelerometer; gyroscope; geolocation; microphone; camera"
           allowFullScreen
-          onLoad={() => { setIsLoading(false); setTimedOut(false); }}
+          onLoad={() => {
+            if (!isPrimaryFeed) {
+              setIsLoading(false);
+              setTimedOut(false);
+            }
+          }}
           onError={() => {
-            setIsLoading(false);
-            setHasError(true);
+            if (!isPrimaryFeed) {
+              setIsLoading(false);
+              setHasError(true);
+            }
           }}
           title={title || "Stream"}
         />
-      </div>
+        </div>
+      )}
     </>
   );
 }
