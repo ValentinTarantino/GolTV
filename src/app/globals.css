@@ -103,7 +103,14 @@
       #181818 120px,
       #181818 240px
     );
-    background-attachment: fixed;
+    background-position: 0 0;
+    background-attachment: scroll;
+  }
+
+  @media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+    body {
+      background-position: 0 var(--desktop-background-offset, 0px);
+    }
   }
   
   ::selection {

@@ -248,7 +248,7 @@ export const dictionaries = {
       streamAvailableSoon: "El stream estará disponible cuando empiece el partido",
       noStreams: "Señal no disponible",
       noStreamsDesc:
-        "El proveedor de streaming no tiene señal usable ahora (a menudo por bloqueo del CDN). Probá de nuevo en unos minutos.",
+        "Esta señal no está disponible ahora. Probá con otro reproductor o reintentá en unos minutos.",
       retryStream: "Reintentar",
       viewers: "viendo",
     },
@@ -266,7 +266,7 @@ export const dictionaries = {
       externalLoadTimeout: "El proveedor no confirmó la carga. Podés reintentar o elegir otro canal o reproductor.",
       errorLoading: "Señal no disponible",
       tryAnotherChannel:
-        "El proveedor bloqueó o cortó la señal. Reintentá en unos minutos o probá otro canal.",
+        "El proveedor bloqueó o cortó la señal. Probá con otro reproductor o canal, o reintentá en unos minutos.",
       retry: "Reintentar",
       reload: "Recargar",
       live: "EN VIVO",
@@ -403,7 +403,7 @@ export const dictionaries = {
       streamAvailableSoon: "Stream will be available when the match starts",
       noStreams: "Signal unavailable",
       noStreamsDesc:
-        "The streaming provider has no usable signal right now (often a CDN block). Try again in a few minutes.",
+        "This signal is not available right now. Try another player or retry in a few minutes.",
       retryStream: "Retry",
       viewers: "watching",
     },
@@ -421,7 +421,7 @@ export const dictionaries = {
       externalLoadTimeout: "The provider did not confirm loading. Retry or choose another channel or player.",
       errorLoading: "Signal unavailable",
       tryAnotherChannel:
-        "The provider blocked or dropped the signal. Retry in a few minutes or try another channel.",
+        "The provider blocked or dropped the signal. Try another player or channel, or retry in a few minutes.",
       retry: "Retry",
       reload: "Reload",
       live: "LIVE",

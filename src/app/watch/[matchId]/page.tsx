@@ -241,7 +241,7 @@ function WatchPageInner({
                   <>
                     <Tv size={24} strokeWidth={3} className="text-accent-primary" />
                     <p className="text-xs sm:text-sm font-black uppercase text-white">{t.watch.noStreams}</p>
-                    <p className="text-[10px] sm:text-xs text-text-muted max-w-xs sm:max-w-md">{t.watch.noStreamsDesc}</p>
+                    <p className="max-w-xs text-xs font-medium leading-relaxed text-gray-300 sm:max-w-md sm:text-sm">{t.watch.noStreamsDesc}</p>
                     <button
                       type="button"
                       onClick={() => {

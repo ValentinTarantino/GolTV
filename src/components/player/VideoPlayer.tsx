@@ -357,7 +357,7 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
           <div className="flex flex-col items-center gap-2 sm:gap-3 text-center px-4 sm:px-6">
             <AlertCircle size={32} strokeWidth={3} className="text-accent-red" />
             <span className="text-xs sm:text-sm font-medium text-text-primary">{t.player.errorLoading}</span>
-            <span className="text-[10px] sm:text-xs text-text-muted max-w-xs sm:max-w-sm">{t.player.tryAnotherChannel}</span>
+            <span className="max-w-xs text-xs font-medium leading-relaxed text-gray-300 sm:max-w-sm sm:text-sm">{t.player.tryAnotherChannel}</span>
             <button
               type="button"
               onClick={(e) => {

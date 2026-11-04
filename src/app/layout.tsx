@@ -3,6 +3,7 @@ import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import DesktopBackgroundParallax from "@/components/layout/DesktopBackgroundParallax";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { TimeZoneProvider } from "@/contexts/TimeZoneContext";
 
@@ -69,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <link rel="preconnect" href="https://media.api-sports.io" />
       <link rel="preconnect" href="https://r2.thesportsdb.com" />
       <body className="min-h-full flex flex-col font-sans antialiased">
+        <DesktopBackgroundParallax />
         <LanguageProvider>
           <TimeZoneProvider>
             <Header />
