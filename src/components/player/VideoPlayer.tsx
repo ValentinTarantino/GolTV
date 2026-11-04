@@ -324,7 +324,12 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
       onClick={togglePlay}
       id="video-player"
     >
-      <video ref={videoRef} className="w-full h-full" playsInline autoPlay />
+      <video 
+        ref={videoRef} 
+        className="w-full h-full" 
+        playsInline 
+        autoPlay 
+      />
 
       <button
         onClick={(e) => {
