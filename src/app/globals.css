@@ -348,7 +348,7 @@ body.watch-theater-open > main {
 
 @media (orientation: landscape) and (max-height: 600px) and (pointer: coarse) {
   .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .watch-theater-chat {
-    bottom: var(--watch-keyboard-height, 50dvh);
+    bottom: var(--watch-keyboard-height, 50vh);
   }
 
   .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .chat-header {

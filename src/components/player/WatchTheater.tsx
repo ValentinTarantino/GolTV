@@ -89,10 +89,13 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
         keyboardWasVisible.current = false;
         return;
       }
-      const visualViewportShrank = viewport && (
-        window.innerHeight - viewport.height > 120 ||
-        (fullscreenViewportHeight.current ?? viewport.height) - viewport.height > 120
-      );
+      const shortLandscapeTouch = window.matchMedia(
+        "(orientation: landscape) and (max-height: 600px) and (pointer: coarse)",
+      ).matches;
+      const visualViewportShrank = viewport && (shortLandscapeTouch
+        ? (fullscreenViewportHeight.current ?? viewport.height) - viewport.height > 120
+        : window.innerHeight - viewport.height > 120 ||
+          (fullscreenViewportHeight.current ?? viewport.height) - viewport.height > 120);
       const visualKeyboardHeight = virtualKeyboard?.boundingRect.height ?? 0;
       const keyboardVisible = visualKeyboardHeight >= 100 || Boolean(visualViewportShrank);
       if (!keyboardVisible && keyboardWasVisible.current) {
