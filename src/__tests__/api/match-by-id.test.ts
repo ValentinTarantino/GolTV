@@ -168,11 +168,19 @@ describe("/api/matches/[matchId]", () => {
     expect(findEventStreams).toHaveBeenCalledWith("Boca", "River");
   });
 
-  it("uses the secondary source when player=1", async () => {
-    (getMatchById as jest.Mock).mockResolvedValue(null);
-    (findSecondaryStreams as jest.Mock).mockResolvedValue([
+  it.each([true, false])("keeps all source options in Player 1 without a kickoff restriction (registered match: %s)", async (registered) => {
+    (getMatchById as jest.Mock).mockResolvedValue(registered ? makeMatch({
+      homeTeam: { id: 0, name: "Platense", logo: "" },
+      awayTeam: { id: 0, name: "Estudiantes", logo: "" },
+      date: new Date(Date.now() + 3600000).toISOString(),
+      timestamp: Math.floor(Date.now() / 1000) + 3600,
+    }) : null);
+    const channels = [
       { id: "secondary-1", name: "TyC Sports", url: "https://example.com/eventos.html?r=ABC", kind: "iframe" },
-    ]);
+      { id: "secondary-2", name: "TyC Sports", url: "https://example.com/eventos.html?r=ABC", kind: "iframe" },
+      { id: "secondary-3", name: "Other option", url: "https://example.com/offline-page", kind: "iframe" },
+    ];
+    (findSecondaryStreams as jest.Mock).mockResolvedValue(channels);
 
     const req = makeRequest(
       "http://localhost/api/matches/99999?player=1&home=Platense&away=Estudiantes&league=Copa%20Argentina"
@@ -184,7 +192,8 @@ describe("/api/matches/[matchId]", () => {
 
     expect(res.status).toBe(200);
     expect(findSecondaryStreams).toHaveBeenCalledWith("Platense", "Estudiantes");
-    expect(data.match.channels[0].kind).toBe("iframe");
+    expect(data.match.channels).toEqual(channels);
+    expect(findPrimaryStreams).not.toHaveBeenCalled();
   });
 
   it("does not reuse player 3 channels when player 1 has no signal", async () => {

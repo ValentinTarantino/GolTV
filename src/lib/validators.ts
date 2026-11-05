@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CHAT_COLOR_PATTERN, isChatPaletteColor } from "./chat-colors";
 
 export const matchesQuerySchema = z.object({
   date: z
@@ -25,6 +26,8 @@ export const chatPostSchema = z.object({
   matchId: z.string().regex(/^\d+$/, "Invalid match ID"),
   nick: z.string().min(1).max(20).regex(/^[a-zA-Z0-9 _-]+$/),
   text: z.string().min(1).max(500),
+  nickColor: z.string().regex(CHAT_COLOR_PATTERN).refine(isChatPaletteColor).optional(),
+  textColor: z.string().regex(CHAT_COLOR_PATTERN).refine(isChatPaletteColor).optional(),
 });
 
 export const viewerHeartbeatSchema = z.object({

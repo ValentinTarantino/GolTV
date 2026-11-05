@@ -48,6 +48,16 @@ describe("teamsMatch", () => {
     expect(teamsMatch("Boca Juniors", "Boca Juniors")).toBe(true);
   });
 
+  it.each(["Atlético Paranaense", "Atletico Paranaense", "Athletico Paranaense", "Atlético-PR"])(
+    "recognizes the Vasco fixture's Athletico-PR name as %s", name => {
+      expect(teamsMatch("Athletico-PR", name)).toBe(true);
+      expect(teamsMatch(name, "Athletico-PR")).toBe(true);
+      expect(matchTeamsPair("Athletico-PR", "Vasco da Gama", name, "Vasco da Gama")).toBe(true);
+      expect(matchTeamsPair("Vasco da Gama", name, "Athletico-PR", "Vasco da Gama")).toBe(true);
+      expect(teamsMatch(name, "Atlético Mineiro")).toBe(false);
+      expect(matchTeamsPair("Athletico-PR", "Vasco da Gama", "Botafogo", "Atlético Mineiro")).toBe(false);
+    });
+
   it("does not match on weak stopwords alone", () => {
     expect(teamsMatch("Real Madrid", "Real Sociedad")).toBe(false);
     expect(teamsMatch("Manchester United", "Newcastle United")).toBe(false);

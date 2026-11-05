@@ -45,8 +45,7 @@ export async function GET(
     if (playerMode === "6") {
       channels.push(...await findPrimaryStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "1") {
-      // Player 1 now uses Primary Streams instead of Secondary
-      channels.push(...await findPrimaryStreams(match.homeTeam.name, match.awayTeam.name));
+      channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "2") {
       // Player 2 now uses Secondary Streams (old Player 1)
       channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));

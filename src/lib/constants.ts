@@ -730,6 +730,7 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "athleticbilbao": "athleticclub",
   "athleticopr": "athleticoparanaense",
   "atleticopr": "athleticoparanaense",
+  "atleticoparanaense": "athleticoparanaense",
   "banfield": "banfield",
   "bayern": "bayernmunich",
   "bayernmunchen": "bayernmunich",

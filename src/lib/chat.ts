@@ -1,5 +1,6 @@
 ﻿import { getCache, setCache, incrementCounter } from "./cache";
 import { getChatCollection, isMongoConfigured } from "./mongo";
+import { isChatColor, isChatPaletteColor, type ChatColors } from "./chat-colors";
 
 export interface ChatMessage {
   id: string;
@@ -7,6 +8,8 @@ export interface ChatMessage {
   nick: string;
   text: string;
   ts: number;
+  nickColor?: string;
+  textColor?: string;
 }
 
 const MAX_MESSAGES_PER_MATCH = 200;
@@ -87,12 +90,14 @@ export async function getChatMessages(matchId: string, offset: number): Promise<
         .find({ matchId, ts: { $gte: offset } })
         .sort({ ts: 1 })
         .toArray();
-      return messages.map(({ id, matchId: mid, nick, text, ts }) => ({
+      return messages.map(({ id, matchId: mid, nick, text, ts, nickColor, textColor }) => ({
         id,
         matchId: mid,
         nick,
         text,
         ts,
+        ...(isChatColor(nickColor) ? { nickColor } : {}),
+        ...(isChatColor(textColor) ? { textColor } : {}),
       }));
     } catch {
       if (mongoConfigured) throw new Error(CHAT_STORAGE_UNAVAILABLE);
@@ -106,7 +111,8 @@ export async function getChatMessages(matchId: string, offset: number): Promise<
 export async function addChatMessage(
   matchId: string,
   nick: string,
-  text: string
+  text: string,
+  colors: Partial<ChatColors> = {}
 ): Promise<{ ok: boolean; error?: string; persistent?: boolean }> {
   const validId = validateMatchId(matchId);
   if (!validId) return { ok: false, error: "Invalid match ID" };
@@ -116,6 +122,11 @@ export async function addChatMessage(
 
   const validText = validateMessage(text);
   if (!validText) return { ok: false, error: "Invalid message" };
+
+  if ((colors.nickColor !== undefined && !isChatPaletteColor(colors.nickColor))
+    || (colors.textColor !== undefined && !isChatPaletteColor(colors.textColor))) {
+    return { ok: false, error: "Invalid message color" };
+  }
 
   if (!await canSend(validNick)) {
     return { ok: false, error: "Rate limited" };
@@ -128,6 +139,8 @@ export async function addChatMessage(
     nick: validNick,
     text: validText,
     ts: Date.now(),
+    ...(colors.nickColor ? { nickColor: colors.nickColor } : {}),
+    ...(colors.textColor ? { textColor: colors.textColor } : {}),
   };
 
   const collection = await getChatCollection();

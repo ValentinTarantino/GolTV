@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const offsetNum = offset ? parseInt(offset, 10) : 0;
   try {
     const messages = await getChatMessages(matchId, isNaN(offsetNum) ? 0 : offsetNum);
-    return Response.json({ messages, persistent: isMongoConfigured() });
+    return Response.json({ messages, persistent: isMongoConfigured() }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return createErrorResponse(CHAT_STORAGE_UNAVAILABLE, 503);
   }
@@ -28,8 +28,8 @@ export async function POST(request: Request) {
   const validation = await validateBody(request, chatPostSchema);
   if ("error" in validation) return validation.error;
 
-  const { matchId, nick, text } = validation.data;
-  const result = await addChatMessage(matchId, nick, text);
+  const { matchId, nick, text, nickColor, textColor } = validation.data;
+  const result = await addChatMessage(matchId, nick, text, { nickColor, textColor });
 
   if (!result.ok) {
     const status = result.error === CHAT_STORAGE_UNAVAILABLE ? 503 : 400;

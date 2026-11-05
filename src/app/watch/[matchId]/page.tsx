@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Tv } from "lucide-react";
 import VideoPlayer from "@/components/player/VideoPlayer";
+import WatchTheater from "@/components/player/WatchTheater";
 import ChannelSelector from "@/components/player/ChannelSelector";
 import ChatBox from "@/components/chat/ChatBox";
 import LiveBadge from "@/components/matches/LiveBadge";
@@ -126,18 +127,11 @@ function WatchPageInner({
         {t.watch.backMatches}
       </Link>
 
-      <div className="flex flex-col md:flex-row gap-4 sm:gap-5">
-        {/* Chat — Left on desktop, bottom on mobile */}
-        <div className="w-full md:w-80 lg:w-96 shrink-0 md:order-1">
-          <div className="md:sticky md:top-24 h-[50vh] md:h-[calc(100vh-8rem)]">
-            <ChatBox matchId={matchId} />
-          </div>
-        </div>
-
-        {/* Player + channels — Right on desktop, top on mobile */}
-        <div className="flex-1 min-w-0 md:order-2">
+      <WatchTheater fullscreenEnabled={playerMode !== "6"} title={`${match.homeTeam.name} vs ${match.awayTeam.name}`} chat={<ChatBox matchId={matchId} />}
+        header={
           <div
-            className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-accent-primary border-3 sm:border-4 border-black p-3 sm:p-4 shadow-brutal-white"
+            data-theater-hide
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-accent-primary border-3 sm:border-4 border-black p-3 sm:p-4 shadow-brutal-white"
             id="watch-league-header"
           >
             <div className="flex items-center gap-3 sm:gap-4">
@@ -168,10 +162,11 @@ function WatchPageInner({
               {live && <LiveBadge />}
             </div>
           </div>
+        }>
 
-          <div className="animate-fade-in">
-            <NetworkNotice />
-            <div className="mb-3 flex flex-wrap gap-2" id="player-mode-selector">
+          <div className="watch-theater-main animate-fade-in">
+            <div data-theater-hide><NetworkNotice /></div>
+            <div data-theater-hide className="mb-3 flex flex-wrap gap-2" id="player-mode-selector">
               {/* Display numbers are independent of the existing provider IDs. */}
               {([
                 { mode: "1", label: t.player.playerOne },
@@ -201,6 +196,7 @@ function WatchPageInner({
                 </button>
               ))}
             </div>
+            <div className="watch-theater-playback">
             {isLoading ? <PlayerSkeleton /> : activeChannel ? (
               <VideoPlayer
                 url={activeChannel.url}
@@ -256,10 +252,11 @@ function WatchPageInner({
                 )}
               </div>
             )}
+            </div>
           </div>
 
           {match.channels.length > 0 && (
-            <div className="mt-4 sm:mt-5 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+            <div data-theater-hide className="mt-4 sm:mt-5 animate-slide-up" style={{ animationDelay: "0.1s" }}>
               <ChannelSelector
                 channels={match.channels}
                 activeChannelId={activeChannel?.id ?? ""}
@@ -267,8 +264,7 @@ function WatchPageInner({
               />
             </div>
           )}
-        </div>
-      </div>
+      </WatchTheater>
     </div>
   );
 }

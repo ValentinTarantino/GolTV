@@ -48,6 +48,19 @@ describe("/api/chat", () => {
       expect(typeof postData.persistent).toBe("boolean");
     });
 
+    it("returns chosen name and text colors to readers without a nickname", async () => {
+      const res = await POST(makePostRequest({
+        matchId: "44444", nick: "ColorFan", text: "Gol de mi equipo",
+        nickColor: "#00ffff", textColor: "#ff8800",
+      }));
+      expect(res.status).toBe(200);
+      const response = await GET(makeGetRequest("http://localhost/api/chat?matchId=44444"));
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      const { messages } = await response.json();
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toMatchObject({ nick: "ColorFan", nickColor: "#00ffff", textColor: "#ff8800" });
+    });
+
     it("respects offset parameter", async () => {
       const postReq = makePostRequest({ matchId: "22222", nick: "User1", text: "Msg 1" });
       await POST(postReq);
@@ -62,6 +75,13 @@ describe("/api/chat", () => {
   });
 
   describe("POST", () => {
+    it.each(["red", "#abc", "#gggggg", "url(https://example.com)", "#ffffff;display:none", "#000000", "#808080", "#888888", "#abcdef"])(
+      "rejects unavailable color %s in either field", async color => {
+        for (const field of ["nickColor", "textColor"]) {
+          const response = await POST(makePostRequest({ matchId: "55555", nick: "ColorCheck", text: "Hi", [field]: color }));
+          expect(response.status).toBe(400);
+        }
+      });
     it("returns 400 when fields are missing", async () => {
       const req = makePostRequest({});
       const res = await POST(req);

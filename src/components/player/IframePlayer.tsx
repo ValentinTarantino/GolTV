@@ -55,7 +55,7 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
   return (
     <>
       {showTip && (
-        <div className="flex items-center justify-between gap-2 px-3 py-2 mb-2 bg-accent-secondary border-2 border-black shadow-brutal-sm">
+        <div data-player-tip className="flex items-center justify-between gap-2 px-3 py-2 mb-2 bg-accent-secondary border-2 border-black shadow-brutal-sm">
           <div className="flex items-center gap-2 min-w-0">
             <Info size={14} strokeWidth={3} className="shrink-0 text-white" />
             <span className="text-xs sm:text-sm font-bold text-white truncate">

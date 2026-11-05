@@ -41,6 +41,18 @@ describe("parseSecondaryAgenda", () => {
     expect(matches[0].sources[0].id).toBe("https://agenda.test/player.php?one=1&two=2");
   });
 
+  it("keeps PHP and extensionless alternatives as separate options, including equal labels", () => {
+    const matches = parseSecondaryAgenda("<table>" +
+      row("Botafogo vs Atlético Mineiro", "/espn-mas.php", "Serie A Brasil") +
+      row("Botafogo vs Atlético Mineiro", "espn-mas", "Serie A Brasil") +
+      "</table>", BASE);
+    expect(matches).toHaveLength(1);
+    expect(matches[0].sources).toEqual([
+      { id: "https://agenda.test/espn-mas.php", name: "espn mas" },
+      { id: "https://agenda.test/espn-mas", name: "espn mas" },
+    ]);
+  });
+
   it.each(["javascript:alert(1)", "http://agenda.test/a.php", "https://other.test/a.php", "/index.php", "#", "https://user:pass@agenda.test/a.php"])(
     "rejects non-channel link %s", (link) => {
       expect(parseSecondaryAgenda("<table>" + row("Boca vs River", link) + "</table>", BASE)).toEqual([]);
@@ -130,29 +142,97 @@ describe("Player 3 integration", () => {
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
-  it("deduplicates different channel pages that resolve to the same player", async () => {
+  it("preserves distinct channel pages even when they resolve to the same player", async () => {
     pages.set("https://wrapper.test/channel2", frame("https://player.test/stream/75"));
-    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toHaveLength(1);
+    const channels = await findSecondaryStreams("Belgrano", "Barracas Central");
+    expect(channels.map(channel => channel.name)).toEqual(["canal 1", "canal 2"]);
+    expect(channels.map(channel => channel.url)).toEqual([
+      "https://player.test/stream/75", "https://player.test/stream/75",
+    ]);
+    expect(new Set(channels.map(channel => channel.id)).size).toBe(2);
   });
 
-  it("isolates a failing signal and retries it without caching failure", async () => {
+  it("resolves all published options beyond the old eight-channel limit in bounded batches", async () => {
+    pages.set(BASE, "<table>" + Array.from({ length: 11 }, (_, index) =>
+      row("Belgrano vs Barracas Central", `/option-${index}.php`)).join("") + "</table>");
+    for (let index = 0; index < 11; index++) {
+      pages.set(`https://agenda.test/option-${index}.php`, frame(`https://player.test/option-${index}`));
+    }
+    let active = 0;
+    let maxActive = 0;
+    const implementation = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url, init) => {
+      active++;
+      maxActive = Math.max(maxActive, active);
+      try { return await implementation(url, init); }
+      finally { active--; }
+    });
+
+    const channels = await findSecondaryStreams("Belgrano", "Barracas Central");
+    expect(channels.map(channel => channel.url)).toEqual(
+      Array.from({ length: 11 }, (_, index) => `https://player.test/option-${index}`));
+    expect(new Set(channels.map(channel => channel.id)).size).toBe(11);
+    expect(maxActive).toBeLessThanOrEqual(4);
+  });
+
+  it("keeps failing published options selectable and retries them without caching failure", async () => {
     pages.delete("https://wrapper.test/channel1");
-    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toHaveLength(1);
+    const first = await findSecondaryStreams("Belgrano", "Barracas Central");
+    expect(first).toHaveLength(2);
+    expect(first[0].url).toBe("https://agenda.test/canal-1.php");
+    expect(first[1].url).toBe("https://player.test/stream/76");
     pages.set("https://wrapper.test/channel1", frame("https://player.test/stream/75"));
-    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toHaveLength(2);
+    const recovered = await findSecondaryStreams("Belgrano", "Barracas Central");
+    expect(recovered).toHaveLength(2);
+    expect(recovered[0]).toMatchObject({ id: first[0].id, url: "https://player.test/stream/75" });
   });
 
   it("handles network failure without losing successful signals", async () => {
     const implementation = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((url, init) => url.endsWith("/channel1")
       ? Promise.reject(new Error("timeout")) : implementation(url, init));
-    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toHaveLength(1);
+    const channels = await findSecondaryStreams("Belgrano", "Barracas Central");
+    expect(channels).toHaveLength(2);
+    expect(channels[0].url).toBe("https://agenda.test/canal-1.php");
+    expect(channels[1].url).toBe("https://player.test/stream/76");
   });
 
-  it("does not return wrapper chrome if a player is missing or cyclic", async () => {
+  it("falls back to each published channel page if extraction is missing or cyclic", async () => {
     pages.set("https://wrapper.test/channel1", "<p>Unavailable</p>");
     pages.set("https://wrapper.test/channel2", frame("https://agenda.test/canal-2.php"));
-    expect(await findSecondaryStreams("Belgrano", "Barracas Central")).toEqual([]);
+    expect((await findSecondaryStreams("Belgrano", "Barracas Central")).map(channel => channel.url)).toEqual([
+      "https://agenda.test/canal-1.php", "https://agenda.test/canal-2.php",
+    ]);
+  });
+
+  it("retains an extensionless option even when its page returns 404", async () => {
+    pages.set(BASE, "<table>" + row("Belgrano vs Barracas Central") +
+      row("Belgrano vs Barracas Central", "/canal-1") + "</table>");
+    const channels = await findSecondaryStreams("Belgrano", "Barracas Central");
+    expect(channels.map(channel => [channel.name, channel.url])).toEqual([
+      ["canal 1", "https://player.test/stream/75"],
+      ["canal 1", "https://agenda.test/canal-1"],
+    ]);
+    expect(new Set(channels.map(channel => channel.id)).size).toBe(2);
+  });
+
+  it("attaches every Vasco option to Athletico-PR despite the provider spelling, without borrowing Botafogo sources", async () => {
+    pages.set(BASE, "<table>" +
+      row("Botafogo vs Atlético Mineiro", "/botafogo.php", "Serie A Brasil") +
+      row("Atlético Paranaense vs Vasco da Gama", "/vasco.php", "Serie A Brasil") +
+      row("Atlético Paranaense vs Vasco da Gama", "/vasco", "Serie A Brasil") +
+      "</table>");
+    pages.set("https://agenda.test/botafogo.php", frame("https://player.test/botafogo"));
+    pages.set("https://agenda.test/vasco.php", frame("https://player.test/vasco"));
+    pages.set("https://agenda.test/vasco", frame("https://player.test/vasco-alternative"));
+
+    const channels = await findSecondaryStreams("Athletico-PR", "Vasco da Gama");
+    expect(channels.map(channel => channel.url)).toEqual([
+      "https://player.test/vasco", "https://player.test/vasco-alternative",
+    ]);
+    expect(await findSecondaryStreams("Vasco da Gama", "Athletico-PR")).toEqual(channels);
+    expect((await findSecondaryStreams("Botafogo", "Atlético Mineiro")).map(channel => channel.url))
+      .toEqual(["https://player.test/botafogo"]);
   });
 
   it("returns no unrelated channels for a fixture absent from the agenda", async () => {

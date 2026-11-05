@@ -52,7 +52,7 @@ function agendaUrl(): string {
 }
 
 function cacheKey(type: string, url: string): string {
-  return "secondary:roja:v1:" + type + ":" + createHash("sha256").update(url).digest("hex");
+  return "secondary:roja:v2:" + type + ":" + createHash("sha256").update(url).digest("hex");
 }
 
 async function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
@@ -91,8 +91,9 @@ export function parseSecondaryAgenda(html: string, baseUrl = agendaUrl()): Secon
       if (!isMenFootballMatch(league, homeTeam, awayTeam)) return;
       const url = httpsUrl($(anchor).attr("href") ?? "", base.href);
       // Off-site promotional homepages are not playback candidates.
-      if (!url || url.origin !== base.origin || !/\.php$/i.test(url.pathname)
-        || url.pathname === base.pathname || /\/index\.php$/i.test(url.pathname)) return;
+      if (!url || url.origin !== base.origin
+        || !/^\/(?:[a-z0-9_-]+\/)*[a-z0-9_-]+(?:\.php)?\/?$/i.test(url.pathname)
+        || url.pathname === base.pathname || /^\/index(?:\.php)?\/?$/i.test(url.pathname)) return;
       url.hash = "";
       const key = JSON.stringify([league.toLowerCase(), homeTeam.toLowerCase(), awayTeam.toLowerCase()]);
       const fixture: SecondaryMatch = fixtures.get(key) ?? {
@@ -102,7 +103,7 @@ export function parseSecondaryAgenda(html: string, baseUrl = agendaUrl()): Secon
         // enrich Player 3 only; never invent a kickoff or a live fixture card.
         dateISO: "", dateInferred: true, sources: [],
       };
-      const name = url.pathname.split("/").pop()!.replace(/\.php$/i, "").replace(/-/g, " ");
+      const name = url.pathname.replace(/\/$/, "").split("/").pop()!.replace(/\.php$/i, "").replace(/-/g, " ");
       if (!fixture.sources.some((source) => source.id === url.href)) {
         fixture.sources.push({ id: url.href, name });
       }
@@ -214,20 +215,29 @@ export async function findSecondaryStreams(homeTeam: string, awayTeam: string): 
   const sources = (correctedMatch ?? requestedMatch).sources;
   const unique = [...new Map(sources.map((source) => [source.id, source])).values()];
   const hosts = wrapperHosts(base);
-  // Bound work per request and isolate a failing channel from other signals.
-  const resolved = await Promise.all(unique.slice(0, 8).map(async (source): Promise<Channel | null> => {
+  const channels: Channel[] = [];
+  const resolveSource = async (source: SecondaryEmbed): Promise<Channel> => {
+    let url = source.id;
     try {
-      return {
-        id: "secondary-" + createHash("sha256").update(source.id).digest("hex").slice(0, 12),
-        name: source.name,
-        url: await resolvePlayer(source.id, hosts),
-        kind: "iframe",
-        provider: "secondary-feed",
-      };
+      url = await resolvePlayer(source.id, hosts);
     } catch {
-      return null;
+      // Keep published options even when unavailable to the server. The
+      // channel page can recover or load successfully in the visitor's browser.
     }
-  }));
-  const channels = resolved.filter((channel): channel is Channel => channel !== null);
-  return [...new Map(channels.map((channel) => [channel.url, channel])).values()];
+    return {
+      id: "secondary-" + createHash("sha256").update(source.id).digest("hex").slice(0, 12),
+      name: source.name,
+      url,
+      kind: "iframe",
+      provider: "secondary-feed",
+    };
+  };
+  // Limit concurrent lookups, not the total number of published options.
+  // Distinct channel pages remain selectable even if their current player
+  // URLs coincide; the provider can update either page independently.
+  for (let start = 0; start < unique.length; start += 4) {
+    const resolved = await Promise.all(unique.slice(start, start + 4).map(resolveSource));
+    channels.push(...resolved);
+  }
+  return channels;
 }
