@@ -197,6 +197,14 @@ body.watch-theater-open > main {
   background: #000;
 }
 
+@media (max-width: 767px) {
+  .watch-theater[data-expanded="true"] {
+    top: var(--watch-visual-top, 0px);
+    height: var(--watch-visual-height, 100dvh);
+    max-height: var(--watch-visual-height, 100dvh);
+  }
+}
+
 .watch-theater::backdrop {
   background: #000;
 }
@@ -313,7 +321,7 @@ body.watch-theater-open > main {
 
   .watch-theater[data-expanded="true"] .watch-theater-body {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) minmax(160px, 38%);
+    grid-template-rows: auto minmax(64px, 1fr) minmax(96px, 36%);
     gap: 8px;
   }
 

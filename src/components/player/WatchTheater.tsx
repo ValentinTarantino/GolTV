@@ -55,6 +55,29 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
     };
   }, [expanded]);
 
+  useEffect(() => {
+    if (!expanded) return;
+    const element = container.current;
+    const viewport = window.visualViewport;
+    if (!element || !viewport) return;
+
+    const syncVisualViewport = () => {
+      element.style.setProperty("--watch-visual-height", `${viewport.height}px`);
+      element.style.setProperty("--watch-visual-top", `${viewport.offsetTop}px`);
+    };
+    syncVisualViewport();
+    viewport.addEventListener("resize", syncVisualViewport);
+    viewport.addEventListener("scroll", syncVisualViewport);
+    window.addEventListener("resize", syncVisualViewport);
+    return () => {
+      viewport.removeEventListener("resize", syncVisualViewport);
+      viewport.removeEventListener("scroll", syncVisualViewport);
+      window.removeEventListener("resize", syncVisualViewport);
+      element.style.removeProperty("--watch-visual-height");
+      element.style.removeProperty("--watch-visual-top");
+    };
+  }, [expanded]);
+
   const toggleFullscreen = async () => {
     const element = container.current;
     if (!element || (!fullscreenEnabled && !expanded)) return;
