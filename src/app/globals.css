@@ -333,6 +333,14 @@ body.watch-theater-open > main {
     grid-column: 1;
     grid-row: 3;
   }
+
+  .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .watch-theater-chat {
+    position: fixed;
+    inset: 64px 8px var(--watch-keyboard-height, 38dvh);
+    z-index: 1001;
+    width: auto;
+    background: #000;
+  }
 }
 
 @layer components {

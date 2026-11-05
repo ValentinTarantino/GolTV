@@ -19,6 +19,7 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
   const chatId = useId();
   const [expanded, setExpanded] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
+  const [chatInputFocused, setChatInputFocused] = useState(false);
 
   useEffect(() => {
     const element = container.current;
@@ -59,24 +60,51 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
     if (!expanded) return;
     const element = container.current;
     const viewport = window.visualViewport;
-    if (!element || !viewport) return;
+    if (!element) return;
+    const virtualKeyboard = (navigator as Navigator & {
+      virtualKeyboard?: EventTarget & { boundingRect: DOMRect; overlaysContent: boolean };
+    }).virtualKeyboard;
+    const previousOverlaySetting = virtualKeyboard?.overlaysContent;
+    if (virtualKeyboard && chatInputFocused) virtualKeyboard.overlaysContent = true;
 
     const syncVisualViewport = () => {
-      element.style.setProperty("--watch-visual-height", `${viewport.height}px`);
-      element.style.setProperty("--watch-visual-top", `${viewport.offsetTop}px`);
+      if (viewport) {
+        element.style.setProperty("--watch-visual-height", `${viewport.height}px`);
+        element.style.setProperty("--watch-visual-top", `${viewport.offsetTop}px`);
+      }
+
+      if (!chatInputFocused) {
+        element.style.removeProperty("--watch-keyboard-height");
+        return;
+      }
+      const visualViewportShrank = viewport && window.innerHeight - viewport.height > 120;
+      const visualKeyboardHeight = virtualKeyboard?.boundingRect.height ?? 0;
+      if (visualViewportShrank) {
+        element.style.setProperty("--watch-keyboard-height", "8px");
+      } else if (visualKeyboardHeight >= 100) {
+        element.style.setProperty("--watch-keyboard-height", `${visualKeyboardHeight}px`);
+      } else {
+        element.style.removeProperty("--watch-keyboard-height");
+      }
     };
     syncVisualViewport();
-    viewport.addEventListener("resize", syncVisualViewport);
-    viewport.addEventListener("scroll", syncVisualViewport);
+    viewport?.addEventListener("resize", syncVisualViewport);
+    viewport?.addEventListener("scroll", syncVisualViewport);
+    virtualKeyboard?.addEventListener("geometrychange", syncVisualViewport);
     window.addEventListener("resize", syncVisualViewport);
     return () => {
-      viewport.removeEventListener("resize", syncVisualViewport);
-      viewport.removeEventListener("scroll", syncVisualViewport);
+      viewport?.removeEventListener("resize", syncVisualViewport);
+      viewport?.removeEventListener("scroll", syncVisualViewport);
+      virtualKeyboard?.removeEventListener("geometrychange", syncVisualViewport);
       window.removeEventListener("resize", syncVisualViewport);
       element.style.removeProperty("--watch-visual-height");
       element.style.removeProperty("--watch-visual-top");
+      element.style.removeProperty("--watch-keyboard-height");
+      if (virtualKeyboard && previousOverlaySetting !== undefined) {
+        virtualKeyboard.overlaysContent = previousOverlaySetting;
+      }
     };
-  }, [expanded]);
+  }, [chatInputFocused, expanded]);
 
   const toggleFullscreen = async () => {
     const element = container.current;
@@ -86,6 +114,7 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
         try { await document.exitFullscreen(); } catch { /* Still allow closing the layout. */ }
       }
       ownsFullscreen.current = false;
+      setChatInputFocused(false);
       setExpanded(false);
       return;
     }
@@ -102,7 +131,8 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
   const buttonStyle = "inline-flex items-center justify-center gap-2 border-2 px-3 py-2 text-xs font-black uppercase transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary";
 
   return (
-    <div ref={container} className="watch-theater" data-expanded={expanded} data-chat-visible={chatVisible} data-fullscreen-enabled={fullscreenEnabled}>
+    <div ref={container} className="watch-theater" data-expanded={expanded} data-chat-visible={chatVisible}
+      data-chat-input-focused={chatInputFocused} data-fullscreen-enabled={fullscreenEnabled}>
       <div className="watch-theater-body grid gap-4 sm:gap-5">
       <div className="watch-theater-header" data-theater-hide>{header}</div>
       {(fullscreenEnabled || expanded) && <div className="watch-theater-toolbar flex flex-wrap items-center justify-end gap-2">
@@ -129,7 +159,20 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
           {expanded ? t.watch.exitFullscreenChat : t.watch.fullscreenWithChat}
         </button>
       </div>}
-        <aside id={chatId} hidden={expanded && !chatVisible} className="watch-theater-chat w-full lg:w-96 shrink-0">
+        <aside id={chatId} hidden={expanded && !chatVisible} className="watch-theater-chat w-full lg:w-96 shrink-0"
+          onFocusCapture={event => {
+            if (event.target instanceof HTMLElement && event.target.matches("input, textarea, select")) {
+              setChatInputFocused(true);
+            }
+          }}
+          onBlurCapture={event => {
+            const nextTarget = event.relatedTarget;
+            if (nextTarget instanceof HTMLElement && event.currentTarget.contains(nextTarget)) return;
+            const chatPanel = event.currentTarget;
+            requestAnimationFrame(() => {
+              if (!chatPanel.contains(document.activeElement)) setChatInputFocused(false);
+            });
+          }}>
           <div className="watch-theater-chat-inner lg:sticky lg:top-24 h-[50vh] lg:h-[calc(100vh-8rem)]">
             {chat}
           </div>
