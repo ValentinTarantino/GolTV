@@ -165,7 +165,7 @@ function ChatSession({ matchId }: ChatBoxProps) {
 
   return (
     <div className="flex min-h-0 flex-col h-full bg-black border-4 border-white shadow-brutal">
-      <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3 bg-white text-black border-b-4 border-white">
+      <div className="chat-header flex shrink-0 items-center justify-between gap-2 px-4 py-3 bg-white text-black border-b-4 border-white">
         <div className="flex min-w-0 items-center gap-2">
           <MessageSquare size={16} strokeWidth={3} className="shrink-0" />
           <span className="truncate text-sm font-black uppercase tracking-wider">{t.chat.title}</span>
@@ -203,7 +203,7 @@ function ChatSession({ matchId }: ChatBoxProps) {
 
       {error && <div role="alert" className="shrink-0 px-3 py-1 text-[10px] font-bold text-accent-red text-center">{error}</div>}
 
-      <div className="grid shrink-0 grid-cols-2 gap-3 border-t-2 border-white/30 px-3 py-2">
+      <div className="chat-color-controls grid shrink-0 grid-cols-2 gap-3 border-t-2 border-white/30 px-3 py-2">
         {(["nickColor", "textColor"] as const).map(field => (
           <ChatColorSelect key={field} label={t.chat[field]} value={colors[field]} alignEnd={field === "textColor"}
             onChange={color => changeColor(field, color)} />
@@ -211,7 +211,7 @@ function ChatSession({ matchId }: ChatBoxProps) {
       </div>
 
       {nick && !editingNick ? (
-        <form onSubmit={event => { event.preventDefault(); void handleSend(); }} className="flex shrink-0 gap-2 p-3 border-t-4 border-white">
+        <form onSubmit={event => { event.preventDefault(); void handleSend(); }} className="chat-composer flex shrink-0 gap-2 p-3 border-t-4 border-white">
           <input type="text" value={input} onChange={event => setInput(event.target.value)}
             maxLength={500} placeholder={t.chat.placeholder} aria-label={t.chat.placeholder} disabled={sending}
             style={{ color: colors.textColor }}
@@ -222,7 +222,7 @@ function ChatSession({ matchId }: ChatBoxProps) {
           </button>
         </form>
       ) : (
-        <form onSubmit={event => { event.preventDefault(); handleEnterNick(); }} className="shrink-0 border-t-4 border-white p-3">
+        <form onSubmit={event => { event.preventDefault(); handleEnterNick(); }} className="chat-composer shrink-0 border-t-4 border-white p-3">
           <p className="mb-2 text-[11px] font-medium leading-relaxed text-gray-300">{editingNick ? t.chat.changeNick : t.chat.readOnlyNotice}</p>
           <div className="flex gap-2">
             <input ref={nickInputRef} type="text" value={nickInput} onChange={event => setNickInput(event.target.value)}

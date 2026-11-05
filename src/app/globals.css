@@ -346,6 +346,41 @@ body.watch-theater-open > main {
   }
 }
 
+@media (orientation: landscape) and (max-height: 600px) and (pointer: coarse) {
+  .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .watch-theater-chat {
+    bottom: var(--watch-keyboard-height, 50dvh);
+  }
+
+  .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .chat-header {
+    padding: 4px 10px;
+    border-bottom-width: 2px;
+  }
+
+  .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .chat-header > button {
+    display: none;
+  }
+
+  .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .chat-color-controls {
+    display: none;
+  }
+
+  .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .chat-composer {
+    gap: 6px;
+    padding: 4px 8px;
+    border-top-width: 2px;
+  }
+
+  .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .chat-composer input {
+    padding-block: 4px;
+    font-size: 13px;
+  }
+
+  .watch-theater[data-expanded="true"][data-chat-input-focused="true"] [role="log"] {
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+}
+
 @layer components {
   /* Marquee hover paused requires arbitrary variant or custom class in v4 */
   .animate-marquee:hover {
