@@ -16,6 +16,8 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
   const { t } = useLanguage();
   const container = useRef<HTMLDivElement>(null);
   const ownsFullscreen = useRef(false);
+  const fullscreenViewportHeight = useRef<number | null>(null);
+  const keyboardWasVisible = useRef(false);
   const chatId = useId();
   const [expanded, setExpanded] = useState(false);
   const [chatVisible, setChatVisible] = useState(true);
@@ -57,10 +59,19 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
   }, [expanded]);
 
   useEffect(() => {
+    if (expanded) return;
+    fullscreenViewportHeight.current = null;
+    keyboardWasVisible.current = false;
+  }, [expanded]);
+
+  useEffect(() => {
     if (!expanded) return;
     const element = container.current;
     const viewport = window.visualViewport;
     if (!element) return;
+    if (fullscreenViewportHeight.current === null) {
+      fullscreenViewportHeight.current = viewport?.height ?? window.innerHeight;
+    }
     const virtualKeyboard = (navigator as Navigator & {
       virtualKeyboard?: EventTarget & { boundingRect: DOMRect; overlaysContent: boolean };
     }).virtualKeyboard;
@@ -75,10 +86,21 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
 
       if (!chatInputFocused) {
         element.style.removeProperty("--watch-keyboard-height");
+        keyboardWasVisible.current = false;
         return;
       }
-      const visualViewportShrank = viewport && window.innerHeight - viewport.height > 120;
+      const visualViewportShrank = viewport && (
+        window.innerHeight - viewport.height > 120 ||
+        (fullscreenViewportHeight.current ?? viewport.height) - viewport.height > 120
+      );
       const visualKeyboardHeight = virtualKeyboard?.boundingRect.height ?? 0;
+      const keyboardVisible = visualKeyboardHeight >= 100 || Boolean(visualViewportShrank);
+      if (!keyboardVisible && keyboardWasVisible.current) {
+        keyboardWasVisible.current = false;
+        setChatInputFocused(false);
+        return;
+      }
+      if (keyboardVisible) keyboardWasVisible.current = true;
       if (visualViewportShrank) {
         element.style.setProperty("--watch-keyboard-height", "8px");
       } else if (visualKeyboardHeight >= 100) {
@@ -100,6 +122,8 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
       element.style.removeProperty("--watch-visual-height");
       element.style.removeProperty("--watch-visual-top");
       element.style.removeProperty("--watch-keyboard-height");
+      keyboardWasVisible.current = false;
+      if (!expanded) fullscreenViewportHeight.current = null;
       if (virtualKeyboard && previousOverlaySetting !== undefined) {
         virtualKeyboard.overlaysContent = previousOverlaySetting;
       }
@@ -160,6 +184,11 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
         </button>
       </div>}
         <aside id={chatId} hidden={expanded && !chatVisible} className="watch-theater-chat w-full lg:w-96 shrink-0"
+          onClickCapture={event => {
+            if (event.target instanceof HTMLElement && event.target.matches("input, textarea, select")) {
+              setChatInputFocused(true);
+            }
+          }}
           onFocusCapture={event => {
             if (event.target instanceof HTMLElement && event.target.matches("input, textarea, select")) {
               setChatInputFocused(true);
