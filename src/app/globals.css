@@ -334,6 +334,9 @@ body.watch-theater-open > main {
     grid-row: 3;
   }
 
+}
+
+@media (max-width: 767px) and (orientation: portrait), (max-height: 600px) and (pointer: coarse) {
   .watch-theater[data-expanded="true"][data-chat-input-focused="true"] .watch-theater-chat {
     position: fixed;
     inset: 64px 8px var(--watch-keyboard-height, 38dvh);
