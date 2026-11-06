@@ -18,6 +18,8 @@ describe("fixture identity", () => {
     [128, "Talleres Córdoba", "Talleres de Córdoba"],
     [143, "A.E. Prat", "Prat"],
     [39, "Brighton &amp;amp; Hove Albion", "Brighton"],
+    [268, "Herediano", "CS Herediano"],
+    [268, "Herediano", "C.S. Herediano"],
   ])("canonicalizes provider names in league %s: %s / %s", (league, first, second) => {
     expect(canonicalTeamForDedup(first, league)).toBe(canonicalTeamForDedup(second, league));
   });

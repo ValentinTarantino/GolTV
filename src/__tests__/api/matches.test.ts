@@ -470,6 +470,28 @@ describe("/api/matches", () => {
     expect(data.matches).toHaveLength(1);
   });
 
+  it("deduplicates Herediano and CS Herediano provider variants", async () => {
+    const date = todayISO();
+    const kickoff = `${date}T23:00:00-03:00`;
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Herediano", awayTeam: "Deportivo Saprissa", league: "Liga AUF Uruguaya",
+        dateISO: kickoff, slug: "herediano-saprissa",
+      }),
+      flMatch({
+        homeTeam: "CS Herediano", awayTeam: "Deportivo Saprissa", league: "Liga AUF Uruguaya",
+        dateISO: kickoff, slug: "cs-herediano-saprissa",
+      }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].homeTeam.name).toBe("Herediano");
+    expect(data.matches[0].awayTeam.name).toBe("Deportivo Saprissa");
+  });
+
   it("deduplicates fixtures when providers add or omit club abbreviations", async () => {
     const date = todayISO();
     (fetchAgenda as jest.Mock).mockResolvedValue([

@@ -57,6 +57,8 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   alajuelense: "alajuelense",
   ldalajuelense: "alajuelense",
   ligadeportivaalajuelense: "alajuelense",
+  // Costa Rican providers alternate between "Herediano" and "CS Herediano".
+  csherediano: "herediano",
   perezzeledon: "perezzeledon",
   municipalperezzeledon: "perezzeledon",
   // Champions League dedup aliases
