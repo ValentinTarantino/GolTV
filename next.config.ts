@@ -123,6 +123,12 @@ const nextConfig: NextConfig = {
         source: "/p4/:path*",
         headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
       },
+      {
+        // Player 1 plays through this bare-frame document, so the watch page
+        // has to be able to frame it. DENY would block even our own origin.
+        source: "/api/secondary",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
     ];
   },
 };

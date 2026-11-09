@@ -140,7 +140,11 @@ const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
     racingdemontevideo: "racingmontevideo", racingclubmontevideo: "racingmontevideo",
     wanderers: "montevideowanderers",
   },
-  239: { alianza: "alianzavalledupar", alianzafc: "alianzavalledupar" },
+  239: {
+    alianza: "alianzavalledupar", alianzafc: "alianzavalledupar",
+    // Liga BetPlay feeds sometimes omit "Deportivo" from CÃºcuta's name.
+    cucuta: "cucutadeportivo", cucutadeportivo: "cucutadeportivo",
+  },
   // Providers shorten Asociación Deportiva Tarma to ADT, while others use
   // ADT de Tarma / Asociación Deportiva de Tarma for the same Liga 1 club.
   281: {

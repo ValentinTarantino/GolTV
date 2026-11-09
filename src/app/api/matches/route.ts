@@ -162,7 +162,13 @@ export async function GET(request: NextRequest) {
   const matches: Match[] = [];
 
   for (const raw of agenda) {
-    if (raw.dateInferred || !raw.hasStreams) continue;
+    // Undated records enrich player lookups only; they must never invent a
+    // kickoff. A *dated* fixture without published signals is still a fixture:
+    // providers publish channels minutes before kickoff (some list the game with
+    // none at all), and hiding its card until an embed exists makes a live match
+    // vanish from the list. Listings with no signal far from kickoff stay out.
+    if (raw.dateInferred) continue;
+    if (!raw.hasStreams && !isNearNow(raw.dateISO)) continue;
     const entry = {
       ...raw,
       homeTeam: cleanAgendaTeamName(raw.homeTeam, raw.league),

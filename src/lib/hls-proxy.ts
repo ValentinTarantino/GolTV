@@ -25,6 +25,43 @@ export function toHlsProxyUrl(absoluteUrl: string): string {
   return `/api/hls?u=${encodeURIComponent(absoluteUrl)}`;
 }
 
+/**
+ * Builds the client-facing relay URL for a frame-restricted player page. The
+ * relay asks the page for a fresh signed playlist on every request, so short
+ * lived tokens never reach the browser.
+ */
+export function toEmbedRelayUrl(pageUrl: string): string {
+  return `/api/hls?e=${encodeURIComponent(pageUrl)}`;
+}
+
+/**
+ * Playlists for these embeds live behind a host that sends no CORS headers,
+ * while their segments are served with `access-control-allow-origin: *`. Point
+ * playlist entries at their absolute origin so segment traffic never has to
+ * travel through the app server.
+ */
+export function rewritePlaylistToAbsolute(body: string, upstream: URL): string {
+  const absolutize = (value: string): string => {
+    if (/^(data|blob):/i.test(value)) return value;
+    try {
+      return new URL(value, upstream).toString();
+    } catch {
+      return value;
+    }
+  };
+  return body
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trim();
+      if (trimmed === "") return line;
+      if (trimmed.startsWith("#")) {
+        return line.replace(URI_ATTR_RE, (_match, uri: string) => `URI="${absolutize(uri)}"`);
+      }
+      return absolutize(trimmed);
+    })
+    .join("\n");
+}
+
 function toRelay(value: string, upstream: URL): string {
   if (/^(data|blob):/i.test(value)) return value;
   try {

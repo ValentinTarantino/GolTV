@@ -4,7 +4,7 @@ import { parseIframeChannels } from "@/components/player/useIframeChannelBridge"
 import type { Channel } from "@/lib/types";
 
 jest.mock("@/contexts/LanguageContext", () => ({
-  useLanguage: () => ({ t: { player: {
+  useLanguage: () => ({ language: "es", t: { player: {
     adBlockerTip: "Tip", loadingStream: "Loading", externalLoadTimeout: "Choose another signal", retry: "Retry", errorLoading: "Unavailable",
   } } }),
 }));
@@ -72,7 +72,7 @@ describe("external player loading", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
-  it("keeps Player 1 signals on their published URL without sandbox", () => {
+  it("serves Player 1 signals through the bare-frame route without sandbox", () => {
     const channel: Channel = {
       id: "secondary-test",
       name: "Canal de prueba",
@@ -82,7 +82,24 @@ describe("external player loading", () => {
     };
     render(<IframePlayer url={channel.url} title="Match" channel={channel} />);
     const frame = screen.getByTitle("Match");
-    expect(frame).toHaveAttribute("src", channel.url);
+    expect(frame).toHaveAttribute("src", `/api/secondary?u=${encodeURIComponent(channel.url)}&lang=es`);
     expect(frame).not.toHaveAttribute("sandbox");
+  });
+
+  it("plays Player 1 bare while other signals keep the white frame", () => {
+    const secondary: Channel = {
+      id: "secondary-frame", name: "Canal", provider: "secondary-feed",
+      url: "https://example.com/embed", kind: "iframe",
+    };
+    const { unmount } = render(<IframePlayer url={secondary.url} title="Match" channel={secondary} />);
+    expect(screen.getByTitle("Match").parentElement?.className).not.toMatch(/border-4|shadow-brutal/);
+    unmount();
+
+    const bridged: Channel = {
+      id: "bridged-frame", name: "Canal", provider: "iframe-bridge",
+      url: "https://example.com/embed", kind: "iframe",
+    };
+    render(<IframePlayer url={bridged.url} title="Match" channel={bridged} />);
+    expect(screen.getByTitle("Match").parentElement?.className).toMatch(/border-4 border-white/);
   });
 });

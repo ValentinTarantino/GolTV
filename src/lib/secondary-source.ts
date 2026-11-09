@@ -176,6 +176,32 @@ function wrapperHosts(baseUrl: string): Set<string> {
   ]);
 }
 
+/**
+ * Hosts that may serve Player 1 channel pages: the agenda host plus the
+ * configured wrapper domains. Used to keep the bare-frame route from becoming
+ * an open proxy.
+ */
+export function secondaryHosts(): Set<string> {
+  const base = agendaUrl();
+  if (base) return wrapperHosts(base);
+  return new Set(
+    (process.env.SECONDARY_PLAYER_WRAPPER_HOSTS ?? "")
+      .split(",").map((host) => host.trim().toLowerCase()).filter(Boolean)
+  );
+}
+
+/** Resolve a published channel page down to its bare player URL, or null. */
+export async function resolveSecondaryPlayer(
+  pageUrl: string,
+  hosts: Set<string> = secondaryHosts()
+): Promise<string | null> {
+  try {
+    return await resolvePlayer(pageUrl, hosts);
+  } catch {
+    return null;
+  }
+}
+
 async function resolvePlayer(pageUrl: string, hosts: Set<string>): Promise<string> {
   const key = cacheKey("player", [...hosts].sort().join(",") + "|" + pageUrl);
   return cached(key, async () => {

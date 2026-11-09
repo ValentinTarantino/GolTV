@@ -492,6 +492,30 @@ describe("/api/matches", () => {
     expect(data.matches[0].awayTeam.name).toBe("Deportivo Saprissa");
   });
 
+  it("deduplicates Junior vs CÃºcuta and Junior vs CÃºcuta Deportivo", async () => {
+    const date = todayISO();
+    const kickoff = `${date}T21:00:00-03:00`;
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Junior", awayTeam: "C\u00facuta Deportivo", league: "Liga BetPlay",
+        dateISO: kickoff, slug: "junior-cucuta-deportivo",
+      }),
+    ]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([
+      secMatch({
+        homeTeam: "Junior", awayTeam: "C\u00facuta", league: "Liga BetPlay",
+        dateISO: kickoff, slug: "junior-cucuta",
+      }),
+    ]);
+
+    const res = await GET(makeRequest(date));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].homeTeam.name).toBe("Junior");
+    expect(data.matches[0].awayTeam.name).toBe("C\u00facuta Deportivo");
+  });
+
   it("deduplicates fixtures when providers add or omit club abbreviations", async () => {
     const date = todayISO();
     (fetchAgenda as jest.Mock).mockResolvedValue([
@@ -629,12 +653,41 @@ describe("/api/matches", () => {
     expect(data.matches[0].homeTeam.name).toBe("Inter Milan");
   });
 
-  it("skips matches without embeds", async () => {
+  it("keeps a near-kickoff fixture whose signals are not published yet", async () => {
+    jest.setSystemTime(new Date("2026-11-09T21:00:00-03:00"));
     (fetchAgenda as jest.Mock).mockResolvedValue([
-      flMatch({ embeds: [] }),
+      flMatch({
+        homeTeam: "Nacional", awayTeam: "Deportivo Maldonado", league: "Copa Uruguay",
+        dateISO: "2026-11-09T21:30:00-03:00", slug: "nacional-vs-deportivo-maldonado",
+        embeds: [],
+      }),
     ]);
 
-    const req = makeRequest(todayISO());
+    const req = makeRequest("2026-11-09");
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0]).toMatchObject({
+      homeTeam: { name: "Nacional" },
+      league: { id: 930 },
+      channels: [],
+      _eventSources: [],
+    });
+    expect(new Date(data.matches[0].date).toISOString()).toBe("2026-11-10T00:30:00.000Z");
+  });
+
+  it("still skips signal-less listings far from kickoff", async () => {
+    jest.setSystemTime(new Date("2026-11-09T15:00:00-03:00"));
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Nacional", awayTeam: "Deportivo Maldonado", league: "Copa Uruguay",
+        dateISO: "2026-11-09T22:30:00-03:00", slug: "nacional-vs-deportivo-maldonado",
+        embeds: [],
+      }),
+    ]);
+
+    const req = makeRequest("2026-11-09");
     const res = await GET(req);
     const data = await res.json();
 

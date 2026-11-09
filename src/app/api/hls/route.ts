@@ -1,6 +1,20 @@
-import { isAllowedStreamUrl, rewriteHlsPlaylist } from "@/lib/hls-proxy";
+import {
+  isAllowedStreamUrl,
+  rewriteHlsPlaylist,
+  rewritePlaylistToAbsolute,
+} from "@/lib/hls-proxy";
+import {
+  EMBED_USER_AGENT,
+  isEmbedPlayerPage,
+  resolveEmbedPlaylist,
+} from "@/lib/embed-resolver";
 
 // Server-side HLS relay for the allowlisted providers in src/lib/hls-proxy.ts.
+//
+// Two entry points:
+//   ?u=<absolute playlist or segment URL>  → straight relay (host allowlist)
+//   ?e=<frame-restricted player page URL>  → resolve the page's signed playlist
+//                                            and hand back a rewritten manifest
 
 const UPSTREAM_TIMEOUT_MS = 45_000;
 
@@ -19,8 +33,18 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Range, Content-Type",
 };
 
+const PLAYLIST_HEADERS = {
+  ...CORS_HEADERS,
+  "Content-Type": "application/vnd.apple.mpegurl",
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+};
+
 export async function GET(request: Request): Promise<Response> {
-  const rawTarget = new URL(request.url).searchParams.get("u");
+  const params = new URL(request.url).searchParams;
+  const rawEmbed = params.get("e");
+  if (rawEmbed) return relayEmbedPage(rawEmbed);
+
+  const rawTarget = params.get("u");
 
   let upstream: URL;
   try {
@@ -54,11 +78,7 @@ export async function GET(request: Request): Promise<Response> {
       const finalUrl = upstreamRes.url ? new URL(upstreamRes.url) : upstream;
       return new Response(rewriteHlsPlaylist(text, finalUrl), {
         status: upstreamRes.status,
-        headers: {
-          ...CORS_HEADERS,
-          "Content-Type": "application/vnd.apple.mpegurl",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
+        headers: PLAYLIST_HEADERS,
       });
     }
 
@@ -78,5 +98,43 @@ export async function GET(request: Request): Promise<Response> {
   } catch (error) {
     console.warn("[hls-proxy] upstream failed:", error);
     return new Response("Upstream stream unavailable", { status: 502 });
+  }
+}
+
+async function relayEmbedPage(rawPage: string): Promise<Response> {
+  let page: URL;
+  try {
+    page = new URL(rawPage);
+  } catch {
+    return new Response("Invalid player page", { status: 400 });
+  }
+  if (page.protocol !== "https:" || !isEmbedPlayerPage(page)) {
+    return new Response("Player page not allowed", { status: 403 });
+  }
+
+  const playlist = await resolveEmbedPlaylist(page);
+  if (!playlist) return new Response("Embed signal unavailable", { status: 503 });
+
+  try {
+    const upstreamRes = await fetch(playlist, {
+      headers: { "User-Agent": EMBED_USER_AGENT, Accept: "*/*" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (!upstreamRes.ok) {
+      return new Response("Embed playlist unavailable", {
+        status: upstreamRes.status === 404 ? 503 : upstreamRes.status,
+      });
+    }
+    const body = await upstreamRes.text();
+    const finalUrl = upstreamRes.url ? new URL(upstreamRes.url) : playlist;
+    return new Response(rewritePlaylistToAbsolute(body, finalUrl), {
+      status: 200,
+      headers: PLAYLIST_HEADERS,
+    });
+  } catch (error) {
+    console.warn("[hls-proxy] embed playlist failed:", error);
+    return new Response("Embed playlist unavailable", { status: 502 });
   }
 }

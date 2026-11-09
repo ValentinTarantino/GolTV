@@ -1,6 +1,8 @@
 import { createDecipheriv, createHash } from "node:crypto";
 import { matchTeamsPair } from "./team-matching";
 import { isMenFootballMatch } from "./constants";
+import { getCache, setCache } from "./cache";
+import { resolveEmbedChannels } from "./embed-resolver";
 import type { Channel } from "./types";
 
 type FeedMatch = {
@@ -66,6 +68,27 @@ export function parsePrimaryChannels(data: unknown, home: string, away: string):
 let cached: { config: string; data: unknown; expires: number } | undefined;
 let pending: { config: string; promise: Promise<unknown> } | undefined;
 
+const CHANNEL_CACHE_TTL = 60_000;
+
+/**
+ * Build (and briefly memoise) the playable channels for one fixture. Resolving
+ * the feed's frame-restricted wrappers to HLS costs one upstream round trip per
+ * signal, so the result is reused across the watch page's retries.
+ */
+async function buildChannels(
+  data: unknown,
+  home: string,
+  away: string,
+  config: string
+): Promise<Channel[]> {
+  const key = `primary-player:channels:${config}:${home.toLowerCase()}|${away.toLowerCase()}`;
+  const memo = await getCache<Channel[]>(key);
+  if (memo) return memo;
+  const channels = await resolveEmbedChannels(parsePrimaryChannels(data, home, away));
+  await setCache(key, channels, CHANNEL_CACHE_TTL);
+  return channels;
+}
+
 export async function findPrimaryStreams(home: string, away: string): Promise<Channel[]> {
   const url = process.env.PRIMARY_PLAYER_AGENDA_URL?.trim();
   if (!url || !home || !away) return [];
@@ -86,10 +109,10 @@ export async function findPrimaryStreams(home: string, away: string): Promise<Ch
         pending = { config, promise };
       }
       const current = pending;
-      try { return parsePrimaryChannels(await current.promise, home, away); }
+      try { return await buildChannels(await current.promise, home, away, config); }
       finally { if (pending === current) pending = undefined; }
     }
-    return parsePrimaryChannels(cached.data, home, away);
+    return await buildChannels(cached.data, home, away, config);
   } catch {
     console.warn("[primary-player] Source unavailable");
     return [];

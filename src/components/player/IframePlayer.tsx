@@ -16,8 +16,12 @@ export default function IframePlayer(props: IframePlayerProps) {
 }
 
 function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isPrimaryFeed = channel?.provider === "primary-feed";
+  // Player 1 plays through the bare-frame route, so its iframe is one of our
+  // own documents: no provider chrome and no brutalist border around it. The
+  // channel list stays outside this component and is unaffected.
+  const borderless = channel?.provider === "secondary-feed";
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [showTip, setShowTip] = useState(true);
@@ -29,6 +33,12 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
   // and some providers then reject. Only the two legacy exceptions need the
   // compatibility proxy.
   const getProxyUrl = (originalUrl: string) => {
+    // Player 1 publishes *scraped* channel pages. Serving those directly shows
+    // the scraper's white shell around the stream, so they go through the
+    // bare-frame route: black document + deepest player only.
+    if (channel?.provider === "secondary-feed") {
+      return `/api/secondary?u=${encodeURIComponent(originalUrl)}&lang=${language}`;
+    }
     if (originalUrl.includes("futbolvivo.tv") || originalUrl.includes("kora-plus.mov")) {
       return `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     }
@@ -99,7 +109,7 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
         </div>
       )}
       {!isPrimaryFeed && (
-        <div className="relative w-full aspect-video bg-black overflow-hidden border-4 border-white shadow-brutal">
+        <div className={`relative w-full aspect-video bg-black overflow-hidden${borderless ? "" : " border-4 border-white shadow-brutal"}`}>
         {!isPrimaryFeed && isLoading && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/60 z-10">
             <div className="flex flex-col items-center gap-3">
