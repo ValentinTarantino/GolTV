@@ -43,12 +43,26 @@ describe("/api/secondary bare frame", () => {
     else process.env.SECONDARY_PLAYER_WRAPPER_HOSTS = originalHosts;
   });
 
-  it("refuses hosts outside the agenda and wrapper allowlist", async () => {
-    const foreign = await GET(request("https://attacker.example/player.php"));
-    expect(foreign.status).toBe(403);
+  it("refuses insecure, loopback and intranet URLs", async () => {
+    for (const bad of [
+      "http://agenda.test/player.php",
+      "https://localhost/player.php",
+      "https://127.0.0.1/player.php",
+      "https://intranet/player.php",
+    ]) {
+      const res = await GET(request(bad));
+      expect(res.status).toBe(403);
+    }
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 
-    const insecure = await GET(request("http://agenda.test/player.php"));
-    expect(insecure.status).toBe(403);
+  it("frames an already-resolved player without resolving or fetching it", async () => {
+    const res = await GET(request("https://player.test/stream/75"));
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(body).toContain('<iframe src="https://player.test/stream/75"');
+    expect(body).toContain("background: #000");
     expect(global.fetch).not.toHaveBeenCalled();
   });
 

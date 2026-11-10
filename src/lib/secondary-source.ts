@@ -113,9 +113,35 @@ export function parseSecondaryAgenda(html: string, baseUrl = agendaUrl()): Secon
   return [...fixtures.values()];
 }
 
-async function fetchHtml(url: string, signal: AbortSignal): Promise<string> {
+const SECONDARY_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+interface FetchOptions {
+  /** Page that embeds this one; some providers gate their player on it. */
+  referer?: string;
+  /**
+   * Channel pages must look like a framed navigation. The blogspot step of the
+   * chain answers with an empty `post-body` unless the request advertises
+   * `Sec-Fetch-Dest: iframe`, which would hide the published player from us.
+   */
+  embedded?: boolean;
+}
+
+async function fetchHtml(url: string, signal: AbortSignal, options: FetchOptions = {}): Promise<string> {
+  const headers: Record<string, string> = {
+    "User-Agent": SECONDARY_USER_AGENT,
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+  };
+  if (options.embedded) {
+    headers["Sec-Fetch-Dest"] = "iframe";
+    headers["Sec-Fetch-Mode"] = "navigate";
+    headers["Sec-Fetch-Site"] = "cross-site";
+  }
+  if (options.referer) headers.Referer = options.referer;
+
   const response = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html,application/xhtml+xml" },
+    headers,
     cache: "no-store",
     // Do not follow arbitrary redirects beyond configured wrapper hosts.
     redirect: "error",
@@ -206,6 +232,10 @@ async function resolvePlayer(pageUrl: string, hosts: Set<string>): Promise<strin
   const key = cacheKey("player", [...hosts].sort().join(",") + "|" + pageUrl);
   return cached(key, async () => {
     let current = pageUrl;
+    // The wrapper chain is what a browser sees inside our iframe: each page is
+    // navigated as a framed document and carries the previous page as referer.
+    // The blogspot step publishes its player only under those conditions.
+    let referer: string | undefined;
     const visited = new Set<string>();
     const signal = AbortSignal.timeout(20000);
     for (let depth = 0; depth < 4; depth++) {
@@ -213,7 +243,9 @@ async function resolvePlayer(pageUrl: string, hosts: Set<string>): Promise<strin
       visited.add(current);
       const url = httpsUrl(current);
       if (!url || !hosts.has(url.host)) throw new Error("Invalid wrapper");
-      const next = extractSecondaryPlayer(await fetchHtml(current, signal), current);
+      const html = await fetchHtml(current, signal, { embedded: true, referer });
+      referer = current;
+      const next = extractSecondaryPlayer(html, current);
       if (!next) throw new Error("Player iframe missing");
       if (!hosts.has(new URL(next).host)) return next;
       current = next;

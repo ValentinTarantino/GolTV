@@ -86,6 +86,14 @@ function htmlResponse(body: string, language: "es" | "en"): NextResponse {
   });
 }
 
+/** Public https only: no loopback, private IPs or bare intranet names. */
+function isPublicHttps(url: URL): boolean {
+  if (url.protocol !== "https:") return false;
+  const host = url.hostname;
+  if (!host.includes(".") || host.startsWith("[") || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return false;
+  return true;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const params = new URL(request.url).searchParams;
   const raw = params.get("u") ?? "";
@@ -98,13 +106,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return new NextResponse("Invalid channel page", { status: 400 });
   }
 
-  // Only the configured agenda/wrapper hosts may be resolved here; anything
-  // else would turn this route into a general-purpose URL forwarder.
+  if (!isPublicHttps(page)) return new NextResponse("Channel host not allowed", { status: 403 });
+
+  // Most channel URLs reach us already resolved to the bare player (the match
+  // list resolves them server-side). Those only need a black document around
+  // the frame — nothing is fetched here, so this is not a forwarder.
   const hosts = secondaryHosts();
-  if (page.protocol !== "https:" || !(hosts.has(page.hostname) || hosts.has(page.host))) {
-    return new NextResponse("Channel host not allowed", { status: 403 });
+  if (!(hosts.has(page.hostname) || hosts.has(page.host))) {
+    return htmlResponse(playerFrame(page.href), language);
   }
 
+  // Wrapper-host pages still carry the scraper's shell: resolve the chain down
+  // to the deepest player before framing anything.
   const player = await resolveSecondaryPlayer(page.href, hosts);
   if (player) return htmlResponse(playerFrame(player), language);
 
