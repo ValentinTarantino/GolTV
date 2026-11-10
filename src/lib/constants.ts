@@ -11,6 +11,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   265: "https://media.api-sports.io/football/leagues/265.png",
   267: "https://media.api-sports.io/football/leagues/267.png",
   239: "https://media.api-sports.io/football/leagues/239.png",
+  240: "https://media.api-sports.io/football/leagues/240.png",
   71: "https://media.api-sports.io/football/leagues/71.png",
   73: "https://media.api-sports.io/football/leagues/73.png",
   281: "https://media.api-sports.io/football/leagues/281.png",
@@ -80,6 +81,7 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 267, name: "Copa Chile", country: "Chile", countryFlag: "🇨🇱", slug: "copa-chile", season: 2026 },
   // Colombia
   { id: 239, name: "Liga BetPlay", country: "Colombia", countryFlag: "🇨🇴", slug: "liga-betplay", season: 2026 },
+  { id: 240, name: "Copa Colombia", country: "Colombia", countryFlag: "🇨🇴", slug: "copa-colombia", season: 2026 },
   // Perú
   { id: 281, name: "Liga 1", country: "Perú", countryFlag: "🇵🇪", slug: "liga-1-peru", season: 2026 },
   // Ecuador
@@ -271,6 +273,8 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "colombian primera": 239,
   "colombian primera division": 239,
   "colombia primera division": 239,
+  "copa colombia": 240,
+  "copa colombia 2026": 240,
   "brasileirão serie a": 71,
   "brasileirao serie a": 71,
   "brasileirão": 71,

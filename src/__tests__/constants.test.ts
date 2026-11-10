@@ -45,6 +45,7 @@ describe("SUPPORTED_LEAGUES", () => {
     expect(colombia).toBeDefined();
     expect(colombia?.name).toBe("Liga BetPlay");
     expect(colombia?.country).toBe("Colombia");
+    expect(SUPPORTED_LEAGUES.find((l) => l.id === 240)?.name).toBe("Copa Colombia");
   });
 
   it("contains Liga 1 Peru", () => {
