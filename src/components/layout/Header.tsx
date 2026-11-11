@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Tv, Zap, Trophy } from "lucide-react";
+import { Tv, Zap, Trophy, Radio } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SearchBar from "@/components/search/SearchBar";
 import MobileMenu from "@/components/search/MobileMenu";
@@ -57,12 +57,20 @@ export default function Header() {
               <Trophy size={14} strokeWidth={3} />
               <span>{t.leagues?.title || "LIGAS"}</span>
             </Link>
+            <Link
+              href="/lpf"
+              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-accent-secondary bg-black shadow-[4px_4px_0px_0px_var(--color-accent-secondary)] font-black text-xs sm:text-sm text-white hover:text-accent-secondary transition-colors uppercase"
+              id="header-lpf-play"
+            >
+              <Radio size={14} strokeWidth={3} />
+              <span>{t.lpf?.nav || "LPF PLAY"}</span>
+            </Link>
             <TimeZoneSelect />
-            <div className="flex items-center border-2 border-[#38bdf8] bg-black shadow-[4px_4px_0px_0px_#38bdf8] font-black text-xs sm:text-sm">
+            <div className="flex items-center border-2 border-[#a3e635] bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm">
               <button
                 onClick={() => setLanguage('es')}
                 className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
-                  language === 'es' ? 'bg-[#38bdf8] text-black' : 'text-white hover:text-[#38bdf8]'
+                  language === 'es' ? 'bg-[#a3e635] text-black' : 'text-white hover:text-[#a3e635]'
                 }`}
               >
                 ES
@@ -70,7 +78,7 @@ export default function Header() {
               <button
                 onClick={() => setLanguage('en')}
                 className={`px-2 sm:px-3 py-1 sm:py-1.5 transition-colors ${
-                  language === 'en' ? 'bg-[#38bdf8] text-black' : 'text-white hover:text-[#38bdf8]'
+                  language === 'en' ? 'bg-[#a3e635] text-black' : 'text-white hover:text-[#a3e635]'
                 }`}
               >
                 EN

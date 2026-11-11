@@ -77,9 +77,9 @@ export default function TimeZoneSelect({ mobile = false }: TimeZoneSelectProps) 
         onClick={() => setIsOpen((open) => !open)}
         className={mobile
           ? "flex min-h-11 w-full items-center justify-between gap-3 border-2 border-black bg-accent-primary px-3 py-2 text-left text-sm font-black uppercase text-black shadow-brutal-sm transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-          : "flex h-9 max-w-[190px] items-center gap-2 border-2 border-[#38bdf8] bg-black px-2 text-left text-xs font-black uppercase text-white shadow-[4px_4px_0px_0px_#38bdf8] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"}
+          : "flex h-9 max-w-[190px] items-center gap-2 border-2 border-[#14b8a6] bg-black px-2 text-left text-xs font-black uppercase text-white shadow-[4px_4px_0px_0px_#14b8a6] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"}
       >
-        <Clock3 size={mobile ? 17 : 15} aria-hidden="true" className={`shrink-0 ${mobile ? "text-black" : "text-[#38bdf8]"}`} />
+        <Clock3 size={mobile ? 17 : 15} aria-hidden="true" className={`shrink-0 ${mobile ? "text-black" : "text-[#14b8a6]"}`} />
         <span className="min-w-0 flex-1 truncate">
           {mobile
             ? selectedOption && (language === "es" ? selectedOption.labelEs : selectedOption.labelEn)
