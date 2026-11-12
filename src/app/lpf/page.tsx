@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, Lightbulb, Radio, RefreshCw, Signal } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 
@@ -106,19 +106,20 @@ export default function LpfPlayPage() {
   return (
     <main className="min-h-screen">
       <section className="border-b-4 border-white bg-black/90 shadow-[0_6px_0_0_var(--color-accent-secondary)]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-3 py-6 sm:px-4 md:px-6 md:py-8">
-          <div className="flex items-center gap-2 text-accent-primary">
-            <Radio size={18} strokeWidth={3} />
-            <span className="text-[10px] font-black uppercase tracking-[0.25em] sm:text-xs">
-              {copy.badge}
-            </span>
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-3 py-6 sm:px-4 md:px-6 md:py-8">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex items-center gap-2 text-accent-primary">
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] sm:text-xs">
+                {copy.badge}
+              </span>
+            </div>
+            <h1 className="text-3xl font-black uppercase leading-none tracking-tight text-white sm:text-5xl">
+              {copy.title}
+            </h1>
+            <p className="max-w-2xl text-xs font-bold uppercase leading-relaxed text-gray-400 sm:text-sm">
+              {copy.subtitle}
+            </p>
           </div>
-          <h1 className="text-3xl font-black uppercase leading-none tracking-tight text-white sm:text-5xl">
-            {copy.title}
-          </h1>
-          <p className="max-w-2xl text-xs font-bold uppercase leading-relaxed text-gray-400 sm:text-sm">
-            {copy.subtitle}
-          </p>
         </div>
       </section>
 
@@ -126,12 +127,9 @@ export default function LpfPlayPage() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
-              <div className="flex items-center gap-2">
-                <Signal size={14} strokeWidth={3} className="text-accent-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
-                  {copy.nowPlaying}
-                </span>
-              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
+                {copy.nowPlaying}
+              </span>
               <span className="truncate text-xs font-black uppercase text-accent-primary sm:text-sm">
                 {activeChannel?.label ?? copy.noChannel}
               </span>
@@ -171,8 +169,7 @@ export default function LpfPlayPage() {
               role="note"
               className="border-4 border-accent-primary bg-black p-3 shadow-brutal sm:p-4"
             >
-              <div className="mb-1.5 flex items-center gap-2">
-                <Lightbulb size={15} strokeWidth={3} className="shrink-0 text-accent-primary" />
+              <div className="mb-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-accent-primary sm:text-xs">
                   {copy.helperTitle}
                 </span>
@@ -233,11 +230,8 @@ export default function LpfPlayPage() {
                       : "border-white bg-black text-white shadow-brutal"
                   }`}
                 >
-                  <span className="flex items-center gap-2">
-                    <Radio size={14} strokeWidth={3} className={isActive ? "text-black" : "text-accent-primary"} />
-                    <span className="text-xs font-black uppercase tracking-wide sm:text-sm">
-                      {channel.label}
-                    </span>
+                  <span className="text-xs font-black uppercase tracking-wide sm:text-sm">
+                    {channel.label}
                   </span>
                   {isActive ? (
                     <span className="flex items-center gap-1 text-[9px] font-black uppercase">

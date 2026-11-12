@@ -53,7 +53,8 @@ export const metadata: Metadata = {
     images: ["/api/og?home=Boca+Juniors&away=River+Plate&league=Liga+Profesional"],
   },
   icons: {
-    icon: "/icon.svg",
+    icon: "/goltv.png",
+    apple: "/goltv.png",
   },
   appleWebApp: {
     capable: true,

@@ -10,6 +10,7 @@ export interface PromiedosLeague {
 
 export const PROMIEDOS_LEAGUES: Record<number, PromiedosLeague> = {
   128: { urlName: "liga-profesional", id: "hc" },
+  129: { urlName: "primera-nacional", id: "ebj" },
   130: { urlName: "copa-argentina", id: "gea" },
   71: { urlName: "brasileirao-serie-a", id: "bbd" },
   73: { urlName: "copa-do-brasil", id: "bbf" },

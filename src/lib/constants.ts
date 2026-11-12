@@ -4,8 +4,9 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   9901: "https://www.messicup.com/media/mc-2026-title.svg",
   57: "https://media.api-sports.io/football/leagues/57.png",
   128: "https://media.api-sports.io/football/leagues/128.png",
+  129: "/primera-nacional.png",
   1032: "https://media.api-sports.io/football/leagues/1032.png",
-  1034: "https://i.pinimg.com/236x/86/c9/45/86c945abdba6c19321de0f20120c8c36.jpg",
+  1034: "/supercopa-argentina-dark.png",
   130: "https://r2.thesportsdb.com/images/media/league/badge/welbig1655924428.png",
   255: "/copa-primera-oficial.png",
   265: "https://media.api-sports.io/football/leagues/265.png",
@@ -65,9 +66,9 @@ const MESSI_CUP_LEAGUE: LeagueConfig = {
  * Libertadores/Sudamericana, y top Europa (Champions, Europa, La Liga, Premier).
  */
 export const SUPPORTED_LEAGUES: LeagueConfig[] = [
-  { id: 129, name: "Primera Nacional", country: "Argentina", countryFlag: "🇦🇷", slug: "primera-nacional", season: 2026 },
   // Argentina
   { id: 128, name: "Liga Profesional", country: "Argentina", countryFlag: "🇦🇷", slug: "liga-argentina", season: 2026 },
+  { id: 129, name: "Primera Nacional", country: "Argentina", countryFlag: "🇦🇷", slug: "primera-nacional", season: 2026 },
   { id: 130, name: "Copa Argentina", country: "Argentina", countryFlag: "🇦🇷", slug: "copa-argentina", season: 2026 },
   { id: 1034, name: "Supercopa Argentina", country: "Argentina", countryFlag: "🇦🇷", slug: "supercopa-argentina", season: 2026 },
   // Brasil
@@ -332,6 +333,10 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "concacaf champions league": 18,
   "uefa nations league": 5,
   "nations league uefa": 5,
+  // Some agendas shorten the UEFA competition to just "Nations League".
+  // Keep the generic label on UEFA; explicit CONCACAF labels are listed below.
+  "nations league": 5,
+  "liga de naciones": 5,
   "liga de naciones de la concacaf": 6,
   "concacaf nations league": 6,
   "leagues cup": 431,
@@ -437,6 +442,20 @@ const BOLIVIA_TEAMS = [
   "gv san jose", "independiente petrolero", "jorge wilstermann", "nacional potosi",
   "oriente petrolero", "real oruro", "real tomayapo", "royal pari", "san antonio bulo bulo",
   "the strongest", "totora real oruro", "universitario de vinto", "vaca diez", "wilstermann",
+];
+
+// National teams used by UEFA Nations League feeds that occasionally arrive
+// with a generic or incorrectly tagged competition name.
+const UEFA_NATIONS_TEAMS = [
+  "albania", "andorra", "armenia", "austria", "azerbaijan", "belarus", "belgium",
+  "bosnia and herzegovina", "bulgaria", "croatia", "cyprus", "czech republic", "czechia",
+  "denmark", "england", "estonia", "faroe islands", "finland", "france", "georgia",
+  "germany", "gibraltar", "greece", "hungary", "iceland", "ireland", "israel",
+  "italy", "kazakhstan", "kosovo", "latvia", "liechtenstein", "lithuania", "luxembourg",
+  "malta", "moldova", "montenegro", "netherlands", "north macedonia", "northern ireland",
+  "norway", "poland", "portugal", "romania", "russia", "san marino", "scotland",
+  "serbia", "slovakia", "slovenia", "spain", "sweden", "switzerland", "turkey",
+  "ukraine", "wales", "armenia", "chipre", "turquia", "belgica", "espana", "francia",
 ];
 
 const PARAGUAY_TEAMS = [
@@ -616,6 +635,11 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
   }
 
   const combinedTeams = normalizeText(`${homeTeam ?? ""} ${awayTeam ?? ""}`);
+  const isUefaNationsFixture = normalized.includes("nations league")
+    && UEFA_NATIONS_TEAMS.some((team) => combinedTeams.split(" ").join(" ").includes(team));
+  if (isUefaNationsFixture) {
+    return SUPPORTED_LEAGUES.find((league) => league.id === 5) ?? null;
+  }
   const hasItalianSerieAClub = [homeTeam, awayTeam]
     .some((team) => typeof team === "string" && isItalianSerieATeam(team));
   const isMislabelledEcuadorLeague = normalized === "liga pro"

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Tv, Zap, Trophy, Radio } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LpfPlayMark from "@/components/lpf/LpfPlayMark";
 import SearchBar from "@/components/search/SearchBar";
 import MobileMenu from "@/components/search/MobileMenu";
 import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
@@ -30,21 +31,17 @@ export default function Header() {
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-2 sm:gap-3 text-lg sm:text-2xl font-black tracking-tight transition-transform hover:-translate-y-1"
+            className="group flex items-center gap-1 sm:gap-2 font-black tracking-tight"
             id="header-logo"
           >
-            <div className="relative flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center bg-accent-primary border-4 border-black shadow-brutal-white">
-              <Tv size={20} strokeWidth={3} className="text-black" />
-              <div className="absolute -right-1.5 -top-1.5 sm:-right-2 sm:-top-2 flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center bg-accent-secondary border-2 border-white">
-                <Zap size={12} strokeWidth={3} className="text-white" />
-              </div>
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-white uppercase text-sm sm:text-base">GolTV</span>
-              <span className="text-accent-primary font-black text-xs sm:text-sm uppercase tracking-widest">
-                Libre
-              </span>
-            </div>
+            <LpfPlayMark className="h-10 w-[3.5rem] shrink-0 sm:h-16 sm:w-[5.35rem]" />
+            <span className="relative translate-y-[1px] whitespace-nowrap text-2xl sm:text-4xl font-black italic uppercase leading-none tracking-[-0.06em] text-white sm:translate-y-[4px]">
+              GOLTV <span className="text-accent-primary">LIBRE</span>
+              <span
+                aria-hidden
+                className="absolute inset-x-0 -bottom-1 h-[3px] sm:h-1 origin-left scale-x-0 bg-accent-primary transition-transform duration-300 ease-out group-hover:scale-x-100 motion-reduce:transition-none"
+              />
+            </span>
           </Link>
 
           {/* Desktop: Search + Leagues + Language */}
@@ -62,7 +59,6 @@ export default function Header() {
               className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-accent-secondary bg-black shadow-[4px_4px_0px_0px_var(--color-accent-secondary)] font-black text-xs sm:text-sm text-white hover:text-accent-secondary transition-colors uppercase"
               id="header-lpf-play"
             >
-              <Radio size={14} strokeWidth={3} />
               <span>{t.lpf?.nav || "LPF PLAY"}</span>
             </Link>
             <TimeZoneSelect />

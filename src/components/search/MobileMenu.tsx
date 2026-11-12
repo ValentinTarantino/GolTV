@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X, Search, Trophy, Radio } from "lucide-react";
+import { Menu, X, Search, Trophy } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import LpfPlayMark from "@/components/lpf/LpfPlayMark";
 import type { Match } from "@/lib/types";
 import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
 
@@ -150,7 +151,12 @@ export default function MobileMenu() {
               className="flex items-center justify-center gap-2 w-full py-2.5 bg-accent-secondary text-black border-2 border-black shadow-brutal-sm font-black text-sm uppercase"
               id="mobile-lpf-play"
             >
-              <Radio size={16} strokeWidth={3} />
+              <LpfPlayMark
+                className="h-4.5 w-6 shrink-0"
+                bodyColor="#000000"
+                screenColor="#ff00e6"
+                accentColor="#000000"
+              />
               <span>{t.lpf?.nav || "LPF PLAY"}</span>
             </Link>
           </div>

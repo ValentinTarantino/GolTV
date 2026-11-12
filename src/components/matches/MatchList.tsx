@@ -68,14 +68,14 @@ export default function MatchList({ matches }: MatchListProps) {
             id={`league-header-${group.leagueId}-${groupIndex}`}
           >
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className={`relative isolate h-10 w-10 flex-shrink-0 border-2 border-black shadow-brutal-sm sm:h-12 sm:w-12 ${group.leagueId === 9901 || group.leagueId === 268 || group.leagueId === 57 ? "bg-black" : "bg-white"}`}>
+              <div className={`relative isolate h-10 w-10 flex-shrink-0 border-2 border-black shadow-brutal-sm sm:h-12 sm:w-12 ${group.leagueId === 9901 || group.leagueId === 268 || group.leagueId === 57 || group.leagueId === 1034 ? "bg-black" : "bg-white"}`}>
               {group.leagueLogo ? (
                 <div className="absolute inset-1">
                   <Image
                     src={group.leagueLogo}
                     alt={group.leagueName}
                     fill
-                    className={`object-contain ${group.leagueId === 1034 ? 'mix-blend-multiply' : ''}`}
+                    className="object-contain"
                     sizes="32px"
                     unoptimized
                   />

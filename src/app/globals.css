@@ -40,6 +40,7 @@
   --animate-glow-blue: glow-pulse-blue 3s ease-in-out infinite;
   --animate-border-glow: border-glow 2s ease-in-out infinite;
   --animate-marquee: marquee 30s linear infinite;
+  --animate-ball-spin: ball-spin 6s linear infinite;
 
   @keyframes slide-up {
     from { opacity: 0; transform: translateY(20px); }
@@ -76,6 +77,10 @@
   @keyframes shadow-pulse {
     0%, 100% { opacity: 0.6; transform: scaleX(1); }
     50% { opacity: 0.3; transform: scaleX(0.5); }
+  }
+  @keyframes ball-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 }
 

@@ -495,6 +495,11 @@ describe("matchPlLeague", () => {
     expect(league?.name).toBe("UEFA Nations League");
   });
 
+  it("keeps European national teams in UEFA when the agenda mislabels the competition", () => {
+    expect(matchPlLeague("CONCACAF Nations League", "Armenia", "Cyprus")?.id).toBe(5);
+    expect(matchPlLeague("Nations League", "Turquía", "Bélgica")?.id).toBe(5);
+  });
+
   it("maps CONCACAF Nations League (Spanish agenda name)", () => {
     const league = matchPlLeague("Liga de Naciones de la CONCACAF");
     expect(league).not.toBeNull();

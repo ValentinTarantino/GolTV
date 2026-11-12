@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="12" fill="#ccff00"/>
-  <rect x="12" y="18" width="40" height="28" rx="4" fill="none" stroke="#000" stroke-width="3.5"/>
-  <line x1="22" y1="18" x2="18" y2="10" stroke="#000" stroke-width="3.5" stroke-linecap="round"/>
-  <line x1="42" y1="18" x2="46" y2="10" stroke="#000" stroke-width="3.5" stroke-linecap="round"/>
-  <rect x="26" y="46" width="12" height="4" rx="1" fill="#000"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path d="M128 66 72 24M128 66l56-42" stroke="#8cff00" stroke-width="13" stroke-linecap="round"/><circle cx="72" cy="24" r="16" fill="#aaff00"/><circle cx="184" cy="24" r="16" fill="#aaff00"/><path d="M43 70h170a30 30 0 0 1 30 30v87a30 30 0 0 1-30 30H43a30 30 0 0 1-30-30v-87a30 30 0 0 1 30-30Z" fill="#aaff00"/><rect x="43" y="91" width="127" height="105" rx="22" fill="#050505"/><path d="m58 108 80 0-80 57z" fill="#40531f"/><circle cx="197" cy="119" r="19" fill="#aaff00" stroke="#050505" stroke-width="8"/><circle cx="197" cy="174" r="19" fill="#aaff00" stroke="#050505" stroke-width="8"/><path d="m55 213-17 31h35l18-31M171 213l18 31h35l-17-31" fill="#8cff00"/></svg>

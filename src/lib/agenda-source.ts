@@ -12,7 +12,7 @@ const FL_EMBED_BASE = process.env.EMBED_SOURCE_BASE!;
 const FL_STREAM_CACHE_TTL = 30 * 60 * 1000;
 const FL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
 
-const FL_AGENDA_CACHE_KEY = "fl:agenda:v2";
+const FL_AGENDA_CACHE_KEY = "fl:agenda:v3";
 
 interface AgendaEmbed {
   id: string;
@@ -179,7 +179,12 @@ export async function fetchAgenda(): Promise<AgendaMatch[]> {
     const items: StrapiDiary[] = Array.isArray(json) ? json : json.data || [];
     const matches = parseStrapiAgenda(items);
 
-    await setCache(FL_AGENDA_CACHE_KEY, matches, FL_AGENDA_CACHE_TTL);
+    // Do not poison the five-minute cache with a transient empty/challenge
+    // response. The next request should retry the provider and recover the
+    // day's fixtures instead of showing an empty agenda until the TTL ends.
+    if (matches.length > 0) {
+      await setCache(FL_AGENDA_CACHE_KEY, matches, FL_AGENDA_CACHE_TTL);
+    }
     await releaseLock(lockKey);
     return matches;
   } catch (error) {
