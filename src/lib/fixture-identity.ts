@@ -78,6 +78,10 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   ublebrijana: "lebrijana",
   cusco: "cusco",
   cuscofc: "cusco",
+  // National-team feeds alternate the local and Spanish names for Türkiye.
+  // Treat them as one side so Turkey v Belgium cannot render twice.
+  turkiye: "turkey",
+  turquia: "turkey",
 };
 
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {

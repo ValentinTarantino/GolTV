@@ -21,6 +21,7 @@ describe("fixture identity", () => {
     [268, "Herediano", "CS Herediano"],
     [268, "Herediano", "C.S. Herediano"],
     [239, "C\u00facuta", "C\u00facuta Deportivo"],
+    [0, "Turqu\u00eda", "T\u00fcrkiye"],
   ])("canonicalizes provider names in league %s: %s / %s", (league, first, second) => {
     expect(canonicalTeamForDedup(first, league)).toBe(canonicalTeamForDedup(second, league));
   });
