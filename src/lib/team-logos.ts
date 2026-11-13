@@ -607,9 +607,17 @@ export async function getTeamLogo(teamName: string, country?: string): Promise<s
 }
 
 export function peekTeamLogo(teamName: string, country?: string): string | null {
+  const key = normalize(teamName);
+
+  // The local badge catalog contains a generic "Racing" entry (and Racing
+  // Santander). International fixtures using "Racing Club" refer to the
+  // Argentine club, so resolve it before the generic catalog lookup.
+  if ((key === "racing" || key === "racingclub") && country === "Internacional") {
+    return PROMIEDOS_BADGES.racingclub ?? null;
+  }
+
   const localBadge = getLocalTeamBadge(teamName, country);
   if (localBadge) return localBadge;
-  const key = normalize(teamName);
   if (!key) return null;
 
   if (key === "liverpool" && country === "Uruguay") {

@@ -130,6 +130,12 @@ describe("isAllowedStreamLeague", () => {
 });
 
 describe("getTeamLogo", () => {
+  it("uses Racing Club Argentina for international fixtures", () => {
+    expect(peekTeamLogo("Racing Club", "Internacional")).toBe(
+      "https://api.promiedos.com.ar/images/team/ihg/3"
+    );
+  });
+
   it("resolves Messi Cup academy team names to their club crests", async () => {
     const teams = [
       ["River Plate Academy", "https://api.promiedos.com.ar/images/team/igi/3"],
