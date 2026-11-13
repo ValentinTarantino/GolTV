@@ -35,8 +35,17 @@ export default function Header() {
             id="header-logo"
           >
             <LpfPlayMark className="h-10 w-[3.5rem] shrink-0 sm:h-16 sm:w-[5.35rem]" />
-            <span className="relative translate-y-[1px] whitespace-nowrap text-2xl sm:text-4xl font-black italic uppercase leading-none tracking-[-0.06em] text-white sm:translate-y-[4px]">
-              GOLTV <span className="text-accent-primary">LIBRE</span>
+            <span className="relative translate-y-[1px] whitespace-nowrap text-2xl sm:text-4xl font-black italic uppercase leading-none tracking-[-0.06em] sm:translate-y-[4px]">
+              <span
+                className="mr-0 inline-block overflow-visible bg-clip-text pr-[0.18em] text-transparent"
+                style={{
+                  backgroundImage: "linear-gradient(to bottom, #75AADB 0%, #75AADB 34%, #FFFFFF 34%, #FFFFFF 66%, #75AADB 66%, #75AADB 100%)",
+                  WebkitBackgroundClip: "text",
+                }}
+              >
+                GOLTV
+              </span>
+              <span className="text-accent-primary">LIBRE</span>
               <span
                 aria-hidden
                 className="absolute inset-x-0 -bottom-1 h-[3px] sm:h-1 origin-left scale-x-0 bg-accent-primary transition-transform duration-300 ease-out group-hover:scale-x-100 motion-reduce:transition-none"

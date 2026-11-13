@@ -31,6 +31,7 @@ function normalize(s: string): string {
 
 interface SeenFixture {
   date: string;
+  argentinaDate: string;
   timestamp: number;
   kickoffTime: string;
   id: number;
@@ -52,6 +53,7 @@ function findDuplicateFixture(
   const key = fixtureTeamPair(homeTeam, awayTeam, leagueId);
   // Use UTC date instead of Argentina date to avoid timezone issues
   const date = new Date(dateISO).toISOString().slice(0, 10);
+  const argentinaDate = toArgentinaDate(dateISO);
   const kickoffTime = new Date(dateISO).toLocaleTimeString("en-GB", {
     timeZone: "UTC",
     hour: "2-digit",
@@ -68,13 +70,14 @@ const duplicate = previous.find((fixture) => {
     // 2. Within 12 hours (cross-day matches)
     // 3. Within 36 hours with same kickoff time (same fixture reported on adjacent days)
     return fixture.date === date
+      || fixture.argentinaDate === argentinaDate
       || difference <= CROSS_DATE_DUPLICATE_WINDOW_MS
       || (difference <= SAME_FIXTURE_NEXT_DAY_WINDOW_MS
         && (fixture.id === id || fixture.kickoffTime === kickoffTime));
   });
   if (duplicate) return duplicate.index;
 
-  previous.push({ date, timestamp, kickoffTime, id, index });
+  previous.push({ date, argentinaDate, timestamp, kickoffTime, id, index });
   seenMatches.set(key, previous);
   return undefined;
 }
