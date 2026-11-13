@@ -33,10 +33,30 @@ export default function MatchList({ matches }: MatchListProps) {
     );
   }
 
+  // Final UI guard for provider duplicates. Sources can occasionally return
+  // the same fixture with different ids or ISO offsets; the visible fixture
+  // identity is the league, Argentina-local date, and unordered team pair.
+  const seenFixtures = new Set<string>();
+  const uniqueMatches = matches.filter((match) => {
+    const normalize = (value: string) => value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    const localDate = new Date(match.date).toLocaleDateString("en-CA", {
+      timeZone: "America/Argentina/Buenos_Aires",
+    });
+    const teams = [normalize(match.homeTeam.name), normalize(match.awayTeam.name)].sort();
+    const key = `${match.league.id}:${localDate}:${teams.join(":")}`;
+    if (seenFixtures.has(key)) return false;
+    seenFixtures.add(key);
+    return true;
+  });
+
   const groups: LeagueGroup[] = [];
   const groupMap = new Map<string, LeagueGroup>();
 
-  for (const match of matches) {
+  for (const match of uniqueMatches) {
     const key = `${match.league.id}:${match.league.slug || match.league.name}`;
     let group = groupMap.get(key);
     if (!group) {
