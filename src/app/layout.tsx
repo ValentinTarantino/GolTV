@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"),
-  title: "GolTV Libre — Fútbol en vivo gratis",
+  title: "GolTV Libre - Fútbol en vivo gratis",
   description:
     "Mirá partidos de fútbol en vivo gratis. Liga Argentina, Copa Libertadores, Brasileirão, Liga MX y toda Latinoamérica. Sin registro, sin pagos.",
   keywords: [
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     "goltv",
   ],
   openGraph: {
-    title: "GolTV Libre — Fútbol en vivo gratis",
+    title: "GolTV Libre - Fútbol en vivo gratis",
     description: "Mirá partidos de fútbol en vivo gratis. Todas las ligas de Latinoamérica.",
     type: "website",
     images: [
@@ -42,13 +42,13 @@ export const metadata: Metadata = {
         url: "/api/og?home=Boca+Juniors&away=River+Plate&league=Liga+Profesional",
         width: 1200,
         height: 630,
-        alt: "GolTV Libre — Fútbol en vivo gratis",
+        alt: "GolTV Libre - Fútbol en vivo gratis",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "GolTV Libre — Fútbol en vivo gratis",
+    title: "GolTV Libre - Fútbol en vivo gratis",
     description: "Mirá partidos de fútbol en vivo gratis. Todas las ligas de Latinoamérica.",
     images: ["/api/og?home=Boca+Juniors&away=River+Plate&league=Liga+Profesional"],
   },

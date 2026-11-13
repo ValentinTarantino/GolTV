@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ matchId: 
   const home = match.homeTeam.name;
   const away = match.awayTeam.name;
   const league = match.league.name;
-  const title = `${home} vs ${away} — ${league} | GolTV Libre`;
+  const title = `${home} vs ${away} - ${league} | GolTV Libre`;
   const description = `Mirá ${home} vs ${away} de ${league} en vivo gratis en GolTV Libre.`;
 
   const ogImageUrl = new URL("/api/og", process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000");

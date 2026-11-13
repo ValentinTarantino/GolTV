@@ -77,7 +77,7 @@ function WatchPageInner({
   useEffect(() => {
     if (!isLoading) {
       if (match) {
-        document.title = `${match.homeTeam.name} vs ${match.awayTeam.name} — ${match.league.name} | GolTV Libre`;
+        document.title = `${match.homeTeam.name} vs ${match.awayTeam.name} - ${match.league.name} | GolTV Libre`;
       } else {
         document.title = "GolTV";
       }

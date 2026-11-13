@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
               letterSpacing: "1px",
             }}
           >
-            GolTV Libre — Fútbol en vivo gratis
+            GolTV Libre - Fútbol en vivo gratis
           </span>
         </div>
 
