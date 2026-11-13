@@ -82,6 +82,16 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   // Treat them as one side so Turkey v Belgium cannot render twice.
   turkiye: "turkey",
   turquia: "turkey",
+  moldova: "moldova",
+  moldavia: "moldova",
+  kazakhstan: "kazakhstan",
+  kazajistan: "kazakhstan",
+  scotland: "scotland",
+  escocia: "scotland",
+  northmacedonia: "northmacedonia",
+  macedoniadelnorte: "northmacedonia",
+  fyrmacedonia: "northmacedonia",
+  macedoniadelfyr: "northmacedonia",
 };
 
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {

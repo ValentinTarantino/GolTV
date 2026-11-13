@@ -579,6 +579,10 @@ describe("matchPlLeague", () => {
     expect(matchPlLeague("Liga AUF Uruguaya", "Wanderers", "Boston River")?.id).toBe(268);
   });
 
+  it("keeps Racing Club Argentina with a Chilean opponent out of Uruguay", () => {
+    expect(matchPlLeague("Primera División", "Colo-Colo", "Racing Club")?.id).toBe(265);
+  });
+
   it("excludes Bolivian league fixtures mislabeled as Uruguay", () => {
     expect(matchPlLeague("Liga AUF Uruguaya", "Universitario de Vinto", "Real Oruro")).toBeNull();
     expect(matchPlLeague("Liga AUF Uruguaya", "Oriente Petrolero", "ABB")).toBeNull();

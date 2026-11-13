@@ -22,6 +22,10 @@ describe("fixture identity", () => {
     [268, "Herediano", "C.S. Herediano"],
     [239, "C\u00facuta", "C\u00facuta Deportivo"],
     [0, "Turqu\u00eda", "T\u00fcrkiye"],
+    [0, "Moldova", "Moldavia"],
+    [0, "Kazakhstan", "Kazajist\u00e1n"],
+    [0, "Scotland", "Escocia"],
+    [0, "North Macedonia", "FYR Macedonia"],
   ])("canonicalizes provider names in league %s: %s / %s", (league, first, second) => {
     expect(canonicalTeamForDedup(first, league)).toBe(canonicalTeamForDedup(second, league));
   });

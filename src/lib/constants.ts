@@ -702,6 +702,13 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
   const isAmbiguousLeague = AMBIGUOUS_PRIMERA_LEAGUES.some(l => normalized.includes(l));
   
   if (isAmbiguousLeague && (homeTeam || awayTeam)) {
+    // A Chilean club takes precedence over generic Uruguay aliases such as
+    // "Racing"; this prevents Colo-Colo vs Racing Club (Argentina) from
+    // being routed to the Uruguayan competition.
+    if (hasChileanClub) {
+      return SUPPORTED_LEAGUES.find((l) => l.id === 265) ?? null;
+    }
+
     const isParaguayMatch = PARAGUAY_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
     if (isParaguayMatch) {
       return SUPPORTED_LEAGUES.find((l) => l.id === 255) ?? null;
