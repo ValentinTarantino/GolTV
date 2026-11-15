@@ -49,3 +49,6 @@ next-env.d.ts
 # scratch
 /promiedos.html
 /scratch_fetch.js
+
+# local dev server log
+devserver.log

@@ -38,6 +38,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   18: "https://upload.wikimedia.org/wikipedia/commons/d/da/CONCACAF_Champions_Cup.png",
   6: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRekCc8DUZqEyM2shv_jyJrNoJ65Ao6ybVRgZQ1-sn6Q&s",
   431: "https://media.api-sports.io/football/leagues/431.png",
+  10: "https://media.api-sports.io/football/leagues/10.png",
 };
 
 export function getLeagueLogo(leagueId: number): string {

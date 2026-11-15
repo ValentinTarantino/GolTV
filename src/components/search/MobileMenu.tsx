@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X, Search, Trophy } from "lucide-react";
+import { Menu, X, Search, Radio, Trophy, Tv } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -73,7 +73,7 @@ export default function MobileMenu() {
   );
 
   return (
-    <div className="md:hidden">
+    <div className="xl:hidden">
       <button
         onClick={() => setIsOpen(true)}
         className="flex h-8 w-8 items-center justify-center text-white border-2 border-white bg-black shadow-brutal-sm hover:bg-white hover:text-black transition-colors"
@@ -150,7 +150,20 @@ export default function MobileMenu() {
               className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#00d4ff] text-black border-2 border-black shadow-[4px_4px_0px_0px_#fff] font-black text-sm uppercase"
               id="mobile-lpf-play"
             >
+              <Radio size={16} strokeWidth={3} />
               <span>{t.lpf?.nav || "LPF PLAY"}</span>
+            </Link>
+          </div>
+
+          <div className="px-4 py-3 border-b-2 border-white">
+            <Link
+              href="/canales"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#a3e635] text-black border-2 border-black shadow-[4px_4px_0px_0px_#fff] font-black text-sm uppercase"
+              id="mobile-canales"
+            >
+              <Tv size={16} strokeWidth={3} />
+              <span>{t.canales?.nav || "CANALES"}</span>
             </Link>
           </div>
 

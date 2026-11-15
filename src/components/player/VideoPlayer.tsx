@@ -6,6 +6,7 @@ import { Play, Pause, Maximize, Volume2, VolumeX, AlertCircle, RefreshCw, Settin
 import { useLanguage } from "@/contexts/LanguageContext";
 import FootballLoader from "@/components/ui/FootballLoader";
 import IframePlayer from "./IframePlayer";
+import DashPlayer from "./DashPlayer";
 import type { IframeChannelBridgeProps } from "./useIframeChannelBridge";
 
 interface HlsPlayerProps {
@@ -13,6 +14,8 @@ interface HlsPlayerProps {
   title?: string;
   headers?: Record<string, string>;
   borderlessFullscreen?: boolean;
+  /** Starts on the light rendition so the first picture arrives right away. */
+  preferFastStart?: boolean;
 }
 
 interface QualityLevelInfo {
@@ -49,11 +52,13 @@ function levelLabel(level: QualityLevelInfo): string {
   return `L${level.index + 1}`;
 }
 
-function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPlayerProps) {
+function HlsPlayer({ url, title, headers, borderlessFullscreen = false, preferFastStart = false }: HlsPlayerProps) {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const reloadAttemptsRef = useRef(0);
+  const userMutedRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -65,7 +70,17 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
   const [activeLevel, setActiveLevel] = useState(-1);
   const [autoLevel, setAutoLevel] = useState(true);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const manualLevelRef = useRef(-1);
+
+  useEffect(() => {
+    const updateFullscreen = () => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current);
+    };
+    document.addEventListener("fullscreenchange", updateFullscreen);
+    updateFullscreen();
+    return () => document.removeEventListener("fullscreenchange", updateFullscreen);
+  }, []);
 
   useEffect(() => {
     if (!showQualityMenu) return;
@@ -104,9 +119,12 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
+        // The low latency mode asks the origin for the parts of a segment and
+        // each of those requests blocks for about a second; on a live edge that
+        // is the difference between a picture in one second and a black screen.
+        lowLatencyMode: !preferFastStart,
         // Start optimistic so the ABR picks a high rendition on the first manifest
-        abrEwmaDefaultEstimate: 5_000_000,
+        abrEwmaDefaultEstimate: preferFastStart ? 900_000 : 5_000_000,
         maxBufferLength: 45,
         maxMaxBufferLength: 120,
         // Some live edges answer playlist reloads in 10-20s under load; the
@@ -148,6 +166,12 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
       const savedHeight = readSavedQualityHeight();
       let mediaErrorRetries = 0;
       let networkErrorRetries = 0;
+      // A brand new session usually lands on another edge of the CDN, which is
+      // what made a manual reload work; the player now does it on its own.
+      reloadAttemptsRef.current = 0;
+      // The stream may start with a broken audio frame; the sound is muted
+      // until the first picture is on screen.
+      video.muted = true;
 
       hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
         setIsLoading(false);
@@ -172,6 +196,11 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
             hls.startLevel = topIndex;
             setAutoLevel(true);
           }
+        } else if (preferFastStart) {
+          // The light rendition is a fraction of the size, so the picture
+          // shows up in a second instead of after the whole first segment.
+          hls.startLevel = 0;
+          setAutoLevel(true);
         } else {
           hls.startLevel = topIndex;
           setAutoLevel(true);
@@ -205,6 +234,18 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
           // Retry with backoff before surfacing the error screen
           if (networkErrorRetries >= 3 || hlsRef.current !== hls) {
+            // After the soft retries fail, a whole new session is opened:
+            // the CDN rotates its edges and the same source usually answers.
+            if (reloadAttemptsRef.current < 2) {
+              reloadAttemptsRef.current++;
+              setTimeout(() => {
+                if (hlsRef.current !== hls) return;
+                hls.destroy();
+                hlsRef.current = null;
+                setRetryToken((n) => n + 1);
+              }, 1200 * reloadAttemptsRef.current);
+              return;
+            }
             setHasError(true);
             setIsLoading(false);
             return;
@@ -241,7 +282,7 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
         hlsRef.current = null;
       }
     };
-  }, [url, headers, retryToken]);
+  }, [url, headers, retryToken, preferFastStart]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -249,13 +290,28 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
 
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
+    // The icon follows the element, including the automatic mute that waits
+    // for the first picture.
+    const onVolumeChange = () => setIsMuted(video.muted);
+    // The sound comes back once there is a picture to look at.
+    const onFirstFrame = () => {
+      if (userMutedRef.current) return;
+      video.muted = false;
+      setIsMuted(false);
+    };
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
+    video.addEventListener("volumechange", onVolumeChange);
+    video.addEventListener("loadeddata", onFirstFrame);
+    video.addEventListener("playing", onFirstFrame);
 
     return () => {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
+      video.removeEventListener("volumechange", onVolumeChange);
+      video.removeEventListener("loadeddata", onFirstFrame);
+      video.removeEventListener("playing", onFirstFrame);
     };
   }, []);
 
@@ -285,6 +341,7 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
     const video = videoRef.current;
     if (!video) return;
     video.muted = !video.muted;
+    userMutedRef.current = video.muted;
     setIsMuted(video.muted);
   };
 
@@ -317,7 +374,9 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
   return (
     <div
       ref={containerRef}
-      className={`relative w-full aspect-video bg-black overflow-hidden border-3 sm:border-4 border-white shadow-brutal group cursor-pointer${
+      className={`relative w-full aspect-video overflow-hidden bg-black group cursor-pointer ${
+        isFullscreen ? "border-0 shadow-none" : "border-3 sm:border-4 border-white shadow-brutal"
+      }${
         borderlessFullscreen ? " player-four-video" : ""
       }`}
       onMouseMove={() => setShowControls(true)}
@@ -419,7 +478,7 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {levels.length > 1 && (
+            {levels.length > 0 && (
               <div className="relative">
                 <button
                   onClick={(e) => {
@@ -477,16 +536,14 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false }: HlsPla
                 )}
               </div>
             )}
-
+            <button
+              onClick={toggleFullscreen}
+              className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10"
+              id="player-fullscreen"
+            >
+              <Maximize size={14} strokeWidth={3} />
+            </button>
           </div>
-
-          <button
-            onClick={toggleFullscreen}
-            className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10"
-            id="player-fullscreen"
-          >
-            <Maximize size={14} strokeWidth={3} />
-          </button>
         </div>
       </div>
     </div>
@@ -496,14 +553,29 @@ interface VideoPlayerProps extends IframeChannelBridgeProps {
   url: string;
   title?: string;
   headers?: Record<string, string>;
-  kind?: "hls" | "iframe";
+  kind?: "hls" | "dash" | "iframe";
   borderlessFullscreen?: boolean;
+  /** ClearKey material for encrypted DASH channels. */
+  clearKey?: { kid: string; key: string } | null;
+  /** Starts on the light rendition so the first picture arrives right away. */
+  preferFastStart?: boolean;
 }
 
-export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen, channel, onChannels }: VideoPlayerProps) {
+export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen, channel, onChannels, clearKey, preferFastStart }: VideoPlayerProps) {
   if (kind === "iframe") {
     return <IframePlayer url={url} title={title} channel={channel} onChannels={onChannels} />;
   }
-  return <HlsPlayer url={url} title={title} headers={headers} borderlessFullscreen={borderlessFullscreen} />;
+  if (kind === "dash") {
+    return <DashPlayer url={url} title={title} clearKey={clearKey ?? null} />;
+  }
+  return (
+    <HlsPlayer
+      url={url}
+      title={title}
+      headers={headers}
+      borderlessFullscreen={borderlessFullscreen}
+      preferFastStart={preferFastStart}
+    />
+  );
 }
 

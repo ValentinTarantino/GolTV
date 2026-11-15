@@ -105,24 +105,6 @@ export default function LpfPlayPage() {
 
   return (
     <main className="min-h-screen">
-      <section className="border-b-4 border-white bg-black/90 shadow-[0_6px_0_0_var(--color-accent-secondary)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-3 py-6 sm:px-4 md:px-6 md:py-8">
-          <div className="flex min-w-0 flex-col gap-3">
-            <div className="flex items-center gap-2 text-accent-primary">
-              <span className="text-[10px] font-black uppercase tracking-[0.25em] sm:text-xs">
-                {copy.badge}
-              </span>
-            </div>
-            <h1 className="text-3xl font-black uppercase leading-none tracking-tight text-white sm:text-5xl">
-              {copy.title}
-            </h1>
-            <p className="max-w-2xl text-xs font-bold uppercase leading-relaxed text-gray-400 sm:text-sm">
-              {copy.subtitle}
-            </p>
-          </div>
-        </div>
-      </section>
-
       <section className="mx-auto max-w-7xl px-3 py-7 sm:px-4 md:px-6 md:py-10">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex flex-col gap-4">
