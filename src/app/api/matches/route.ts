@@ -161,6 +161,10 @@ export async function GET(request: NextRequest) {
     ...eventAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, fixtureStatus: undefined, hasStreams: entry.sources.length > 0 })),
     ...playerFiveAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, fixtureStatus: undefined, preferredPlayer: "5" as const })),
   ];
+  console.log("[matches] Player 5 agenda entries:", playerFiveAgenda.length);
+  if (playerFiveAgenda.length > 0) {
+    console.log("[matches] Player 5 first entry:", JSON.stringify(playerFiveAgenda[0], null, 2));
+  }
   const seenMatches = new Map<string, SeenFixture[]>();
   const matches: Match[] = [];
 
