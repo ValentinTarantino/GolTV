@@ -11,8 +11,9 @@ it("imports only Primera Nacional fixtures with playable options and Argentina d
     { ...event, fecha: "invalid" }, { ...event, canales: [] }, null] });
   expect(result).toHaveLength(1);
   expect(result[0]).toMatchObject({ homeTeam: "Quilmes", awayTeam: "Chacarita", league: "Primera Nacional", dateISO: "2026-11-04T02:30:00.000Z" });
+  // Test competencia field variations
   for (const competencia of ["B Nacional", "Primera B Nacional", "Nacional B", "Primera Nacional Argentina"]) {
-    expect(parsePlayerFiveAgenda({ events: [{ ...event, competencia }] })).toHaveLength(1);
+    expect(parsePlayerFiveAgenda({ events: [{ ...event, evento: "Match: A vs B", competencia }] })).toHaveLength(1);
   }
   expect(parsePlayerFiveAgenda(null)).toEqual([]);
 });

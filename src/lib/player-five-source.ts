@@ -9,9 +9,15 @@ export function parsePlayerFiveAgenda(data: unknown) {
   if (!Array.isArray(events)) return [];
   return events.flatMap((event) => {
     if (typeof event?.evento !== "string" || typeof event.fecha !== "string") return [];
-    const competition = (event.competencia || event.evento.split(":")[0])
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    if (!/^(?:Argentina\s*[-:]?\s*)?(?:Primera (?:B )?Nacional|B Nacional|Nacional B)(?:\s+(?:Argentina|\(Argentina\)|\d{4}))*$/i.test(competition)) return [];
+    // Prioritize competencia field if present, otherwise use event name prefix
+    const competition = event.competencia
+      ? event.competencia.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+      : event.evento.split(":")[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    // Check if it's Primera Nacional (not Femenina, not Metropolitana)
+    const isPrimeraNacional = /^(?:Argentina\s*[-:]?\s*)?(?:Primera (?:B )?Nacional|B Nacional|Nacional B)(?:\s+(?:Argentina|\(Argentina\)|\d{4}))*$/i.test(competition)
+      && !/femenina/i.test(competition)
+      && !/metropolitana/i.test(competition);
+    if (!isPrimeraNacional) return [];
     const teams = event.evento.replace(/^.*:\s*/, "").split(/\s+vs\.?\s+/i).map(team => team.trim());
     if (teams.length !== 2 || teams.some(team => !team)) return [];
     // The feed publishes Argentina wall-clock times without a timezone.
