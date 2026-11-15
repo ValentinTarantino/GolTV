@@ -183,7 +183,12 @@ export async function GET(request: NextRequest) {
       league: cleanAgendaText(raw.league),
     };
     if (!isMenFootballMatch(entry.league, entry.homeTeam, entry.awayTeam)) continue;
-    if (!(toArgentinaDate(entry.dateISO) === date || isNearNow(entry.dateISO))) continue;
+    const argDate = toArgentinaDate(entry.dateISO);
+    const isDateMatch = argDate === date || isNearNow(entry.dateISO);
+    if ("preferredPlayer" in entry && entry.preferredPlayer === "5") {
+      console.log("[matches] Player 5 fixture:", entry.homeTeam, "vs", entry.awayTeam, "| argDate:", argDate, "| target date:", date, "| isNearNow:", isNearNow(entry.dateISO), "| isDateMatch:", isDateMatch);
+    }
+    if (!isDateMatch) continue;
     const league = "preferredPlayer" in entry
       ? SUPPORTED_LEAGUES.find(league => league.id === 129)
       : classifyAgendaLeague(entry.league, entry.homeTeam, entry.awayTeam);
