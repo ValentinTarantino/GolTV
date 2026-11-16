@@ -19,6 +19,12 @@ import { getCache, setCache } from "./cache";
 const LIST_TTL = 60 * 1000;
 const STREAM_TTL = 30 * 1000;
 const FETCH_TIMEOUT_MS = 20 * 1000;
+/** A match the provider closed keeps the "live" badge while its broadcast can still run. */
+const FINISHED_GRACE_MS = 3 * 60 * 60 * 1000;
+/** Matches that vanish from the providers stay listed and playable this long. */
+const RECENT_TTL = 90 * 60 * 1000;
+/** A vanished "live" match keeps the badge for this long, then shows finished. */
+const LIVE_GRACE_MS = 45 * 60 * 1000;
 
 const SPORTPLUS_API = process.env.SPORTPLUS_API?.trim() || "https://apisplus.live/v3.1";
 const SPORTPLUS_SITE = process.env.SPORTPLUS_SITE?.trim() || "https://es.sportplus.watch";
@@ -163,6 +169,19 @@ function statusOf(status: string | undefined, start: string): LpfMatch["status"]
   const time = new Date(start).getTime();
   if (!Number.isNaN(time) && time < Date.now()) return "finished";
   return "upcoming";
+}
+
+/**
+ * The provider closes the match at the scheduled end, but the broadcast —
+ * and extra time — keeps running: a recently started match that reports
+ * finished is still shown as live.
+ */
+function sportplusStatus(item: SportplusItem): LpfMatch["status"] {
+  const status = statusOf(item.status, item.start ?? "");
+  if (status !== "finished") return status;
+  const start = item.start ? new Date(item.start).getTime() : NaN;
+  if (!Number.isNaN(start) && Date.now() < start + FINISHED_GRACE_MS) return "live";
+  return "finished";
 }
 
 /* ------------------------------------------------------------------ *
@@ -458,7 +477,7 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
         homePk: item.home?.pk_id,
         awayPk: item.away?.pk_id,
         start,
-        status: statusOf(item.status, item.start ?? ""),
+        status: sportplusStatus(item),
       });
     }
   }
@@ -488,6 +507,40 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
       status: statusOf(undefined, instant),
     });
   }
+
+  // Matches the providers drop stay listed for a while: their stream usually
+  // outlives the agenda entry. The store lives in the shared cache so the
+  // resolver keeps finding the reference.
+  const now = Date.now();
+  const storeKey = "lpf:recent:v1";
+  const stored = (await getCache<Record<string, { match: LpfMatch; ref: MatchRef; seenAt: number }>>(storeKey)) ?? {};
+  const freshIds = new Set(matches.map((match) => match.id));
+
+  for (const [id, entry] of Object.entries(stored)) {
+    if (freshIds.has(id)) continue;
+    const age = now - entry.seenAt;
+    if (age > RECENT_TTL) continue;
+    const status =
+      entry.match.status === "live"
+        ? age <= LIVE_GRACE_MS
+          ? "live"
+          : "finished"
+        : entry.match.status;
+    matches.push({ ...entry.match, status });
+    refs.set(id, entry.ref);
+  }
+
+  const next: Record<string, { match: LpfMatch; ref: MatchRef; seenAt: number }> = {};
+  for (const match of matches) {
+    const ref = refs.get(match.id);
+    if (!ref) continue;
+    next[match.id] = {
+      match,
+      ref,
+      seenAt: freshIds.has(match.id) ? now : (stored[match.id]?.seenAt ?? now),
+    };
+  }
+  await setCache(storeKey, next, RECENT_TTL + 60 * 1000);
 
   matches.sort((a, b) => {
     if (a.status !== b.status) return a.status === "live" ? -1 : b.status === "live" ? 1 : 0;
