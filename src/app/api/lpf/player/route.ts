@@ -20,7 +20,10 @@ export async function GET(request: Request): Promise<Response> {
   } catch {
     allowed = false;
   }
-  if (!allowed) return new Response("Player host not allowed", { status: 403 });
+  if (!allowed) {
+    console.warn(`[lpf] player host rejected: ${new URL(target).hostname}`);
+    return new Response("Player host not allowed", { status: 403 });
+  }
 
   const html = `<!DOCTYPE html>
 <html lang="es">

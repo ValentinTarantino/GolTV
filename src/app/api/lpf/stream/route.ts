@@ -1,6 +1,7 @@
 import { isLpfStreamHost, openLpfUrl, rewriteLpfPlaylist } from "@/lib/lpf-play";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Anonymous relay for LPF Play.
@@ -34,6 +35,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const upstream = new URL(target);
   if (!isLpfStreamHost(upstream)) {
+    console.warn(`[lpf] stream host rejected: ${upstream.hostname}`);
     return new Response("Stream host not allowed", { status: 403 });
   }
 

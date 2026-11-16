@@ -1,6 +1,7 @@
 import { resolveLpfStream, sealLpfUrl } from "@/lib/lpf-play";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const NOT_FOUND_HEADERS = { "Cache-Control": "no-store, no-cache, must-revalidate" };
 

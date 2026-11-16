@@ -2,6 +2,7 @@ import { badgeNameFor, listLpfMatches } from "@/lib/lpf-matches";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Matches of the "LPF Play" section.

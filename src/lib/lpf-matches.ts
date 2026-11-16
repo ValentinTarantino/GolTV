@@ -322,8 +322,8 @@ function splitTeams(event: string): [string, string] {
   return [clean, clean];
 }
 
-/** The date of an angulismo event, already in Argentina time. */
-function eventDate(event: AngulismoEvent): string {
+/** Parses the date fields of an angulismo event into a real instant. */
+function parseEventDate(event: AngulismoEvent): { raw: string; date: Date | null } {
   const raw = (
     event.start ??
     event.date ??
@@ -331,11 +331,18 @@ function eventDate(event: AngulismoEvent): string {
     event.fecha ??
     ""
   ).trim();
-  if (!raw) return "";
+  if (!raw) return { raw, date: null };
   const iso = raw.replace(" ", "T");
   const zoned = /(?:Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}-03:00`;
   const date = new Date(zoned);
-  if (Number.isNaN(date.getTime())) return raw;
+  return { raw, date: Number.isNaN(date.getTime()) ? null : date };
+}
+
+/** The date of an angulismo event, already in Argentina time. */
+function eventDate(event: AngulismoEvent): string {
+  const { raw, date } = parseEventDate(event);
+  if (!raw) return "";
+  if (!date) return raw;
   return toArgentina(date.toISOString());
 }
 
@@ -427,6 +434,9 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
     if (!title) continue;
     const [home, away] = splitTeams(title);
     const start = eventDate(event);
+    // `start` is wall-clock Argentina time for display; the status needs the
+    // real instant, three hours ahead.
+    const instant = parseEventDate(event).date?.toISOString() ?? "";
     const ref: MatchRef = {
       source: "angulismo",
       competitionId: "primera-nacional",
@@ -441,7 +451,7 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
       home,
       away,
       start,
-      status: statusOf(undefined, start),
+      status: statusOf(undefined, instant),
     });
   }
 

@@ -2,6 +2,7 @@ import { lpfRelayUrl, sealLpfUrl } from "@/lib/lpf-play";
 import { resolveLpfMatchStream } from "@/lib/lpf-matches";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Resolves one match of the section to its player.

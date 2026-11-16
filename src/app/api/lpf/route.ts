@@ -1,6 +1,7 @@
 import { listLpfChannels } from "@/lib/lpf-play";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * LPF Play channel list.
