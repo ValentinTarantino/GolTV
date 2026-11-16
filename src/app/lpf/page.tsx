@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
-import { liveFootballPlaylistClient, sportplusPlaylistClient } from "@/lib/lpf-client";
+import { AlertCircle, ExternalLink, RefreshCw } from "lucide-react";
 
 interface LpfMatch {
   id: string;
@@ -22,6 +21,9 @@ interface LpfMatch {
 
 type ListState = "loading" | "ready" | "error";
 type StreamState = "loading" | "ready" | "error";
+
+/** Public site of the sportplus provider; its player only runs on its own origin. */
+const SPORTPLUS_SITE = "https://es.sportplus.watch";
 
 /** The kickoff arrives in Argentina time, so it is rendered as UTC. */
 function formatTime(start: string): string {
@@ -108,44 +110,29 @@ export default function LpfPlayPage() {
     const match = matches.find((candidate) => candidate.id === activeId) ?? null;
     let cancelled = false;
 
-    const apply = (src: string, kind: "hls" | "iframe") => {
-      if (cancelled) return;
-      setStreamSrc(src);
-      setStreamKind(kind);
-      setStreamState("ready");
-    };
-    const fail = () => {
-      if (!cancelled) setStreamState("error");
-    };
+    // Sportplus matches render through `externalUrl` below: the provider
+    // only serves its playlists to its own site origin and to residential
+    // server IPs, so its player has to run on the provider's own page.
+    const isExternal =
+      match?.source === "demo" || (match?.source === "sportplus" && Boolean(match.viewTid && match.viewMid));
+    if (isExternal) return;
 
-    (async () => {
-      try {
-        // Sportplus hides its playlists from datacenter IPs, so the browser
-        // asks the provider directly; the CDN accepts CORS from any origin.
-        if (match?.source === "sportplus" && match.viewTid && match.viewMid) {
-          const src = await sportplusPlaylistClient(match.viewTid, match.viewMid);
-          if (src) apply(src, "hls");
-          else fail();
+    fetch(`/api/lpf/matches/${encodeURIComponent(activeId)}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((data: { src?: string | null; kind?: "hls" | "iframe" | null }) => {
+        if (cancelled) return;
+        if (!data.src) {
+          setStreamState("error");
           return;
         }
-        if (match?.source === "demo") {
-          const src = await liveFootballPlaylistClient();
-          if (src) apply(src, "hls");
-          else fail();
-          return;
-        }
-        const res = await fetch(`/api/lpf/matches/${encodeURIComponent(activeId)}`);
-        if (!res.ok) {
-          fail();
-          return;
-        }
-        const data = (await res.json()) as { src?: string | null; kind?: "hls" | "iframe" | null };
-        if (data.src) apply(data.src, data.kind ?? "hls");
-        else fail();
-      } catch {
-        fail();
-      }
-    })();
+        setStreamSrc(data.src);
+        setStreamKind(data.kind ?? "hls");
+        setStreamState("ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStreamState("error");
+      });
 
     return () => {
       cancelled = true;
@@ -153,6 +140,17 @@ export default function LpfPlayPage() {
   }, [activeId, streamReload, matches]);
 
   const activeMatch = matches.find((match) => match.id === activeId) ?? null;
+
+  // Sportplus matches can not be played from here (see the effect above):
+  // they link out to the provider's own player instead.
+  const externalUrl = useMemo(() => {
+    if (!activeMatch) return null;
+    if (activeMatch.source === "sportplus" && activeMatch.viewTid && activeMatch.viewMid) {
+      return `${SPORTPLUS_SITE}/football/${activeMatch.viewTid}/${activeMatch.viewMid}/`;
+    }
+    if (activeMatch.source === "demo") return `${SPORTPLUS_SITE}/football/`;
+    return null;
+  }, [activeMatch]);
 
   const groups = useMemo(() => {
     const map = new Map<string, LpfMatch[]>();
@@ -207,7 +205,24 @@ export default function LpfPlayPage() {
               </span>
             </div>
 
-            {streamState === "ready" && streamSrc && activeMatch ? (
+            {externalUrl ? (
+              <div className="relative flex aspect-video w-full flex-col items-center justify-center gap-3 border-3 border-white bg-black px-6 text-center shadow-brutal sm:border-4">
+                <ExternalLink size={30} strokeWidth={3} className="text-accent-primary" />
+                <span className="text-sm font-black uppercase text-white">{copy.externalTitle}</span>
+                <span className="max-w-md text-xs font-medium leading-relaxed text-gray-400">
+                  {copy.externalDesc}
+                </span>
+                <a
+                  href={externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-2 border-2 border-black bg-accent-primary px-4 py-2 text-[11px] font-black uppercase text-black shadow-btn transition-transform hover:-translate-y-0.5"
+                >
+                  <ExternalLink size={14} strokeWidth={3} />
+                  {copy.externalCta}
+                </a>
+              </div>
+            ) : streamState === "ready" && streamSrc && activeMatch ? (
               <VideoPlayer
                 url={streamSrc}
                 title={`${activeMatch.home} vs ${activeMatch.away}`}
