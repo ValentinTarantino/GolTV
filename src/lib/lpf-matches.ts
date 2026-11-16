@@ -75,6 +75,14 @@ export interface LpfMatch {
   /** ISO date in Argentina time (-03:00). */
   start: string;
   status: "live" | "upcoming" | "finished";
+  /**
+   * Provider coordinates of a sportplus match. Public data (they appear in
+   * the provider's own URLs); the browser uses them to ask the provider's
+   * API for the playlist because the API only shares it with residential
+   * networks — serverless datacenter IPs get a stripped answer.
+   */
+  viewTid?: string;
+  viewMid?: string;
 }
 
 /** The player of a match: a playlist or an embedded page. */
@@ -590,6 +598,8 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
         awayPk: item.away?.pk_id,
         start,
         status: sportplusStatus(item),
+        viewTid: competition.id,
+        viewMid: matchIdValue,
       });
     }
   }
@@ -638,7 +648,12 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
           ? "live"
           : "finished"
         : entry.match.status;
-    matches.push({ ...entry.match, status });
+    matches.push({
+      ...entry.match,
+      status,
+      viewTid: entry.ref.source === "sportplus" ? entry.ref.competitionId : entry.match.viewTid,
+      viewMid: entry.ref.source === "sportplus" ? entry.ref.matchId : entry.match.viewMid,
+    });
     refs.set(id, entry.ref);
   }
 

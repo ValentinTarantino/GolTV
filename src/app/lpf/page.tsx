@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
+import { liveFootballPlaylistClient, sportplusPlaylistClient } from "@/lib/lpf-client";
 
 interface LpfMatch {
   id: string;
@@ -15,6 +16,8 @@ interface LpfMatch {
   awayLogo?: string;
   start: string;
   status: "live" | "upcoming" | "finished";
+  viewTid?: string;
+  viewMid?: string;
 }
 
 type ListState = "loading" | "ready" | "error";
@@ -77,7 +80,17 @@ export default function LpfPlayPage() {
         const next = Array.isArray(data.matches) ? data.matches : [];
         setMatches(next);
         setListState("ready");
-        setActiveId((current) => current ?? next.find((m) => m.status === "live")?.id ?? next[0]?.id ?? null);
+        // The demo entry resolves any live football match on the provider,
+        // so it is the most reliable thing to auto-play; section matches can
+        // be stale entries whose broadcast already ended.
+        setActiveId(
+          (current) =>
+            current ??
+            next.find((m) => m.source === "demo" && m.status === "live")?.id ??
+            next.find((m) => m.status === "live")?.id ??
+            next[0]?.id ??
+            null
+        );
       })
       .catch(() => {
         if (cancelled) return;
@@ -92,29 +105,52 @@ export default function LpfPlayPage() {
 
   useEffect(() => {
     if (!activeId) return;
+    const match = matches.find((candidate) => candidate.id === activeId) ?? null;
     let cancelled = false;
 
-    fetch(`/api/lpf/matches/${encodeURIComponent(activeId)}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { src?: string | null; kind?: "hls" | "iframe" | null }) => {
-        if (cancelled) return;
-        if (!data.src) {
-          setStreamState("error");
+    const apply = (src: string, kind: "hls" | "iframe") => {
+      if (cancelled) return;
+      setStreamSrc(src);
+      setStreamKind(kind);
+      setStreamState("ready");
+    };
+    const fail = () => {
+      if (!cancelled) setStreamState("error");
+    };
+
+    (async () => {
+      try {
+        // Sportplus hides its playlists from datacenter IPs, so the browser
+        // asks the provider directly; the CDN accepts CORS from any origin.
+        if (match?.source === "sportplus" && match.viewTid && match.viewMid) {
+          const src = await sportplusPlaylistClient(match.viewTid, match.viewMid);
+          if (src) apply(src, "hls");
+          else fail();
           return;
         }
-        setStreamSrc(data.src);
-        setStreamKind(data.kind ?? "hls");
-        setStreamState("ready");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStreamState("error");
-      });
+        if (match?.source === "demo") {
+          const src = await liveFootballPlaylistClient();
+          if (src) apply(src, "hls");
+          else fail();
+          return;
+        }
+        const res = await fetch(`/api/lpf/matches/${encodeURIComponent(activeId)}`);
+        if (!res.ok) {
+          fail();
+          return;
+        }
+        const data = (await res.json()) as { src?: string | null; kind?: "hls" | "iframe" | null };
+        if (data.src) apply(data.src, data.kind ?? "hls");
+        else fail();
+      } catch {
+        fail();
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [activeId, streamReload]);
+  }, [activeId, streamReload, matches]);
 
   const activeMatch = matches.find((match) => match.id === activeId) ?? null;
 
