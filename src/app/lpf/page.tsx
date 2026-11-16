@@ -7,7 +7,7 @@ import VideoPlayer from "@/components/player/VideoPlayer";
 
 interface LpfMatch {
   id: string;
-  source: "sportplus" | "angulismo";
+  source: "sportplus" | "angulismo" | "demo";
   competition: string;
   home: string;
   away: string;

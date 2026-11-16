@@ -57,7 +57,7 @@ const SPORTPLUS_COMPETITIONS: Array<{ id: string; name: string }> = [
 ];
 
 /** Where a match comes from. */
-export type LpfMatchSource = "sportplus" | "angulismo";
+export type LpfMatchSource = "sportplus" | "angulismo" | "demo";
 
 /** A match of the section. */
 export interface LpfMatch {
@@ -542,6 +542,25 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
   }
   await setCache(storeKey, next, RECENT_TTL + 60 * 1000);
 
+  // A demo match keeps the whole pipeline (list → resolve → relay → player)
+  // verifiable even when the providers are empty or down. It is added after
+  // the store write so it never persists.
+  {
+    const ref: MatchRef = { source: "demo", competitionId: "demo", matchId: "test-stream" };
+    const id = matchId(ref);
+    refs.set(id, ref);
+    matches.push({
+      id,
+      source: "demo",
+      competition: "Demo",
+      home: "Partido",
+      away: "de prueba",
+      // Wall-clock Argentina time, same convention as the providers.
+      start: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+      status: "live",
+    });
+  }
+
   matches.sort((a, b) => {
     if (a.status !== b.status) return a.status === "live" ? -1 : b.status === "live" ? 1 : 0;
     return a.start.localeCompare(b.start);
@@ -555,14 +574,8 @@ export async function listLpfMatches(): Promise<LpfMatch[]> {
   return (await buildMatches()).matches;
 }
 
-/** The player of a match. */
-export async function resolveLpfMatchStream(id: string): Promise<LpfMatchStream | null> {
-  if (!/^lpm_[a-f0-9]{16}$/.test(id)) return null;
-
-  const { refs } = await buildMatches();
-  const ref = refs.get(id);
-  if (!ref) return null;
-
+/** The player of one provider reference. */
+async function resolveRefStream(ref: MatchRef, id: string): Promise<LpfMatchStream | null> {
   if (ref.source === "sportplus") {
     const playlist = await cached(`lpf:match:v2:${id}`, STREAM_TTL, () =>
       sportplusPlaylist(ref.competitionId, ref.matchId)
@@ -581,4 +594,74 @@ export async function resolveLpfMatchStream(id: string): Promise<LpfMatchStream 
   if (!event) return null;
   const player = extractAngulismoPlayers(event)[0];
   return player ? { src: player.iframe, kind: "iframe" } : null;
+}
+
+/**
+ * Any live football match on sportplus, used when the section's own agenda
+ * has nothing playable: the global index lists every live match and each one
+ * is probed until a playlist answers.
+ */
+async function resolveLiveFootballFallback(): Promise<LpfMatchStream | null> {
+  const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
+  const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
+  if (!text) return null;
+  let items: SportplusItem[] = [];
+  try {
+    const parsed = JSON.parse(text) as { items?: SportplusItem[] };
+    items = Array.isArray(parsed.items) ? parsed.items : [];
+  } catch {
+    return null;
+  }
+
+  for (const item of items.filter((candidate) => candidate.status === "live").slice(0, 10)) {
+    if (!item.id || item.tournament_id === undefined) continue;
+    const playlist = await cached(`lpf:demo-probe:${item.id}`, STREAM_TTL, () =>
+      sportplusPlaylist(String(item.tournament_id), String(item.id))
+    );
+    if (playlist) return { src: playlist, kind: "hls" };
+  }
+  return null;
+}
+
+/**
+ * The demo card always plays a real match: the first provider entry — live
+ * ones first — whose stream still resolves, falling back to any live football
+ * match on the provider. Null when every provider is dry, which is itself the
+ * signal that the sources are down.
+ */
+async function resolveDemoStream(): Promise<LpfMatchStream | null> {
+  const { matches, refs } = await buildMatches();
+  const candidates = matches.filter((match) => match.source !== "demo");
+
+  // Live section matches first, then any live football on the provider, and
+  // only then whatever is left (upcoming matches can carry a test stream).
+  for (const match of candidates.filter((m) => m.status === "live")) {
+    const ref = refs.get(match.id);
+    if (!ref) continue;
+    const stream = await resolveRefStream(ref, match.id);
+    if (stream) return stream;
+  }
+  const fallback = await resolveLiveFootballFallback();
+  if (fallback) return fallback;
+  for (const match of candidates.filter((m) => m.status !== "live")) {
+    const ref = refs.get(match.id);
+    if (!ref) continue;
+    const stream = await resolveRefStream(ref, match.id);
+    if (stream) return stream;
+  }
+  return null;
+}
+
+/** The player of a match. */
+export async function resolveLpfMatchStream(id: string): Promise<LpfMatchStream | null> {
+  if (!/^lpm_[a-f0-9]{16}$/.test(id)) return null;
+
+  const { refs } = await buildMatches();
+  const ref = refs.get(id);
+  if (!ref) return null;
+
+  if (ref.source === "demo") {
+    return cached("lpf:demo-stream:v1", STREAM_TTL, resolveDemoStream);
+  }
+  return resolveRefStream(ref, id);
 }
