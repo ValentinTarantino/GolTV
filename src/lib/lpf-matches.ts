@@ -106,12 +106,12 @@ async function fetchText(url: string, referer?: string): Promise<string | null> 
   }
 }
 
-/** Diagnostics of the page that carries the playlist of a match. */
+/** Diagnostics of the endpoint that carries the playlist of a match. */
 export async function inspectSportplusPage(
   competitionId: string,
   matchIdValue: string
 ): Promise<{ url: string; status: number | null; length: number; hasLs: boolean; preview: string }> {
-  const url = `${SPORTPLUS_SITE}/football/${competitionId}/${matchIdValue}/`;
+  const url = sportplusViewUrl(competitionId, matchIdValue);
   try {
     const res = await fetch(url, {
       headers: { ...BROWSER_HEADERS, Referer: `${SPORTPLUS_SITE}/football/` },
@@ -193,12 +193,46 @@ async function sportplusMatches(competitionId: string): Promise<SportplusItem[]>
   }
 }
 
-/** The playlist of a sportplus match, read from the `ls` array of its page. */
+/** The endpoint that serves the match detail, including the `ls` playlists. */
+function sportplusViewUrl(competitionId: string, matchIdValue: string): string {
+  return `${SPORTPLUS_API}/matches/view?id=${encodeURIComponent(matchIdValue)}&sport_id=football&tournament_id=${encodeURIComponent(
+    competitionId
+  )}&lang=es&lcfg=es&fw=3.1`;
+}
+
+/** First `.m3u8` of an `ls` array, already decoded. */
+function playlistFromLs(ls: unknown): string | null {
+  if (!Array.isArray(ls)) return null;
+  for (const candidate of ls) {
+    if (typeof candidate === "string" && /^https:\/\/[^"'\s]+\.m3u8(\?|$)/i.test(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * The playlist of a sportplus match.
+ *
+ * The `matches/view` endpoint answers with the `ls` array as clean JSON and
+ * is reachable from every network; the match page is only a fallback because
+ * the site in front of it refuses datacenter traffic with a 404.
+ */
 async function sportplusPlaylist(competitionId: string, matchIdValue: string): Promise<string | null> {
+  const view = await fetchText(sportplusViewUrl(competitionId, matchIdValue), `${SPORTPLUS_SITE}/football/`);
+  if (view) {
+    try {
+      const playlist = playlistFromLs((JSON.parse(view) as { item?: { ls?: unknown } }).item?.ls);
+      if (playlist) return playlist;
+    } catch {
+      /* fall through to the page */
+    }
+  }
+
   const url = `${SPORTPLUS_SITE}/football/${competitionId}/${matchIdValue}/`;
   const page = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
   if (!page) {
-    console.warn(`[lpf] no page for ${competitionId}/${matchIdValue}`);
+    console.warn(`[lpf] no stream source for ${competitionId}/${matchIdValue}`);
     return null;
   }
   for (const block of page.matchAll(/"ls":\[([^\]]*)\]/g)) {
