@@ -10,6 +10,25 @@ import { isLpfStreamHost } from "@/lib/lpf-play";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+/** Can this deployment reach the stream CDN at all? */
+async function probeCdn(): Promise<Array<{ host: string; status: number | null; error?: string }>> {
+  const hosts = ["jn317.sportvideodata.com", "sportvideodata.com"];
+  return Promise.all(
+    hosts.map(async (host) => {
+      try {
+        const res = await fetch(`https://${host}/`, {
+          signal: AbortSignal.timeout(10_000),
+          cache: "no-store",
+        });
+        await res.arrayBuffer().catch(() => undefined);
+        return { host, status: res.status };
+      } catch (error) {
+        return { host, status: null, error: String(error).slice(0, 100) };
+      }
+    })
+  );
+}
+
 /**
  * Temporary diagnostics: shows what the deployment receives from the
  * provider when it looks for the playlist of a match.
@@ -19,12 +38,13 @@ export async function GET(): Promise<Response> {
   const live = matches.find((match) => match.status === "live") ?? matches[0];
   const demo = matches.find((match) => match.source === "demo");
 
-  const [sportplus, stream, demoStream, fallback, variants] = await Promise.all([
+  const [sportplus, stream, demoStream, fallback, variants, cdn] = await Promise.all([
     live?.source === "sportplus" ? inspectSportplusPage("220557", "8400999") : Promise.resolve(null),
     live ? resolveLpfMatchStream(live.id) : Promise.resolve(null),
     demo ? resolveLpfMatchStream(demo.id) : Promise.resolve(null),
     inspectLiveFallback(),
     live?.source === "sportplus" ? inspectSportplusVariants("220557", "8400999") : Promise.resolve(null),
+    probeCdn(),
   ]);
 
   let streamHostAllowed: boolean | null = null;
@@ -45,6 +65,7 @@ export async function GET(): Promise<Response> {
       stream: stream ? { kind: stream.kind, hostAllowed: streamHostAllowed } : null,
       fallback,
       variants,
+      cdn,
       env: {
         LPF_SOURCE_URL: Boolean(process.env.LPF_SOURCE_URL?.trim()),
         LPF_STREAM_HOSTS: Boolean(process.env.LPF_STREAM_HOSTS?.trim()),
