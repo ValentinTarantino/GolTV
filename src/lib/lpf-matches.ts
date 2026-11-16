@@ -601,6 +601,42 @@ async function resolveRefStream(ref: MatchRef, id: string): Promise<LpfMatchStre
  * has nothing playable: the global index lists every live match and each one
  * is probed until a playlist answers.
  */
+/** Diagnostics of the live-football fallback: index status and first probes. */
+export async function inspectLiveFallback(): Promise<{
+  indexStatus: number | null;
+  liveCount: number;
+  probes: Array<{ id: string; status: number | null; hasLs: boolean }>;
+  error?: string;
+}> {
+  const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
+  try {
+    const res = await fetch(url, {
+      headers: { ...BROWSER_HEADERS, Referer: `${SPORTPLUS_SITE}/football/` },
+      redirect: "follow",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    const text = res.ok ? await res.text() : "";
+    let items: SportplusItem[] = [];
+    try {
+      const parsed = JSON.parse(text) as { items?: SportplusItem[] };
+      items = Array.isArray(parsed.items) ? parsed.items : [];
+    } catch {
+      /* keep empty */
+    }
+    const live = items.filter((candidate) => candidate.status === "live").slice(0, 5);
+    const probes: Array<{ id: string; status: number | null; hasLs: boolean }> = [];
+    for (const item of live) {
+      if (!item.id || item.tournament_id === undefined) continue;
+      const view = await inspectSportplusPage(String(item.tournament_id), String(item.id));
+      probes.push({ id: String(item.id), status: view.status, hasLs: view.hasLs });
+    }
+    return { indexStatus: res.status, liveCount: live.length, probes };
+  } catch (error) {
+    return { indexStatus: 0, liveCount: 0, probes: [], error: String(error).slice(0, 120) };
+  }
+}
+
 async function resolveLiveFootballFallback(): Promise<LpfMatchStream | null> {
   const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
   const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
