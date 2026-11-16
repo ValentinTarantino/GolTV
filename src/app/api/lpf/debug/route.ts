@@ -1,4 +1,10 @@
-import { inspectLiveFallback, inspectSportplusPage, listLpfMatches, resolveLpfMatchStream } from "@/lib/lpf-matches";
+import {
+  inspectLiveFallback,
+  inspectSportplusPage,
+  inspectSportplusVariants,
+  listLpfMatches,
+  resolveLpfMatchStream,
+} from "@/lib/lpf-matches";
 import { isLpfStreamHost } from "@/lib/lpf-play";
 
 export const dynamic = "force-dynamic";
@@ -13,9 +19,14 @@ export async function GET(): Promise<Response> {
   const live = matches.find((match) => match.status === "live") ?? matches[0];
   const demo = matches.find((match) => match.source === "demo");
 
-  const sportplus = live?.source === "sportplus" ? await inspectSportplusPage("220557", "8400999") : null;
+  const [sportplus, stream, demoStream, fallback, variants] = await Promise.all([
+    live?.source === "sportplus" ? inspectSportplusPage("220557", "8400999") : Promise.resolve(null),
+    live ? resolveLpfMatchStream(live.id) : Promise.resolve(null),
+    demo ? resolveLpfMatchStream(demo.id) : Promise.resolve(null),
+    inspectLiveFallback(),
+    live?.source === "sportplus" ? inspectSportplusVariants("220557", "8400999") : Promise.resolve(null),
+  ]);
 
-  const stream = live ? await resolveLpfMatchStream(live.id) : null;
   let streamHostAllowed: boolean | null = null;
   if (stream?.kind === "hls") {
     try {
@@ -25,9 +36,6 @@ export async function GET(): Promise<Response> {
     }
   }
 
-  const demoStream = demo ? await resolveLpfMatchStream(demo.id) : null;
-  const fallback = await inspectLiveFallback();
-
   return Response.json(
     {
       matches: matches.length,
@@ -36,6 +44,7 @@ export async function GET(): Promise<Response> {
       sportplus,
       stream: stream ? { kind: stream.kind, hostAllowed: streamHostAllowed } : null,
       fallback,
+      variants,
       env: {
         LPF_SOURCE_URL: Boolean(process.env.LPF_SOURCE_URL?.trim()),
         LPF_STREAM_HOSTS: Boolean(process.env.LPF_STREAM_HOSTS?.trim()),

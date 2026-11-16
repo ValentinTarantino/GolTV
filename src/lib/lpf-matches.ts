@@ -123,6 +123,7 @@ export async function inspectSportplusPage(
   hasLs: boolean;
   lsCount: number | null;
   playlistHost: string | null;
+  itemKeys: string[] | null;
   preview: string;
 }> {
   const url = sportplusViewUrl(competitionId, matchIdValue);
@@ -136,12 +137,17 @@ export async function inspectSportplusPage(
     const text = await res.ok ? await res.text() : "";
     let lsCount: number | null = null;
     let playlistHost: string | null = null;
+    let itemKeys: string[] | null = null;
     try {
-      const ls = (JSON.parse(text) as { item?: { ls?: unknown } }).item?.ls;
-      if (Array.isArray(ls)) {
-        lsCount = ls.length;
-        const playlist = playlistFromLs(ls);
-        if (playlist) playlistHost = new URL(playlist).hostname;
+      const item = (JSON.parse(text) as { item?: Record<string, unknown> }).item;
+      if (item && typeof item === "object") {
+        itemKeys = Object.keys(item).sort();
+        const ls = item.ls;
+        if (Array.isArray(ls)) {
+          lsCount = ls.length;
+          const playlist = playlistFromLs(ls);
+          if (playlist) playlistHost = new URL(playlist).hostname;
+        }
       }
     } catch {
       /* not JSON */
@@ -153,11 +159,95 @@ export async function inspectSportplusPage(
       hasLs: text.includes('"ls"'),
       lsCount,
       playlistHost,
+      itemKeys,
       preview: text.slice(0, 160).replace(/\s+/g, " "),
     };
   } catch (error) {
-    return { url, status: 0, length: 0, hasLs: false, lsCount: null, playlistHost: null, preview: String(error).slice(0, 120) };
+    return {
+      url,
+      status: 0,
+      length: 0,
+      hasLs: false,
+      lsCount: null,
+      playlistHost: null,
+      itemKeys: null,
+      preview: String(error).slice(0, 120),
+    };
   }
+}
+
+/** One probe of the match-detail endpoint with custom headers/params. */
+async function probeSportplusView(
+  label: string,
+  url: string,
+  headers?: Record<string, string>
+): Promise<{ label: string; url: string; status: number | null; length: number; lsCount: number | null; playlistHost: string | null }> {
+  try {
+    const res = await fetch(url, {
+      headers: headers ?? { ...BROWSER_HEADERS, Referer: `${SPORTPLUS_SITE}/football/` },
+      redirect: "follow",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    const text = res.ok ? await res.text() : "";
+    let lsCount: number | null = null;
+    let playlistHost: string | null = null;
+    try {
+      const ls = (JSON.parse(text) as { item?: { ls?: unknown } }).item?.ls;
+      if (Array.isArray(ls)) {
+        lsCount = ls.length;
+        const playlist = playlistFromLs(ls);
+        if (playlist) playlistHost = new URL(playlist).hostname;
+      }
+    } catch {
+      /* not JSON */
+    }
+    return { label, url, status: res.status, length: text.length, lsCount, playlistHost };
+  } catch {
+    return { label, url, status: 0, length: 0, lsCount: null, playlistHost: null };
+  }
+}
+
+/**
+ * Diagnostics: tries the match-detail endpoint with different header/param
+ * combinations to learn what the deployment's network is allowed to see.
+ */
+export async function inspectSportplusVariants(
+  competitionId: string,
+  matchIdValue: string
+): Promise<Array<{ label: string; status: number | null; length: number; lsCount: number | null; playlistHost: string | null }>> {
+  const base = sportplusViewUrl(competitionId, matchIdValue);
+  const referer = `${SPORTPLUS_SITE}/football/`;
+  const probes = [
+    probeSportplusView("baseline", base),
+    probeSportplusView("origin", base, {
+      ...BROWSER_HEADERS,
+      Referer: referer,
+      Origin: SPORTPLUS_SITE,
+      "Sec-Fetch-Site": "same-origin",
+    }),
+    probeSportplusView("no-referer", base, BROWSER_HEADERS),
+    probeSportplusView("fw-absent", `${SPORTPLUS_API}/matches/view?id=${matchIdValue}&sport_id=football&tournament_id=${competitionId}&lang=es&lcfg=es`, {
+      ...BROWSER_HEADERS,
+      Referer: referer,
+    }),
+    probeSportplusView("lang-en", `${SPORTPLUS_API}/matches/view?id=${matchIdValue}&sport_id=football&tournament_id=${competitionId}&lang=en&lcfg=en&fw=3.1`, {
+      ...BROWSER_HEADERS,
+      Referer: `${SPORTPLUS_SITE}/football/`,
+    }),
+    probeSportplusView("curl-ua", base, {
+      "User-Agent": "curl/8.0",
+      Referer: referer,
+    }),
+  ];
+  const results = await Promise.all(probes);
+  return results.map(({ label, status, length, lsCount, playlistHost }) => ({
+    label,
+    status,
+    length,
+    lsCount,
+    playlistHost,
+  }));
 }
 
 async function cached<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
@@ -647,12 +737,20 @@ export async function inspectLiveFallback(): Promise<{
       /* keep empty */
     }
     const live = items.filter((candidate) => candidate.status === "live").slice(0, 5);
-    const probes: Array<{ id: string; status: number | null; hasLs: boolean; lsCount: number | null; playlistHost: string | null }> = [];
-    for (const item of live) {
-      if (!item.id || item.tournament_id === undefined) continue;
-      const view = await inspectSportplusPage(String(item.tournament_id), String(item.id));
-      probes.push({ id: String(item.id), status: view.status, hasLs: view.hasLs, lsCount: view.lsCount, playlistHost: view.playlistHost });
-    }
+    const probes = await Promise.all(
+      live
+        .filter((item) => item.id && item.tournament_id !== undefined)
+        .map(async (item) => {
+          const view = await inspectSportplusPage(String(item.tournament_id), String(item.id));
+          return {
+            id: String(item.id),
+            status: view.status,
+            hasLs: view.hasLs,
+            lsCount: view.lsCount,
+            playlistHost: view.playlistHost,
+          };
+        })
+    );
     return { indexStatus: res.status, liveCount: live.length, probes };
   } catch (error) {
     return { indexStatus: 0, liveCount: 0, probes: [], error: String(error).slice(0, 120) };
