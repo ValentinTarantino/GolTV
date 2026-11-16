@@ -148,8 +148,8 @@ describe("fullscreen with chat layout", () => {
     cy.wait("@sendChat").its("request.body").should("include", {
       nick: "FanColor", text: "Nuevo mensaje", nickColor: "#ff00ff", textColor: "#00ff00",
     });
-    cy.contains('[role="log"] span', "FanColor:").should("have.css", "color", "rgb(255, 0, 255)");
-    cy.contains('[role="log"] span', "Nuevo mensaje").should("have.css", "color", "rgb(0, 255, 0)");
+    cy.get('[role="log"] span').filter((_, el) => el.textContent?.trim() === "FanColor").should("have.css", "color", "rgb(255, 0, 255)");
+    cy.get('[role="log"] span').filter((_, el) => el.textContent?.trim() === ": Nuevo mensaje").should("have.css", "color", "rgb(0, 255, 0)");
     cy.reload();
     cy.get('[role="combobox"][aria-label="Color del nombre"]').should("have.attr", "data-value", "#ff00ff");
     cy.get('[role="combobox"][aria-label="Color del mensaje"]').should("have.attr", "data-value", "#00ff00");
@@ -162,8 +162,8 @@ describe("fullscreen with chat layout", () => {
     cy.wait("@sendChat").its("request.body").should("include", {
       nick: "OtroNick", text: "Con mi nuevo nick", nickColor: "#ff00ff", textColor: "#00ff00",
     });
-    cy.contains('[role="log"] span', "OtroNick:").should("have.css", "font-size", "14px");
-    cy.contains('[role="log"] span', "Con mi nuevo nick").should("have.css", "font-size", "14px");
+    cy.get('[role="log"] span').filter((_, el) => el.textContent?.trim() === "OtroNick").should("have.css", "font-size", "14px");
+    cy.get('[role="log"] span').filter((_, el) => el.textContent?.trim() === ": Con mi nuevo nick").should("have.css", "font-size", "14px");
     cy.screenshot("chat-large-text", { capture: "viewport" });
   });
 });

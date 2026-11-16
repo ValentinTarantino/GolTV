@@ -10,7 +10,9 @@ describe("Responsive Design", () => {
     cy.viewport(375, 812);
     cy.visit("/");
     cy.get("#home-page", { timeout: 15000 }).should("exist");
-    cy.get("header .hidden.md\\:flex").should("not.be.visible");
+    // The search field only exists once the search is opened.
+    cy.get("header input[type='text']").should("not.exist");
+    cy.get("header button[title]").should("exist");
   });
 
   it("desktop layout: full navigation visible", () => {
