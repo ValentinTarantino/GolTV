@@ -116,7 +116,15 @@ async function fetchText(url: string, referer?: string): Promise<string | null> 
 export async function inspectSportplusPage(
   competitionId: string,
   matchIdValue: string
-): Promise<{ url: string; status: number | null; length: number; hasLs: boolean; preview: string }> {
+): Promise<{
+  url: string;
+  status: number | null;
+  length: number;
+  hasLs: boolean;
+  lsCount: number | null;
+  playlistHost: string | null;
+  preview: string;
+}> {
   const url = sportplusViewUrl(competitionId, matchIdValue);
   try {
     const res = await fetch(url, {
@@ -126,15 +134,29 @@ export async function inspectSportplusPage(
       cache: "no-store",
     });
     const text = await res.ok ? await res.text() : "";
+    let lsCount: number | null = null;
+    let playlistHost: string | null = null;
+    try {
+      const ls = (JSON.parse(text) as { item?: { ls?: unknown } }).item?.ls;
+      if (Array.isArray(ls)) {
+        lsCount = ls.length;
+        const playlist = playlistFromLs(ls);
+        if (playlist) playlistHost = new URL(playlist).hostname;
+      }
+    } catch {
+      /* not JSON */
+    }
     return {
       url,
       status: res.status,
       length: text.length,
       hasLs: text.includes('"ls"'),
+      lsCount,
+      playlistHost,
       preview: text.slice(0, 160).replace(/\s+/g, " "),
     };
   } catch (error) {
-    return { url, status: 0, length: 0, hasLs: false, preview: String(error).slice(0, 120) };
+    return { url, status: 0, length: 0, hasLs: false, lsCount: null, playlistHost: null, preview: String(error).slice(0, 120) };
   }
 }
 
@@ -605,7 +627,7 @@ async function resolveRefStream(ref: MatchRef, id: string): Promise<LpfMatchStre
 export async function inspectLiveFallback(): Promise<{
   indexStatus: number | null;
   liveCount: number;
-  probes: Array<{ id: string; status: number | null; hasLs: boolean }>;
+  probes: Array<{ id: string; status: number | null; hasLs: boolean; lsCount: number | null; playlistHost: string | null }>;
   error?: string;
 }> {
   const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
@@ -625,11 +647,11 @@ export async function inspectLiveFallback(): Promise<{
       /* keep empty */
     }
     const live = items.filter((candidate) => candidate.status === "live").slice(0, 5);
-    const probes: Array<{ id: string; status: number | null; hasLs: boolean }> = [];
+    const probes: Array<{ id: string; status: number | null; hasLs: boolean; lsCount: number | null; playlistHost: string | null }> = [];
     for (const item of live) {
       if (!item.id || item.tournament_id === undefined) continue;
       const view = await inspectSportplusPage(String(item.tournament_id), String(item.id));
-      probes.push({ id: String(item.id), status: view.status, hasLs: view.hasLs });
+      probes.push({ id: String(item.id), status: view.status, hasLs: view.hasLs, lsCount: view.lsCount, playlistHost: view.playlistHost });
     }
     return { indexStatus: res.status, liveCount: live.length, probes };
   } catch (error) {
@@ -649,14 +671,20 @@ async function resolveLiveFootballFallback(): Promise<LpfMatchStream | null> {
     return null;
   }
 
-  for (const item of items.filter((candidate) => candidate.status === "live").slice(0, 10)) {
-    if (!item.id || item.tournament_id === undefined) continue;
-    const playlist = await cached(`lpf:demo-probe:${item.id}`, STREAM_TTL, () =>
-      sportplusPlaylist(String(item.tournament_id), String(item.id))
-    );
-    if (playlist) return { src: playlist, kind: "hls" };
-  }
-  return null;
+  const live = items
+    .filter((candidate) => candidate.status === "live" && candidate.id && candidate.tournament_id !== undefined)
+    .slice(0, 10);
+  // Probed in parallel: each view call can take seconds and a sequential scan
+  // of ten candidates can outlive the function budget on serverless.
+  const probes = await Promise.all(
+    live.map((item) =>
+      cached(`lpf:demo-probe:${item.id}`, STREAM_TTL, () =>
+        sportplusPlaylist(String(item.tournament_id), String(item.id))
+      )
+    )
+  );
+  const winner = probes.find((playlist): playlist is string => playlist !== null);
+  return winner ? { src: winner, kind: "hls" } : null;
 }
 
 /**
@@ -669,23 +697,25 @@ async function resolveDemoStream(): Promise<LpfMatchStream | null> {
   const { matches, refs } = await buildMatches();
   const candidates = matches.filter((match) => match.source !== "demo");
 
+  // Candidates are probed in parallel and the first success in list order
+  // wins; sequential probing can outlive the function budget on serverless.
+  const tryCandidates = async (list: LpfMatch[]): Promise<LpfMatchStream | null> => {
+    const streams = await Promise.all(
+      list.map(async (match) => {
+        const ref = refs.get(match.id);
+        return ref ? resolveRefStream(ref, match.id) : null;
+      })
+    );
+    return streams.find((stream): stream is LpfMatchStream => stream !== null) ?? null;
+  };
+
   // Live section matches first, then any live football on the provider, and
   // only then whatever is left (upcoming matches can carry a test stream).
-  for (const match of candidates.filter((m) => m.status === "live")) {
-    const ref = refs.get(match.id);
-    if (!ref) continue;
-    const stream = await resolveRefStream(ref, match.id);
-    if (stream) return stream;
-  }
+  const live = await tryCandidates(candidates.filter((m) => m.status === "live"));
+  if (live) return live;
   const fallback = await resolveLiveFootballFallback();
   if (fallback) return fallback;
-  for (const match of candidates.filter((m) => m.status !== "live")) {
-    const ref = refs.get(match.id);
-    if (!ref) continue;
-    const stream = await resolveRefStream(ref, match.id);
-    if (stream) return stream;
-  }
-  return null;
+  return tryCandidates(candidates.filter((m) => m.status !== "live"));
 }
 
 /** The player of a match. */
