@@ -30,9 +30,17 @@ const ANGULISMO_FALLBACK =
 
 const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-  Accept: "application/json,text/html,*/*",
-  "Accept-Language": "es-AR,es;q=0.9",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+  "Sec-Ch-Ua": '"Chromium";v="132", "Not(A:Brand";v="8", "Google Chrome";v="132"',
+  "Sec-Ch-Ua-Mobile": "?0",
+  "Sec-Ch-Ua-Platform": '"Windows"',
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "same-origin",
+  "Sec-Fetch-User": "?1",
+  "Upgrade-Insecure-Requests": "1",
 };
 
 /** Competitions of sportplus that the section shows. */
@@ -95,6 +103,32 @@ async function fetchText(url: string, referer?: string): Promise<string | null> 
     return await res.text();
   } catch {
     return null;
+  }
+}
+
+/** Diagnostics of the page that carries the playlist of a match. */
+export async function inspectSportplusPage(
+  competitionId: string,
+  matchIdValue: string
+): Promise<{ url: string; status: number | null; length: number; hasLs: boolean; preview: string }> {
+  const url = `${SPORTPLUS_SITE}/football/${competitionId}/${matchIdValue}/`;
+  try {
+    const res = await fetch(url, {
+      headers: { ...BROWSER_HEADERS, Referer: `${SPORTPLUS_SITE}/football/` },
+      redirect: "follow",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    const text = await res.ok ? await res.text() : "";
+    return {
+      url,
+      status: res.status,
+      length: text.length,
+      hasLs: text.includes('"ls"'),
+      preview: text.slice(0, 160).replace(/\s+/g, " "),
+    };
+  } catch (error) {
+    return { url, status: 0, length: 0, hasLs: false, preview: String(error).slice(0, 120) };
   }
 }
 
