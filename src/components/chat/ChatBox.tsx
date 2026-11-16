@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MessageSquare, Pencil, Send } from "lucide-react";
+import { MessageSquare, Pencil, Send, Reply, Trash2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { DEFAULT_CHAT_COLORS, isChatColor, isChatPaletteColor, type ChatColors } from "@/lib/chat-colors";
+import { getAdminSession, setAdminFlag } from "@/lib/admin";
 import ChatColorSelect from "./ChatColorSelect";
 import type { ChatMessage } from "@/lib/chat";
 
@@ -33,6 +34,7 @@ export default function ChatBox({ matchId }: ChatBoxProps) {
 function ChatSession({ matchId }: ChatBoxProps) {
   const { t } = useLanguage();
   const [nick, setNick] = useState<string | null>(() => readPreference(NICK_KEY));
+  const [admin, setAdmin] = useState(getAdminSession());
   const [colors, setColors] = useState<ChatColors>(() => {
     const nickColor = readPreference(NICK_COLOR_KEY);
     const textColor = readPreference(TEXT_COLOR_KEY);
@@ -45,12 +47,16 @@ function ChatSession({ matchId }: ChatBoxProps) {
   const [editingNick, setEditingNick] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [persistent, setPersistent] = useState<boolean | null>(null);
   const [sending, setSending] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<ChatMessage | null>(null);
+  const [bannedIPs, setBannedIPs] = useState<Set<string>>(new Set());
+  const [ipInfo, setIpInfo] = useState<{ country?: string; city?: string; region?: string; isp?: string } | null>(null);
   const offsetRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const nickInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (editingNick) {
@@ -58,6 +64,41 @@ function ChatSession({ matchId }: ChatBoxProps) {
       nickInputRef.current?.select();
     }
   }, [editingNick]);
+
+  useEffect(() => {
+    if (replyingTo) {
+      inputRef.current?.focus();
+    }
+  }, [replyingTo]);
+
+  const fetchBannedIPs = useCallback(async () => {
+    if (!admin.isAdmin) return;
+    try {
+      const res = await fetch("/api/admin/ban-ip");
+      const data = await res.json();
+      if (data.bannedIPs) {
+        setBannedIPs(new Set(data.bannedIPs));
+      }
+    } catch {
+      // Ignore errors
+    }
+  }, [admin.isAdmin]);
+
+  // Check admin status on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      fetch("/api/admin/session")
+        .then(res => res.json())
+        .then(data => {
+          if (data.isAdmin) {
+            setAdminFlag();
+            setAdmin(getAdminSession());
+            void fetchBannedIPs();
+          }
+        })
+        .catch(() => {});
+    }
+  }, [fetchBannedIPs]);
 
   const isNearBottom = () => {
     const el = scrollRef.current;
@@ -76,7 +117,6 @@ function ChatSession({ matchId }: ChatBoxProps) {
         setError(res.status === 503 ? t.chat.storageUnavailable : t.chat.loadError);
         return;
       }
-      setPersistent(data.persistent !== false);
       setError(null);
       if (data.messages?.length) {
         setMessages(prev => {
@@ -133,6 +173,78 @@ function ChatSession({ matchId }: ChatBoxProps) {
     savePreference(field === "nickColor" ? NICK_COLOR_KEY : TEXT_COLOR_KEY, value);
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const res = await fetch("/api/admin/delete-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, matchId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      } else {
+        setError(data.error || "Error al borrar mensaje");
+      }
+    } catch {
+      setError("Error al borrar mensaje");
+    }
+  };
+
+  const handleReply = (message: ChatMessage) => {
+    setReplyingTo(message);
+    setError(null);
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const handleSelectUser = async (message: ChatMessage) => {
+    if (admin.isAdmin && message.ip) {
+      setSelectedUser(message);
+      setIpInfo(null);
+      try {
+        const res = await fetch(`/api/admin/ip-info?ip=${encodeURIComponent(message.ip)}`);
+        const data = await res.json();
+        if (data.country || data.city) {
+          setIpInfo({
+            country: data.country,
+            city: data.city,
+            region: data.region,
+            isp: data.isp,
+          });
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+  };
+
+  const handleBanIP = async (ip: string, action: "ban" | "unban") => {
+    try {
+      const res = await fetch("/api/admin/ban-ip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip, action }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setBannedIPs(prev => {
+          const next = new Set(prev);
+          if (action === "ban") next.add(ip);
+          else next.delete(ip);
+          return next;
+        });
+        setSelectedUser(null);
+      } else {
+        setError(data.error || "Error al banear IP");
+      }
+    } catch {
+      setError("Error al banear IP");
+    }
+  };
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || !nick || sending || editingNick) return;
@@ -144,7 +256,17 @@ function ChatSession({ matchId }: ChatBoxProps) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, nick, text, ...colors }),
+        body: JSON.stringify({ 
+          matchId, 
+          nick, 
+          text, 
+          ...colors,
+          replyTo: replyingTo ? {
+            id: replyingTo.id,
+            nick: replyingTo.nick,
+            text: replyingTo.text,
+          } : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -152,7 +274,7 @@ function ChatSession({ matchId }: ChatBoxProps) {
           : res.status === 503 ? t.chat.storageUnavailable : t.chat.sendError);
         setInput(text);
       } else {
-        setPersistent(data.persistent !== false);
+        setReplyingTo(null);
         await fetchMessages();
       }
     } catch {
@@ -172,8 +294,9 @@ function ChatSession({ matchId }: ChatBoxProps) {
         </div>
         {nick && <button type="button" aria-label={t.chat.changeNick} title={t.chat.changeNick} disabled={sending}
           onClick={() => { setNickInput(nick); setEditingNick(true); setError(null); }}
-          className="max-w-[45%] shrink-0 text-right text-black hover:text-black/70 disabled:opacity-50">
+          className="max-w-[45%] shrink-0 text-right text-black hover:text-black/70 disabled:opacity-50 flex items-center gap-2">
           <span className="block truncate text-xs font-bold">@{nick}</span>
+          {admin.isAdmin && <span className="px-1.5 py-0.5 text-[8px] font-bold bg-red-600 text-white border border-white rounded">ADMIN</span>}
           <span className="inline-flex items-center gap-1 text-[10px] font-bold underline underline-offset-2">
             <Pencil size={10} />{t.chat.changeNick}
           </span>
@@ -182,26 +305,103 @@ function ChatSession({ matchId }: ChatBoxProps) {
 
       <div ref={scrollRef} role="log" aria-label={t.chat.title} aria-live="polite" aria-relevant="additions text"
         className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 min-h-0 break-words">
-        {persistent === false && (
-          <p role="status" className="border-2 border-accent-primary bg-accent-primary/10 px-2 py-1.5 text-[10px] font-bold text-accent-primary">
-            {t.chat.temporaryStorageWarning}
-          </p>
-        )}
         {messages.length === 0 ? (
           <p className="text-xs text-text-muted text-center mt-8">{t.chat.messagesEmpty}</p>
         ) : messages.map(message => {
           const own = message.nick === nick;
           const defaultColor = own ? DEFAULT_CHAT_COLORS.nickColor : DEFAULT_CHAT_COLORS.textColor;
           return (
-            <div key={message.id} className="text-sm leading-relaxed break-words">
-              <span className="font-black" style={{ color: isChatColor(message.nickColor) ? message.nickColor : defaultColor }}>{message.nick}: </span>
-              <span style={{ color: isChatColor(message.textColor) ? message.textColor : defaultColor }}>{message.text}</span>
+            <div key={message.id} className="group flex items-start gap-2 text-sm leading-relaxed break-words">
+              <div className="flex-1 min-w-0">
+                {message.replyTo && (
+                  <div className="mb-1 pl-2 border-l-2 border-white/30 text-[10px] text-text-muted">
+                    <span className="font-bold">@{message.replyTo.nick}: </span>
+                    <span className="truncate">{message.replyTo.text}</span>
+                  </div>
+                )}
+                {admin.isAdmin && message.ip ? (
+                  <button
+                    onClick={() => handleSelectUser(message)}
+                    className="font-black shrink-0 hover:underline cursor-pointer"
+                    style={{ color: isChatColor(message.nickColor) ? message.nickColor : defaultColor }}
+                  >
+                    {message.nick}
+                  </button>
+                ) : (
+                  <span className="font-black shrink-0" style={{ color: isChatColor(message.nickColor) ? message.nickColor : defaultColor }}>{message.nick}</span>
+                )}
+                {message.isAdmin && <span className="px-1 py-0.5 text-[8px] font-bold bg-red-600 text-white border border-white rounded ml-1">ADMIN</span>}
+                <span style={{ color: isChatColor(message.textColor) ? message.textColor : defaultColor }}>: {message.text}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleReply(message)}
+                  className="p-1 hover:bg-white/20 rounded"
+                  title="Responder"
+                >
+                  <Reply size={12} className="text-white" />
+                </button>
+                {admin.isAdmin && (
+                  <button
+                    onClick={() => handleDeleteMessage(message.id)}
+                    className="p-1 hover:bg-red-600 rounded"
+                    title="Borrar mensaje"
+                  >
+                    <Trash2 size={12} className="text-red-500" />
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
       {error && <div role="alert" className="shrink-0 px-3 py-1 text-[10px] font-bold text-accent-red text-center">{error}</div>}
+
+      {selectedUser && (
+        <div className="shrink-0 border-t-4 border-white bg-black p-4">
+          <h3 className="text-white font-bold mb-4 text-sm">Información del usuario</h3>
+          <div className="space-y-2 text-xs text-white mb-4">
+            <p><span className="font-bold">Nick:</span> {selectedUser.nick}</p>
+            <p><span className="font-bold">IP:</span> {selectedUser.ip || "Desconocida"}</p>
+            {ipInfo && (
+              <>
+                {ipInfo.country && <p><span className="font-bold">País:</span> {ipInfo.country}</p>}
+                {ipInfo.city && <p><span className="font-bold">Ciudad:</span> {ipInfo.city}</p>}
+                {ipInfo.region && <p><span className="font-bold">Región:</span> {ipInfo.region}</p>}
+                {ipInfo.isp && <p><span className="font-bold">ISP:</span> {ipInfo.isp}</p>}
+              </>
+            )}
+            {selectedUser.ip && bannedIPs.has(selectedUser.ip) && (
+              <p className="text-red-500 font-bold">Esta IP está baneada</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {selectedUser.ip && !bannedIPs.has(selectedUser.ip) && (
+              <button
+                onClick={() => handleBanIP(selectedUser.ip!, "ban")}
+                className="flex-1 bg-red-600 text-white px-3 py-2 text-xs font-bold hover:bg-red-700"
+              >
+                Banear IP
+              </button>
+            )}
+            {selectedUser.ip && bannedIPs.has(selectedUser.ip) && (
+              <button
+                onClick={() => handleBanIP(selectedUser.ip!, "unban")}
+                className="flex-1 bg-green-600 text-white px-3 py-2 text-xs font-bold hover:bg-green-700"
+              >
+                Desbanear IP
+              </button>
+            )}
+            <button
+              onClick={() => { setSelectedUser(null); setIpInfo(null); }}
+              className="flex-1 bg-gray-600 text-white px-3 py-2 text-xs font-bold hover:bg-gray-700"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="chat-color-controls grid shrink-0 grid-cols-2 gap-3 border-t-2 border-white/30 px-3 py-2">
         {(["nickColor", "textColor"] as const).map(field => (
@@ -210,10 +410,27 @@ function ChatSession({ matchId }: ChatBoxProps) {
         ))}
       </div>
 
+      {replyingTo && (
+        <div className="shrink-0 px-3 py-2 bg-white/10 border-t-2 border-white/30">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-text-muted">Respondiendo a @{replyingTo.nick}</p>
+              <p className="text-xs text-white truncate">{replyingTo.text}</p>
+            </div>
+            <button
+              onClick={handleCancelReply}
+              className="text-[10px] font-bold text-accent-red hover:text-red-400"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       {nick && !editingNick ? (
         <form onSubmit={event => { event.preventDefault(); void handleSend(); }} className="chat-composer flex shrink-0 gap-2 p-3 border-t-4 border-white">
-          <input type="text" value={input} onChange={event => setInput(event.target.value)}
-            maxLength={500} placeholder={t.chat.placeholder} aria-label={t.chat.placeholder} disabled={sending}
+          <input ref={inputRef} type="text" value={input} onChange={event => setInput(event.target.value)}
+            maxLength={500} placeholder={t.chat.placeholder} aria-label={t.chat.placeholder}
             style={{ color: colors.textColor }}
             className="flex-1 px-3 py-2 bg-black border-2 border-white/40 text-sm font-bold focus:border-accent-primary focus:outline-none min-w-0" />
           <button type="submit" aria-label={t.chat.sendButton} title={t.chat.sendButton} disabled={sending || !input.trim()}

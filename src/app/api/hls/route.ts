@@ -8,6 +8,19 @@ import {
   isEmbedPlayerPage,
   resolveEmbedPlaylist,
 } from "@/lib/embed-resolver";
+import { isIPBanned } from "@/lib/chat";
+
+function getClientIP(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  const realIP = request.headers.get("x-real-ip");
+  if (realIP) return realIP;
+  const cfIP = request.headers.get("cf-connecting-ip");
+  if (cfIP) return cfIP;
+  return "unknown";
+}
 
 // Server-side HLS relay for the allowlisted providers in src/lib/hls-proxy.ts.
 //
@@ -40,6 +53,11 @@ const PLAYLIST_HEADERS = {
 };
 
 export async function GET(request: Request): Promise<Response> {
+  const clientIP = getClientIP(request);
+  if (await isIPBanned(clientIP)) {
+    return new Response("Access denied", { status: 403 });
+  }
+
   const params = new URL(request.url).searchParams;
   const rawEmbed = params.get("e");
   if (rawEmbed) return relayEmbedPage(rawEmbed);

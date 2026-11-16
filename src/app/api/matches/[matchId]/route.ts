@@ -7,8 +7,21 @@ import { findEventStreams } from "@/lib/event-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
 import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo } from "@/lib/constants";
+import { isIPBanned } from "@/lib/chat";
 import type { Match, Channel } from "@/lib/types";
 import { validateParams, validateQuery, createErrorResponse, matchIdParamsSchema, matchIdQuerySchema } from "@/lib/validators";
+
+function getClientIP(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  const realIP = request.headers.get("x-real-ip");
+  if (realIP) return realIP;
+  const cfIP = request.headers.get("cf-connecting-ip");
+  if (cfIP) return cfIP;
+  return "unknown";
+}
 
 // Stream selection depends on the requested player mode and provider's current
 // match mapping. Reusing a response can keep the previous channel attached
@@ -19,6 +32,11 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ matchId: string }> }
 ) {
+  const clientIP = getClientIP(request);
+  if (await isIPBanned(clientIP)) {
+    return createErrorResponse("Access denied", 403);
+  }
+
   const paramsValidation = await validateParams(params, matchIdParamsSchema);
   if ("error" in paramsValidation) return paramsValidation.error;
 

@@ -1,5 +1,5 @@
 ﻿import { getCache, setCache, incrementCounter } from "./cache";
-import { getChatCollection, isMongoConfigured } from "./mongo";
+import { getChatCollection } from "./mongo";
 import { isChatColor, isChatPaletteColor, type ChatColors } from "./chat-colors";
 
 export interface ChatMessage {
@@ -8,15 +8,22 @@ export interface ChatMessage {
   nick: string;
   text: string;
   ts: number;
+  ip?: string;
   nickColor?: string;
   textColor?: string;
+  isAdmin?: boolean;
+  replyTo?: {
+    id: string;
+    nick: string;
+    text: string;
+  };
 }
 
 const MAX_MESSAGES_PER_MATCH = 200;
 const RATE_LIMIT_MS = 3000;
 const CHAT_RATE_LIMIT_KEY = "chat:ratelimit";
 const CHAT_MESSAGES_KEY = "chat:messages";
-export const CHAT_STORAGE_UNAVAILABLE = "Chat storage unavailable";
+const BANNED_IPS_KEY = "chat:banned_ips";
 
 let msgCounter = 0;
 
@@ -79,31 +86,74 @@ async function saveMessagesToCache(matchId: string, messages: ChatMessage[]): Pr
   await setCache(`${CHAT_MESSAGES_KEY}:${matchId}`, messages, 24 * 60 * 60 * 1000);
 }
 
-export async function getChatMessages(matchId: string, offset: number): Promise<ChatMessage[]> {
-  const mongoConfigured = isMongoConfigured();
-  const collection = await getChatCollection();
-  if (mongoConfigured && !collection) throw new Error(CHAT_STORAGE_UNAVAILABLE);
+async function getBannedIPs(): Promise<Set<string>> {
+  const cached = await getCache<string[]>(BANNED_IPS_KEY);
+  return new Set(cached ?? []);
+}
 
+async function saveBannedIPs(ips: Set<string>): Promise<void> {
+  await setCache(BANNED_IPS_KEY, Array.from(ips), 24 * 60 * 60 * 1000);
+}
+
+export async function isIPBanned(ip: string): Promise<boolean> {
+  if (!ip) return false;
+  const banned = await getBannedIPs();
+  return banned.has(ip);
+}
+
+export async function banIP(ip: string): Promise<void> {
+  if (!ip) return;
+  const banned = await getBannedIPs();
+  banned.add(ip);
+  await saveBannedIPs(banned);
+}
+
+export async function unbanIP(ip: string): Promise<void> {
+  if (!ip) return;
+  const banned = await getBannedIPs();
+  banned.delete(ip);
+  await saveBannedIPs(banned);
+}
+
+export async function getBannedIPList(): Promise<string[]> {
+  const banned = await getBannedIPs();
+  return Array.from(banned);
+}
+
+export async function getChatMessages(matchId: string, offset: number): Promise<ChatMessage[]> {
+  const collection = await getChatCollection();
+  
+  // Try MongoDB first
   if (collection) {
     try {
       const messages = await collection
         .find({ matchId, ts: { $gte: offset } })
         .sort({ ts: 1 })
         .toArray();
-      return messages.map(({ id, matchId: mid, nick, text, ts, nickColor, textColor }) => ({
-        id,
-        matchId: mid,
-        nick,
-        text,
-        ts,
-        ...(isChatColor(nickColor) ? { nickColor } : {}),
-        ...(isChatColor(textColor) ? { textColor } : {}),
-      }));
-    } catch {
-      if (mongoConfigured) throw new Error(CHAT_STORAGE_UNAVAILABLE);
+      
+      // If we got messages from MongoDB, also update cache for fallback
+      if (messages.length > 0) {
+        const chatMessages = messages.map(({ id, matchId: mid, nick, text, ts, ip, nickColor, textColor, isAdmin, replyTo }) => ({
+          id,
+          matchId: mid,
+          nick,
+          text,
+          ts,
+          ...(ip ? { ip } : {}),
+          ...(isChatColor(nickColor) ? { nickColor } : {}),
+          ...(isChatColor(textColor) ? { textColor } : {}),
+          ...(isAdmin ? { isAdmin } : {}),
+          ...(replyTo ? { replyTo } : {}),
+        }));
+        await saveMessagesToCache(matchId, chatMessages);
+        return chatMessages;
+      }
+    } catch (error) {
+      console.warn("[chat] MongoDB error, falling back to cache:", error);
     }
   }
-
+  
+  // Fallback to cache
   const messages = await getMessagesFromCache(matchId);
   return messages.filter((m) => m.ts >= offset);
 }
@@ -112,7 +162,7 @@ export async function addChatMessage(
   matchId: string,
   nick: string,
   text: string,
-  colors: Partial<ChatColors> = {}
+  colors: Partial<ChatColors> & { replyTo?: { id: string; nick: string; text: string }; isAdmin?: boolean; ip?: string } = {}
 ): Promise<{ ok: boolean; error?: string; persistent?: boolean }> {
   const validId = validateMatchId(matchId);
   if (!validId) return { ok: false, error: "Invalid match ID" };
@@ -139,24 +189,33 @@ export async function addChatMessage(
     nick: validNick,
     text: validText,
     ts: Date.now(),
+    ...(colors.ip ? { ip: colors.ip } : {}),
     ...(colors.nickColor ? { nickColor: colors.nickColor } : {}),
     ...(colors.textColor ? { textColor: colors.textColor } : {}),
+    ...(colors.isAdmin ? { isAdmin: true } : {}),
+    ...(colors.replyTo ? { replyTo: colors.replyTo } : {}),
   };
 
   const collection = await getChatCollection();
   if (collection) {
     try {
       await collection.insertOne(msg);
+      // Also save to cache for fallback
+      const messages = await getMessagesFromCache(validId);
+      messages.push(msg);
+      if (messages.length > MAX_MESSAGES_PER_MATCH) {
+        messages.splice(0, messages.length - MAX_MESSAGES_PER_MATCH);
+      }
+      await saveMessagesToCache(validId, messages);
       return { ok: true, persistent: true };
-    } catch {
-      if (isMongoConfigured()) return { ok: false, error: CHAT_STORAGE_UNAVAILABLE };
+    } catch (error) {
+      console.warn("[chat] MongoDB insert error, falling back to cache:", error);
+      // Fall back to cache below
     }
   }
 
-  if (isMongoConfigured()) return { ok: false, error: CHAT_STORAGE_UNAVAILABLE };
-
+  // Use cache fallback
   const messages = await getMessagesFromCache(validId);
-
   messages.push(msg);
 
   if (messages.length > MAX_MESSAGES_PER_MATCH) {

@@ -28,6 +28,11 @@ export const chatPostSchema = z.object({
   text: z.string().min(1).max(500),
   nickColor: z.string().regex(CHAT_COLOR_PATTERN).refine(isChatPaletteColor).optional(),
   textColor: z.string().regex(CHAT_COLOR_PATTERN).refine(isChatPaletteColor).optional(),
+  replyTo: z.object({
+    id: z.string(),
+    nick: z.string(),
+    text: z.string(),
+  }).optional(),
 });
 
 export const viewerHeartbeatSchema = z.object({

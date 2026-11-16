@@ -92,6 +92,13 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   macedoniadelnorte: "northmacedonia",
   fyrmacedonia: "northmacedonia",
   macedoniadelfyr: "northmacedonia",
+  // Country name variations for Slovakia and Slovenia
+  eslovaquia: "slovakia",
+  slovakia: "slovakia",
+  eslovenia: "slovenia",
+  slovenia: "slovenia",
+  azerbaiyan: "azerbaijan",
+  azerbaijan: "azerbaijan",
 };
 
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {

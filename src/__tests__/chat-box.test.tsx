@@ -13,8 +13,14 @@ describe("public chat and message colors", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     localStorage.clear();
+    sessionStorage.clear();
     Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: jest.fn() });
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ messages: [first], persistent: true }) });
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url === "/api/admin/session") {
+        return Promise.resolve({ ok: true, json: async () => ({ isAdmin: false }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ messages: [first], persistent: true }) });
+    });
   });
   afterEach(() => {
     global.fetch = originalFetch;
@@ -34,11 +40,13 @@ describe("public chat and message colors", () => {
     expect(screen.getByRole("log")).toHaveTextContent(first.text);
     expect(screen.getByLabelText(t.nickPlaceholder)).toBeInTheDocument();
     expect(screen.queryByLabelText(t.placeholder)).not.toBeInTheDocument();
-    expect(screen.getByText("OtroHincha:")).toHaveStyle({ color: "#00ffff" });
-    expect(screen.getByText(first.text)).toHaveStyle({ color: "#ff8800" });
+    expect(screen.getByText("OtroHincha")).toHaveStyle({ color: "#00ffff" });
+    expect(screen.getByText(": ¡Vamos equipo!")).toHaveStyle({ color: "#ff8800" });
     await act(async () => { jest.advanceTimersByTime(3000); });
-    expect(global.fetch).toHaveBeenCalledTimes(2);
-    expect(global.fetch).toHaveBeenLastCalledWith("/api/chat?matchId=123&offset=1", { cache: "no-store" });
+    // Filter out admin session calls
+    const chatCalls = jest.mocked(global.fetch).mock.calls.filter(call => call[0] !== "/api/admin/session");
+    expect(chatCalls).toHaveLength(2);
+    expect(chatCalls[1][0]).toBe("/api/chat?matchId=123&offset=1");
   });
 
   it("keeps reading history on joining, saves preferences and sends both selected colors", async () => {
@@ -51,7 +59,9 @@ describe("public chat and message colors", () => {
     expect(screen.getByRole("log")).toHaveTextContent(first.text);
     expect(localStorage.getItem("goltv-chat-nick-color")).toBe("#ff00ff");
     expect(localStorage.getItem("goltv-chat-text-color")).toBe("#00ff00");
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    // Filter out admin session calls
+    const chatCalls = jest.mocked(global.fetch).mock.calls.filter(call => call[0] !== "/api/admin/session");
+    expect(chatCalls).toHaveLength(1);
 
     fireEvent.change(screen.getByLabelText(t.placeholder), { target: { value: "Gol!" } });
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: t.sendButton })); });

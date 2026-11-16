@@ -213,6 +213,7 @@ export default function CanalesPage() {
                   kind={streamKind}
                   clearKey={streamKind === "dash" ? clearKey : null}
                   preferFastStart
+                  cropBottom={0.075}
                 />
                 {streamState === "loading" ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/70">

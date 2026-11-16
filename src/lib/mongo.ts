@@ -35,7 +35,11 @@ function connect(uri: string): CachedClient {
   const client = new MongoClient(uri, {
     maxPoolSize: 5,
     minPoolSize: 0,
-    serverSelectionTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 10000, // Increased for better reliability
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 10000,
+    retryWrites: true,
+    retryReads: true,
     appName: "goltv-libre",
   });
 
@@ -49,6 +53,7 @@ function connect(uri: string): CachedClient {
     .catch((err) => {
       globalRef.__goltvMongo = null;
       console.error("[mongo] connection failed:", err);
+      console.error("[mongo] URI:", uri.replace(/\/\/.*@/, "//***:***@")); // Hide credentials
       throw err;
     });
 
@@ -66,6 +71,8 @@ async function ensureIndexes(db: Db): Promise<void> {
     viewers.createIndex({ matchId: 1, viewerId: 1 }, { unique: true }),
     // Safety cleanup: entries stop being relevant long before this
     viewers.createIndex({ lastSeen: 1 }, { expireAfterSeconds: VIEWERS_TTL_SECONDS }),
+    // Config collection for admin data
+    db.collection("config").createIndex({ key: 1 }, { unique: true }),
   ]);
 }
 
@@ -74,7 +81,7 @@ async function ensureIndexes(db: Db): Promise<void> {
  * without a database fall back to the in-memory store) or when the
  * connection fails — callers fall back instead of failing the request.
  */
-async function getDb(): Promise<Db | null> {
+export async function getDb(): Promise<Db | null> {
   if (!isMongoConfigured()) return null;
 
   if (!globalRef.__goltvMongo) {
@@ -83,7 +90,9 @@ async function getDb(): Promise<Db | null> {
 
   try {
     return await globalRef.__goltvMongo.ready;
-  } catch {
+  } catch (error) {
+    console.error("[mongo] getDb failed:", error);
+    // Don't log full error details to avoid exposing sensitive info
     return null;
   }
 }

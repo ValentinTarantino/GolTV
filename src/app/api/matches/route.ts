@@ -7,8 +7,21 @@ import { fetchEventAgenda } from "@/lib/event-source";
 import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam, isMenFootballMatch, SUPPORTED_LEAGUES } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
+import { isIPBanned } from "@/lib/chat";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
+
+function getClientIP(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  const realIP = request.headers.get("x-real-ip");
+  if (realIP) return realIP;
+  const cfIP = request.headers.get("cf-connecting-ip");
+  if (cfIP) return cfIP;
+  return "unknown";
+}
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +154,11 @@ function inferStatus(dateISO: string): "NS" | "1H" | "FT" {
 }
 
 export async function GET(request: NextRequest) {
+  const clientIP = getClientIP(request);
+  if (await isIPBanned(clientIP)) {
+    return Response.json({ error: "Access denied" }, { status: 403 });
+  }
+
   const validation = await validateQuery(request, matchesQuerySchema);
   if ("error" in validation) return validation.error;
 
@@ -161,10 +179,6 @@ export async function GET(request: NextRequest) {
     ...eventAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, fixtureStatus: undefined, hasStreams: entry.sources.length > 0 })),
     ...playerFiveAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, fixtureStatus: undefined, preferredPlayer: "5" as const })),
   ];
-  console.log("[matches] Player 5 agenda entries:", playerFiveAgenda.length);
-  if (playerFiveAgenda.length > 0) {
-    console.log("[matches] Player 5 first entry:", JSON.stringify(playerFiveAgenda[0], null, 2));
-  }
   const seenMatches = new Map<string, SeenFixture[]>();
   const matches: Match[] = [];
 
@@ -183,12 +197,7 @@ export async function GET(request: NextRequest) {
       league: cleanAgendaText(raw.league),
     };
     if (!isMenFootballMatch(entry.league, entry.homeTeam, entry.awayTeam)) continue;
-    const argDate = toArgentinaDate(entry.dateISO);
-    const isDateMatch = argDate === date || isNearNow(entry.dateISO);
-    if ("preferredPlayer" in entry && entry.preferredPlayer === "5") {
-      console.log("[matches] Player 5 fixture:", entry.homeTeam, "vs", entry.awayTeam, "| argDate:", argDate, "| target date:", date, "| isNearNow:", isNearNow(entry.dateISO), "| isDateMatch:", isDateMatch);
-    }
-    if (!isDateMatch) continue;
+    if (!(toArgentinaDate(entry.dateISO) === date || isNearNow(entry.dateISO))) continue;
     const league = "preferredPlayer" in entry
       ? SUPPORTED_LEAGUES.find(league => league.id === 129)
       : classifyAgendaLeague(entry.league, entry.homeTeam, entry.awayTeam);

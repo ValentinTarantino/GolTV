@@ -16,6 +16,8 @@ interface HlsPlayerProps {
   borderlessFullscreen?: boolean;
   /** Starts on the light rendition so the first picture arrives right away. */
   preferFastStart?: boolean;
+  /** Cuts a fraction of the bottom of the picture (restreamer watermark). */
+  cropBottom?: number;
 }
 
 interface QualityLevelInfo {
@@ -52,7 +54,14 @@ function levelLabel(level: QualityLevelInfo): string {
   return `L${level.index + 1}`;
 }
 
-function HlsPlayer({ url, title, headers, borderlessFullscreen = false, preferFastStart = false }: HlsPlayerProps) {
+function HlsPlayer({
+  url,
+  title,
+  headers,
+  borderlessFullscreen = false,
+  preferFastStart = false,
+  cropBottom = 0,
+}: HlsPlayerProps) {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -383,11 +392,19 @@ function HlsPlayer({ url, title, headers, borderlessFullscreen = false, preferFa
       onClick={togglePlay}
       id="video-player"
     >
-      <video 
-        ref={videoRef} 
-        className="w-full h-full" 
-        playsInline 
-        autoPlay 
+      <video
+        ref={videoRef}
+        className="h-full w-full"
+        style={
+          cropBottom > 0
+            ? {
+                transform: `scale(${1 + cropBottom})`,
+                transformOrigin: "top center",
+              }
+            : undefined
+        }
+        playsInline
+        autoPlay
       />
 
       <button
@@ -559,9 +576,11 @@ interface VideoPlayerProps extends IframeChannelBridgeProps {
   clearKey?: { kid: string; key: string } | null;
   /** Starts on the light rendition so the first picture arrives right away. */
   preferFastStart?: boolean;
+  /** Cuts a fraction of the bottom of the picture (restreamer watermark). */
+  cropBottom?: number;
 }
 
-export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen, channel, onChannels, clearKey, preferFastStart }: VideoPlayerProps) {
+export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen, channel, onChannels, clearKey, preferFastStart, cropBottom }: VideoPlayerProps) {
   if (kind === "iframe") {
     return <IframePlayer url={url} title={title} channel={channel} onChannels={onChannels} />;
   }
@@ -575,6 +594,7 @@ export default function VideoPlayer({ url, title, headers, kind, borderlessFulls
       headers={headers}
       borderlessFullscreen={borderlessFullscreen}
       preferFastStart={preferFastStart}
+      cropBottom={cropBottom}
     />
   );
 }

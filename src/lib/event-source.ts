@@ -3,6 +3,7 @@ import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 import { isMenFootballMatch } from "./constants";
 import { matchTeamsPair } from "./team-matching";
+import { canonicalTeamForDedup } from "./fixture-identity";
 import { fetchTextWithDnsServer } from "./dns-fetch";
 
 const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
@@ -63,6 +64,7 @@ const decodeHtmlEntities = cleanAgendaText;
 
 export function parseAgendaHTML(html: string): EventMatch[] {
   const matches: EventMatch[] = [];
+  const seenKeys = new Set<string>();
 
   const eventRegex = /<div[^>]*class="[^"]*source-agenda-event[^"]*"[^>]*data-source-instant="([^"]*)"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*source-agenda-event[^"]*"|<div class="[^"]*channels-title)/g;
 
@@ -92,8 +94,25 @@ export function parseAgendaHTML(html: string): EventMatch[] {
     const homeTeam = vsSplit[0].trim().replace(/^\d{1,2}:\d{2}\s+/, "");
     const awayTeam = vsSplit.slice(1).join(" vs ").trim();
 
+    // Filter out "Kazajstán" (without I) in favor of "Kazajistán" (with I)
+    if ((homeTeam === "Kazajstán" || awayTeam === "Kazajstán") && 
+        !(homeTeam === "Kazajistán" || awayTeam === "Kazajistán")) {
+      continue;
+    }
+
     const slugMatch = block.match(/<a[^>]*class="[^"]*agenda-open-match[^"]*"[^>]*href="([^"]*)"/);
     const slug = slugMatch ? slugMatch[1].replace(/^\//, "").replace(/^match\//, "") : `${homeTeam.toLowerCase().replace(/\s+/g, "-")}-vs-${awayTeam.toLowerCase().replace(/\s+/g, "-")}`;
+
+    // Skip duplicates by team names + date (ignore league variations)
+    // Use canonicalTeamForDedup to normalize team names, then aggressive normalization
+    const normalizeAggressive = (s: string) => s.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+    const canonicalHome = normalizeAggressive(canonicalTeamForDedup(homeTeam, 0));
+    const canonicalAway = normalizeAggressive(canonicalTeamForDedup(awayTeam, 0));
+    const key = `${canonicalHome}|${canonicalAway}|${dateISO}`;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
 
     const sources: EventEmbed[] = [];
     const sourceRegex = /<a[^>]*class="[^"]*agenda-source-button[^"]*"[^>]*href="[^"]*#source=(\d+)"[^>]*>[\s\S]*?<small>([^<]*)<\/small>/g;

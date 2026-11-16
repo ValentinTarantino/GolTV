@@ -1,47 +1,87 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 
-interface LpfChannel {
+interface LpfMatch {
   id: string;
-  label: string;
-  number: number;
+  source: "sportplus" | "angulismo";
+  competition: string;
+  home: string;
+  away: string;
+  homeLogo?: string;
+  awayLogo?: string;
+  start: string;
+  status: "live" | "upcoming" | "finished";
 }
 
 type ListState = "loading" | "ready" | "error";
 type StreamState = "loading" | "ready" | "error";
 
+/** The kickoff arrives in Argentina time, so it is rendered as UTC. */
+function formatTime(start: string): string {
+  if (!start) return "";
+  const date = new Date(start);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
+/** Crest of a team; the name is the fallback when the crest is unknown. */
+function TeamCrest({ src, name }: { src?: string; name: string }) {
+  if (!src) {
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center border-2 border-current/40 text-[10px] font-black uppercase">
+        {name.slice(0, 2)}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={name}
+      title={name}
+      className="h-7 w-7 shrink-0 object-contain"
+      loading="lazy"
+    />
+  );
+}
+
 export default function LpfPlayPage() {
   const { t } = useLanguage();
   const copy = t.lpf;
 
-  const [channels, setChannels] = useState<LpfChannel[]>([]);
+  const [matches, setMatches] = useState<LpfMatch[]>([]);
   const [listState, setListState] = useState<ListState>("loading");
   const [listReload, setListReload] = useState(0);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [streamSrc, setStreamSrc] = useState<string | null>(null);
+  const [streamKind, setStreamKind] = useState<"hls" | "iframe">("hls");
   const [streamState, setStreamState] = useState<StreamState>("loading");
   const [streamReload, setStreamReload] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
-    fetch("/api/lpf")
+    fetch("/api/lpf/matches")
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { channels?: LpfChannel[] }) => {
+      .then((data: { matches?: LpfMatch[] }) => {
         if (cancelled) return;
-        const next = Array.isArray(data.channels) ? data.channels : [];
-        setChannels(next);
+        const next = Array.isArray(data.matches) ? data.matches : [];
+        setMatches(next);
         setListState("ready");
-        setActiveId((current) => current ?? next[0]?.id ?? null);
+        setActiveId((current) => current ?? next.find((m) => m.status === "live")?.id ?? next[0]?.id ?? null);
       })
       .catch(() => {
         if (cancelled) return;
-        setChannels([]);
+        setMatches([]);
         setListState("error");
       });
 
@@ -54,15 +94,16 @@ export default function LpfPlayPage() {
     if (!activeId) return;
     let cancelled = false;
 
-    fetch(`/api/lpf/${encodeURIComponent(activeId)}`)
+    fetch(`/api/lpf/matches/${encodeURIComponent(activeId)}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { src?: string }) => {
+      .then((data: { src?: string | null; kind?: "hls" | "iframe" | null }) => {
         if (cancelled) return;
         if (!data.src) {
           setStreamState("error");
           return;
         }
         setStreamSrc(data.src);
+        setStreamKind(data.kind ?? "hls");
         setStreamState("ready");
       })
       .catch(() => {
@@ -75,11 +116,20 @@ export default function LpfPlayPage() {
     };
   }, [activeId, streamReload]);
 
-  const activeChannel = channels.find((channel) => channel.id === activeId) ?? null;
+  const activeMatch = matches.find((match) => match.id === activeId) ?? null;
+
+  const groups = useMemo(() => {
+    const map = new Map<string, LpfMatch[]>();
+    for (const match of matches) {
+      const list = map.get(match.competition) ?? [];
+      list.push(match);
+      map.set(match.competition, list);
+    }
+    return [...map.entries()];
+  }, [matches]);
 
   const reloadStream = useCallback(() => {
     setStreamState("loading");
-    setStreamSrc(null);
     setStreamReload((n) => n + 1);
   }, []);
 
@@ -88,37 +138,46 @@ export default function LpfPlayPage() {
     setListReload((n) => n + 1);
   }, []);
 
-  const selectChannel = useCallback(
+  const selectMatch = useCallback(
     (id: string) => {
       if (id === activeId) {
         setStreamState("loading");
-        setStreamSrc(null);
         setStreamReload((n) => n + 1);
         return;
       }
       setStreamState("loading");
-      setStreamSrc(null);
       setActiveId(id);
     },
     [activeId]
   );
 
+  const statusLabel = (status: LpfMatch["status"]) => {
+    if (status === "live") return copy.live;
+    if (status === "finished") return copy.finished;
+    return copy.scheduled;
+  };
+
   return (
     <main className="min-h-screen">
       <section className="mx-auto max-w-7xl px-3 py-7 sm:px-4 md:px-6 md:py-10">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
               <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
                 {copy.nowPlaying}
               </span>
               <span className="truncate text-xs font-black uppercase text-accent-primary sm:text-sm">
-                {activeChannel?.label ?? copy.noChannel}
+                {activeMatch ? `${activeMatch.home} vs ${activeMatch.away}` : copy.noChannel}
               </span>
             </div>
 
-            {streamState === "ready" && streamSrc && activeChannel ? (
-              <VideoPlayer url={streamSrc} title={activeChannel.label} />
+            {streamState === "ready" && streamSrc && activeMatch ? (
+              <VideoPlayer
+                url={streamSrc}
+                title={`${activeMatch.home} vs ${activeMatch.away}`}
+                kind={streamKind}
+                preferFastStart
+              />
             ) : (
               <div className="relative flex aspect-video w-full items-center justify-center border-3 border-white bg-black sm:border-4">
                 {streamState === "loading" ? (
@@ -138,7 +197,7 @@ export default function LpfPlayPage() {
                     <button
                       type="button"
                       onClick={reloadStream}
-                      className="mt-1 border-2 border-black bg-accent-primary px-3 py-1.5 text-[10px] font-black uppercase text-black shadow-btn transition-transform hover:-translate-y-0.5 sm:text-xs"
+                      className="mt-1 border-2 border-black bg-accent-primary px-3 py-1.5 text-[10px] font-black uppercase text-black shadow-btn transition-transform hover:-translate-y-0.5"
                     >
                       {copy.retry}
                     </button>
@@ -147,34 +206,29 @@ export default function LpfPlayPage() {
               </div>
             )}
 
-            <div
-              role="note"
-              className="border-4 border-accent-primary bg-black p-3 shadow-brutal sm:p-4"
-            >
+            <div role="note" className="border-4 border-accent-primary bg-black p-3 shadow-brutal sm:p-4">
               <div className="mb-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest text-accent-primary sm:text-xs">
                   {copy.helperTitle}
                 </span>
               </div>
-              <p className="text-[11px] font-medium leading-relaxed text-gray-300 sm:text-sm">
-                {copy.helperDesc}
-              </p>
+              <p className="text-[11px] font-medium leading-relaxed text-gray-300 sm:text-sm">{copy.helperDesc}</p>
             </div>
           </div>
 
           <aside className="flex flex-col gap-3">
             <div className="flex items-center justify-between border-4 border-white bg-black px-3 py-2 shadow-brutal">
               <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
-                {copy.channels}
+                {copy.matches}
               </span>
               <span className="border-2 border-white bg-accent-primary px-2 py-0.5 text-[10px] font-black text-black">
-                {channels.length}
+                {matches.length}
               </span>
             </div>
 
             {listState === "loading" && (
               <p className="border-2 border-white/20 px-3 py-4 text-center text-xs font-bold uppercase text-gray-400">
-                {copy.loading}
+                {copy.loadingMatches}
               </p>
             )}
 
@@ -192,38 +246,56 @@ export default function LpfPlayPage() {
               </div>
             )}
 
-            {listState === "ready" && channels.length === 0 && (
+            {listState === "ready" && matches.length === 0 && (
               <div className="flex flex-col items-center gap-2 border-2 border-white/20 px-3 py-4 text-center">
                 <span className="text-xs font-black uppercase text-white">{copy.empty}</span>
                 <span className="text-[11px] font-medium text-gray-400">{copy.emptyDesc}</span>
               </div>
             )}
 
-            {channels.map((channel) => {
-              const isActive = channel.id === activeId;
-              return (
-                <button
-                  key={channel.id}
-                  type="button"
-                  onClick={() => selectChannel(channel.id)}
-                  className={`flex items-center justify-between gap-2 border-4 px-3 py-2.5 text-left transition-transform hover:-translate-y-0.5 ${
-                    isActive
-                      ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
-                      : "border-white bg-black text-white shadow-brutal"
-                  }`}
-                >
-                  <span className="text-xs font-black uppercase tracking-wide sm:text-sm">
-                    {channel.label}
-                  </span>
-                  {isActive ? (
-                    <span className="flex items-center gap-1 text-[9px] font-black uppercase">
-                      <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
-                      {copy.live}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
+            {groups.map(([competition, list]) => (
+              <div key={competition} className="flex flex-col gap-2">
+                <span className="border-2 border-white/30 bg-black px-3 py-1 text-[10px] font-black uppercase tracking-widest text-accent-primary">
+                  {competition}
+                </span>
+                {list.map((match) => {
+                  const isActive = match.id === activeId;
+                  return (
+                    <button
+                      key={match.id}
+                      type="button"
+                      data-match={match.id}
+                      onClick={() => selectMatch(match.id)}
+                      title={`${match.home} vs ${match.away}`}
+                      className={`flex items-center justify-between gap-2 border-4 px-3 py-2.5 text-left transition-transform hover:-translate-y-0.5 ${
+                        isActive
+                          ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
+                          : "border-white bg-black text-white shadow-brutal"
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <TeamCrest src={match.homeLogo} name={match.home} />
+                        <span className="text-[10px] font-black uppercase opacity-60">vs</span>
+                        <TeamCrest src={match.awayLogo} name={match.away} />
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end gap-0.5">
+                        <span className="text-[10px] font-bold uppercase opacity-80">{formatTime(match.start)}</span>
+                        {match.status === "live" ? (
+                          <span className="flex items-center gap-1 text-[9px] font-black uppercase">
+                            <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
+                            {copy.live}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-black uppercase opacity-70">
+                            {statusLabel(match.status)}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </aside>
         </div>
       </section>

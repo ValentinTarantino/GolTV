@@ -38,24 +38,26 @@ export async function heartbeatViewer(matchId: string, viewerId: string): Promis
   const now = Date.now();
   const collection = await getViewersCollection();
 
-  if (collection) {
-    try {
-      await collection.updateOne(
-        { matchId, viewerId },
-        { $set: { lastSeen: now } },
-        { upsert: true }
-      );
-      return await collection.countDocuments({
-        matchId,
-        lastSeen: { $gte: now - ACTIVE_WINDOW_MS },
-      });
-    } catch {
-      // fall through to the in-memory fallback
-    }
+  if (!collection) {
+    memoryViewers.set(memoryKey(matchId, viewerId), now);
+    return memoryCount(matchId);
   }
 
-  memoryViewers.set(memoryKey(matchId, viewerId), now);
-  return memoryCount(matchId);
+  try {
+    await collection.updateOne(
+      { matchId, viewerId },
+      { $set: { lastSeen: now } },
+      { upsert: true }
+    );
+    return await collection.countDocuments({
+      matchId,
+      lastSeen: { $gte: now - ACTIVE_WINDOW_MS },
+    });
+  } catch {
+    // fall through to the in-memory fallback
+    memoryViewers.set(memoryKey(matchId, viewerId), now);
+    return memoryCount(matchId);
+  }
 }
 
 /** Active viewers for a match without registering the caller. */
@@ -63,18 +65,19 @@ export async function getViewerCount(matchId: string): Promise<number> {
   const now = Date.now();
   const collection = await getViewersCollection();
 
-  if (collection) {
-    try {
-      return await collection.countDocuments({
-        matchId,
-        lastSeen: { $gte: now - ACTIVE_WINDOW_MS },
-      });
-    } catch {
-      // fall through to the in-memory fallback
-    }
+  if (!collection) {
+    return memoryCount(matchId);
   }
 
-  return memoryCount(matchId);
+  try {
+    return await collection.countDocuments({
+      matchId,
+      lastSeen: { $gte: now - ACTIVE_WINDOW_MS },
+    });
+  } catch {
+    // fall through to the in-memory fallback
+    return memoryCount(matchId);
+  }
 }
 
 /**
@@ -86,18 +89,20 @@ export async function removeViewer(matchId: string, viewerId: string): Promise<n
   const now = Date.now();
   const collection = await getViewersCollection();
 
-  if (collection) {
-    try {
-      await collection.deleteOne({ matchId, viewerId });
-      return await collection.countDocuments({
-        matchId,
-        lastSeen: { $gte: now - ACTIVE_WINDOW_MS },
-      });
-    } catch {
-      // fall through to the in-memory fallback
-    }
+  if (!collection) {
+    memoryViewers.delete(memoryKey(matchId, viewerId));
+    return memoryCount(matchId);
   }
 
-  memoryViewers.delete(memoryKey(matchId, viewerId));
-  return memoryCount(matchId);
+  try {
+    await collection.deleteOne({ matchId, viewerId });
+    return await collection.countDocuments({
+      matchId,
+      lastSeen: { $gte: now - ACTIVE_WINDOW_MS },
+    });
+  } catch {
+    // fall through to the in-memory fallback
+    memoryViewers.delete(memoryKey(matchId, viewerId));
+    return memoryCount(matchId);
+  }
 }
