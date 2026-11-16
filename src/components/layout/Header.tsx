@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Radio, Trophy, Tv } from "lucide-react";
+import { Trophy, Tv } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LpfPlayMark from "@/components/lpf/LpfPlayMark";
 import SearchBar from "@/components/search/SearchBar";
@@ -62,14 +62,6 @@ export default function Header() {
             >
               <Trophy size={14} strokeWidth={3} />
               <span>{t.leagues?.title || "LIGAS"}</span>
-            </Link>
-            <Link
-              href="/lpf"
-              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-accent-secondary bg-black shadow-[4px_4px_0px_0px_var(--color-accent-secondary)] font-black text-xs sm:text-sm text-white hover:text-accent-secondary transition-colors uppercase"
-              id="header-lpf-play"
-            >
-              <Radio size={14} strokeWidth={3} />
-              <span>{t.lpf?.nav || "LPF PLAY"}</span>
             </Link>
             <Link
               href="/canales"
