@@ -183,13 +183,33 @@ async function register(tunnelUrl) {
   return false;
 }
 
+// cloudflared may be missing from the PATH of an already-open terminal, so
+// fall back to the well-known install locations.
+const BIN_CANDIDATES = [
+  "cloudflared",
+  "C:\\Program Files (x86)\\cloudflared\\cloudflared.exe",
+  "C:\\Program Files\\cloudflared\\cloudflared.exe",
+  "/usr/local/bin/cloudflared",
+  "/opt/homebrew/bin/cloudflared",
+  "/usr/bin/cloudflared",
+];
+let binIndex = 0;
+
 function startTunnel() {
-  console.log("[lpf-relay] starting cloudflared tunnel...");
-  const tunnel = spawn("cloudflared", ["tunnel", "--url", `http://127.0.0.1:${PORT}`, "--no-autoupdate"], {
+  const bin = BIN_CANDIDATES[binIndex];
+  console.log(`[lpf-relay] starting cloudflared tunnel (${bin})...`);
+  const tunnel = spawn(bin, ["tunnel", "--url", `http://127.0.0.1:${PORT}`, "--no-autoupdate"], {
     stdio: ["ignore", "pipe", "pipe"],
   });
+  let spawnFailed = false;
 
   tunnel.on("error", (error) => {
+    spawnFailed = true;
+    if (error.code === "ENOENT" && binIndex < BIN_CANDIDATES.length - 1) {
+      binIndex += 1;
+      startTunnel();
+      return;
+    }
     console.error(
       "[lpf-relay] could not start cloudflared:",
       error.code === "ENOENT"
@@ -218,6 +238,7 @@ function startTunnel() {
   tunnel.stderr.on("data", onData);
 
   tunnel.on("exit", (code) => {
+    if (spawnFailed) return;
     console.warn(`[lpf-relay] cloudflared exited (${code}), restarting in 5s...`);
     registeredUrl = null;
     setTimeout(startTunnel, 5_000);
