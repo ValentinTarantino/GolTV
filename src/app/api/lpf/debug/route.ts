@@ -29,11 +29,58 @@ async function probeCdn(): Promise<Array<{ host: string; status: number | null; 
   );
 }
 
+/** Fetches a playlist (and its first variant) to learn if the CDN serves this network. */
+async function probePlaylist(raw: string): Promise<Record<string, unknown>> {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { error: "bad-url" };
+  }
+  if (url.protocol !== "https:" || !url.pathname.endsWith(".m3u8") || !isLpfStreamHost(url)) {
+    return { error: "not-allowed", host: url.hostname };
+  }
+  const fetchOne = async (target: string) => {
+    try {
+      const res = await fetch(target, {
+        headers: { "User-Agent": BROWSER_UA, Referer: `${SPORTPLUS_SITE_FOR_DEBUG}/football/` },
+        signal: AbortSignal.timeout(15_000),
+        cache: "no-store",
+      });
+      const text = await res.text();
+      return { status: res.status, length: text.length, body: text.slice(0, 4000) };
+    } catch (error) {
+      return { status: null, error: String(error).slice(0, 100) };
+    }
+  };
+  const master = await fetchOne(url.toString());
+  let variant: unknown = null;
+  const masterBody = (master as { body?: string }).body ?? "";
+  const variantLine = masterBody.split("\n").find((line) => line.trim() && !line.trim().startsWith("#"));
+  if (variantLine && master.status === 200) {
+    try {
+      const variantUrl = new URL(variantLine.trim(), url).toString();
+      variant = { url: new URL(variantUrl).hostname + new URL(variantUrl).pathname.slice(0, 40), ...(await fetchOne(variantUrl)) };
+    } catch {
+      variant = { error: "bad-variant" };
+    }
+  }
+  return { host: url.hostname, master, variant };
+}
+
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36";
+const SPORTPLUS_SITE_FOR_DEBUG = "https://es.sportplus.watch";
+
 /**
  * Temporary diagnostics: shows what the deployment receives from the
  * provider when it looks for the playlist of a match.
  */
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
+  const playlistParam = new URL(request.url).searchParams.get("playlist");
+  if (playlistParam) {
+    return Response.json(await probePlaylist(playlistParam), { headers: { "Cache-Control": "no-store" } });
+  }
   const matches = await listLpfMatches();
   const live = matches.find((match) => match.status === "live") ?? matches[0];
   const demo = matches.find((match) => match.source === "demo");
