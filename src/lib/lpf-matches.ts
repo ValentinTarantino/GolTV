@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getCache, setCache } from "./cache";
+import { getHomeRelayUrl } from "./lpf-home-relay";
 
 /**
  * Matches of the "LPF Play" section.
@@ -358,14 +359,31 @@ function playlistFromLs(ls: unknown): string | null {
  * the site in front of it refuses datacenter traffic with a 404.
  */
 async function sportplusPlaylist(competitionId: string, matchIdValue: string): Promise<string | null> {
-  const view = await fetchText(sportplusViewUrl(competitionId, matchIdValue), `${SPORTPLUS_SITE}/football/`);
-  if (view) {
+  const playlistOf = (text: string | null): string | null => {
+    if (!text) return null;
     try {
-      const playlist = playlistFromLs((JSON.parse(view) as { item?: { ls?: unknown } }).item?.ls);
-      if (playlist) return playlist;
+      return playlistFromLs((JSON.parse(text) as { item?: { ls?: unknown } }).item?.ls);
     } catch {
-      /* fall through to the page */
+      return null;
     }
+  };
+
+  const view = await fetchText(sportplusViewUrl(competitionId, matchIdValue), `${SPORTPLUS_SITE}/football/`);
+  const direct = playlistOf(view);
+  if (direct) return direct;
+
+  // Serverless IPs get the match data with `ls` stripped; the home relay
+  // egresses through a residential connection where the provider answers
+  // in full.
+  const relay = await getHomeRelayUrl();
+  const secret = process.env.LPF_HOME_SECRET?.trim() ?? "";
+  if (relay && secret) {
+    const relayView = await fetchText(
+      `${relay}/view?id=${encodeURIComponent(matchIdValue)}&tid=${encodeURIComponent(competitionId)}&key=${encodeURIComponent(secret)}`,
+      `${SPORTPLUS_SITE}/football/`
+    );
+    const viaRelay = playlistOf(relayView);
+    if (viaRelay) return viaRelay;
   }
 
   const url = `${SPORTPLUS_SITE}/football/${competitionId}/${matchIdValue}/`;

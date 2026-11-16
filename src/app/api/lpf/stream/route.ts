@@ -1,4 +1,5 @@
 import { isLpfStreamHost, openLpfUrl, rewriteLpfPlaylist } from "@/lib/lpf-play";
+import { getHomeRelayUrl } from "@/lib/lpf-home-relay";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -12,6 +13,21 @@ export const maxDuration = 60;
  */
 
 const UPSTREAM_TIMEOUT_MS = 30_000;
+
+/**
+ * CDN hosts that only answer residential IPs. When the direct fetch fails
+ * (datacenter block), the request is retried through the home relay — the
+ * owner's machine exposed by a Cloudflare tunnel.
+ */
+const HOME_RELAY_HOSTS = (process.env.LPF_HOME_HOSTS || "sportvideodata.com")
+  .split(",")
+  .map((host) => host.trim().toLowerCase())
+  .filter(Boolean);
+
+function needsHomeRelay(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return HOME_RELAY_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+}
 
 const PASSTHROUGH_HEADERS = [
   "content-type",
@@ -44,12 +60,33 @@ export async function GET(request: Request): Promise<Response> {
     const range = request.headers.get("range");
     if (range) headers.Range = range;
 
-    const upstreamRes = await fetch(upstream, {
+    let upstreamRes = await fetch(upstream, {
       headers,
       redirect: "follow",
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       cache: "no-store",
     });
+    let viaHomeRelay = false;
+
+    if (!upstreamRes.ok && needsHomeRelay(upstream.hostname)) {
+      const relay = await getHomeRelayUrl();
+      const secret = process.env.LPF_HOME_SECRET?.trim() ?? "";
+      if (relay && secret) {
+        const relayRes = await fetch(
+          `${relay}/fetch?u=${encodeURIComponent(upstream.toString())}&key=${encodeURIComponent(secret)}`,
+          {
+            headers,
+            redirect: "follow",
+            signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+            cache: "no-store",
+          }
+        );
+        if (relayRes.ok) {
+          upstreamRes = relayRes;
+          viaHomeRelay = true;
+        }
+      }
+    }
 
     if (!upstreamRes.ok) {
       return new Response("Stream unavailable", { status: upstreamRes.status === 404 ? 503 : upstreamRes.status });
@@ -61,7 +98,9 @@ export async function GET(request: Request): Promise<Response> {
 
     if (isPlaylist) {
       const body = await upstreamRes.text();
-      const finalUrl = upstreamRes.url ? new URL(upstreamRes.url) : upstream;
+      // Through the home relay the response URL is the tunnel's, so relative
+      // URIs must resolve against the original CDN URL instead.
+      const finalUrl = !viaHomeRelay && upstreamRes.url ? new URL(upstreamRes.url) : upstream;
       return new Response(rewriteLpfPlaylist(body, finalUrl), {
         status: 200,
         headers: PLAYLIST_HEADERS,

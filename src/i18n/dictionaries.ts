@@ -383,10 +383,6 @@ export const dictionaries = {
       helperTitle: "¿No encontrás tu partido?",
       helperDesc:
         "Cada partido trae su propio reproductor. Si el que buscás no aparece en una competición, probá con las otras: suelen repartir los partidos por televisedor.",
-      externalTitle: "Este partido se ve en sportplus",
-      externalDesc:
-        "El proveedor no deja que lo reproduzcamos desde el servidor ni desde el navegador. Se abre en una pestaña nueva con su reproductor.",
-      externalCta: "Abrir reproductor",
       error: "No se pudieron cargar los canales",
       errorDesc: "Revisá tu conexión e intentá de nuevo.",
       retry: "Reintentar",
@@ -440,10 +436,6 @@ export const dictionaries = {
       helperTitle: "Can't find your match?",
       helperDesc:
         "Every match comes with its own player. If the one you are looking for is not in a competition, try the others: they usually spread the matches across channels.",
-      externalTitle: "This match streams on sportplus",
-      externalDesc:
-        "The provider does not let us play it from our server or the browser. It opens in a new tab with their player.",
-      externalCta: "Open player",
       error: "Could not load channels",
       errorDesc: "Check your connection and try again.",
       retry: "Retry",
