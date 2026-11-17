@@ -77,12 +77,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DesktopBackgroundParallax />
         <BanChecker />
         <SitePresence />
-        <OnlineCounter />
         <LanguageProvider>
           <TimeZoneProvider>
             <Header />
             <main className="flex-1">{children}</main>
             <Footer />
+            <OnlineCounter />
           </TimeZoneProvider>
         </LanguageProvider>
       </body>
