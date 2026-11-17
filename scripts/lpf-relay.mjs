@@ -33,8 +33,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /* ------------------------------------------------------------------ */
 
 function loadEnv() {
-  const envPath = path.join(__dirname, "..", ".env.local");
-  if (!fs.existsSync(envPath)) return;
+  // Prefer a .env.local next to this script (standalone install), then the
+  // repository's one level up (in-repo install).
+  const candidates = [path.join(__dirname, ".env.local"), path.join(__dirname, "..", ".env.local")];
+  const envPath = candidates.find((p) => fs.existsSync(p));
+  if (!envPath) return;
   for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
     const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
     if (match && !process.env[match[1]]) {
