@@ -439,3 +439,8 @@ body.watch-theater-open > main {
     animation: shimmer 1.5s ease-in-out infinite;
   }
 }
+
+/* LPF match list: keep wheel scrolling inside the panel. */
+.lpf-match-scroll {
+  overscroll-behavior: contain;
+}

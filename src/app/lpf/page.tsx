@@ -232,6 +232,8 @@ export default function LpfPlayPage() {
               </span>
             </div>
 
+            <div className="lpf-match-scroll flex max-h-[520px] flex-col gap-3 overflow-y-auto pr-1">
+
             {listState === "loading" && (
               <p className="border-2 border-white/20 px-3 py-4 text-center text-xs font-bold uppercase text-gray-400">
                 {copy.loadingMatches}
@@ -304,6 +306,7 @@ export default function LpfPlayPage() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         </div>
       </section>
