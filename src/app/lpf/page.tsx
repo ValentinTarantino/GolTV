@@ -27,7 +27,9 @@ function formatTime(start: string): string {
   if (!start) return "";
   const date = new Date(start);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString("es-AR", {
+  return date.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "UTC",
