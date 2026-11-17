@@ -9,7 +9,7 @@ import ViewerBadge from "@/components/matches/ViewerBadge";
 
 interface LpfMatch {
   id: string;
-  source: "sportplus" | "angulismo" | "demo";
+  source: "sportplus" | "angulismo";
   competition: string;
   home: string;
   away: string;
@@ -94,13 +94,9 @@ export default function LpfPlayPage() {
         const next = Array.isArray(data.matches) ? data.matches : [];
         setMatches(next);
         setListState("ready");
-        // The demo entry resolves any live football match on the provider,
-        // so it is the most reliable thing to auto-play; section matches can
-        // be stale entries whose broadcast already ended.
         setActiveId(
           (current) =>
             current ??
-            next.find((m) => m.source === "demo" && m.status === "live")?.id ??
             next.find((m) => m.status === "live")?.id ??
             next[0]?.id ??
             null

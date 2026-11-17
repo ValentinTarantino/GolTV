@@ -59,7 +59,7 @@ const SPORTPLUS_COMPETITIONS: Array<{ id: string; name: string }> = [
 ];
 
 /** Where a match comes from. */
-export type LpfMatchSource = "sportplus" | "angulismo" | "demo";
+export type LpfMatchSource = "sportplus" | "angulismo";
 
 /** A match of the section. */
 export interface LpfMatch {
@@ -688,25 +688,6 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
   }
   await setCache(storeKey, next, RECENT_TTL + 60 * 1000);
 
-  // A demo match keeps the whole pipeline (list → resolve → relay → player)
-  // verifiable even when the providers are empty or down. It is added after
-  // the store write so it never persists.
-  {
-    const ref: MatchRef = { source: "demo", competitionId: "demo", matchId: "test-stream" };
-    const id = matchId(ref);
-    refs.set(id, ref);
-    matches.push({
-      id,
-      source: "demo",
-      competition: "Demo",
-      home: "Partido",
-      away: "de prueba",
-      // Wall-clock Argentina time, same convention as the providers.
-      start: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
-      status: "live",
-    });
-  }
-
   matches.sort((a, b) => {
     if (a.status !== b.status) return a.status === "live" ? -1 : b.status === "live" ? 1 : 0;
     return a.start.localeCompare(b.start);
@@ -791,65 +772,6 @@ export async function inspectLiveFallback(): Promise<{
   }
 }
 
-async function resolveLiveFootballFallback(): Promise<LpfMatchStream | null> {
-  const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
-  const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
-  if (!text) return null;
-  let items: SportplusItem[] = [];
-  try {
-    const parsed = JSON.parse(text) as { items?: SportplusItem[] };
-    items = Array.isArray(parsed.items) ? parsed.items : [];
-  } catch {
-    return null;
-  }
-
-  const live = items
-    .filter((candidate) => candidate.status === "live" && candidate.id && candidate.tournament_id !== undefined)
-    .slice(0, 10);
-  // Probed in parallel: each view call can take seconds and a sequential scan
-  // of ten candidates can outlive the function budget on serverless.
-  const probes = await Promise.all(
-    live.map((item) =>
-      cached(`lpf:demo-probe:${item.id}`, STREAM_TTL, () =>
-        sportplusPlaylist(String(item.tournament_id), String(item.id))
-      )
-    )
-  );
-  const winner = probes.find((playlist): playlist is string => playlist !== null);
-  return winner ? { src: winner, kind: "hls" } : null;
-}
-
-/**
- * The demo card always plays a real match: the first provider entry — live
- * ones first — whose stream still resolves, falling back to any live football
- * match on the provider. Null when every provider is dry, which is itself the
- * signal that the sources are down.
- */
-async function resolveDemoStream(): Promise<LpfMatchStream | null> {
-  const { matches, refs } = await buildMatches();
-  const candidates = matches.filter((match) => match.source !== "demo");
-
-  // Candidates are probed in parallel and the first success in list order
-  // wins; sequential probing can outlive the function budget on serverless.
-  const tryCandidates = async (list: LpfMatch[]): Promise<LpfMatchStream | null> => {
-    const streams = await Promise.all(
-      list.map(async (match) => {
-        const ref = refs.get(match.id);
-        return ref ? resolveRefStream(ref, match.id) : null;
-      })
-    );
-    return streams.find((stream): stream is LpfMatchStream => stream !== null) ?? null;
-  };
-
-  // Live section matches first, then any live football on the provider, and
-  // only then whatever is left (upcoming matches can carry a test stream).
-  const live = await tryCandidates(candidates.filter((m) => m.status === "live"));
-  if (live) return live;
-  const fallback = await resolveLiveFootballFallback();
-  if (fallback) return fallback;
-  return tryCandidates(candidates.filter((m) => m.status !== "live"));
-}
-
 /** The player of a match. */
 export async function resolveLpfMatchStream(id: string): Promise<LpfMatchStream | null> {
   if (!/^lpm_[a-f0-9]{16}$/.test(id)) return null;
@@ -858,8 +780,5 @@ export async function resolveLpfMatchStream(id: string): Promise<LpfMatchStream 
   const ref = refs.get(id);
   if (!ref) return null;
 
-  if (ref.source === "demo") {
-    return cached("lpf:demo-stream:v1", STREAM_TTL, resolveDemoStream);
-  }
   return resolveRefStream(ref, id);
 }

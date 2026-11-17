@@ -83,12 +83,9 @@ export async function GET(request: Request): Promise<Response> {
   }
   const matches = await listLpfMatches();
   const live = matches.find((match) => match.status === "live") ?? matches[0];
-  const demo = matches.find((match) => match.source === "demo");
-
-  const [sportplus, stream, demoStream, fallback, variants, cdn] = await Promise.all([
+  const [sportplus, stream, fallback, variants, cdn] = await Promise.all([
     live?.source === "sportplus" ? inspectSportplusPage("220557", "8400999") : Promise.resolve(null),
     live ? resolveLpfMatchStream(live.id) : Promise.resolve(null),
-    demo ? resolveLpfMatchStream(demo.id) : Promise.resolve(null),
     inspectLiveFallback(),
     live?.source === "sportplus" ? inspectSportplusVariants("220557", "8400999") : Promise.resolve(null),
     probeCdn(),
@@ -107,7 +104,6 @@ export async function GET(request: Request): Promise<Response> {
     {
       matches: matches.length,
       live: live ? { home: live.home, away: live.away, status: live.status, source: live.source } : null,
-      demo: demoStream ? { kind: demoStream.kind } : null,
       sportplus,
       stream: stream ? { kind: stream.kind, hostAllowed: streamHostAllowed } : null,
       fallback,
