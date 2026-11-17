@@ -1,6 +1,6 @@
 @echo off
 title LPF Relay
-cd /d "%~dp0.."
+cd /d "C:\Users\Usuario\Desktop\CodigoValen\goltv-libre"
 
 :loop
 echo [%date% %time%] iniciando relay LPF...
