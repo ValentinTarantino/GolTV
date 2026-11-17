@@ -55,6 +55,7 @@ const SPORTPLUS_COMPETITIONS: Array<{ id: string; name: string }> = [
   { id: "220557", name: "Argentina. Championship (F)" },
   { id: "argentina-reserve-league", name: "Argentina. Reserve League" },
   { id: "2922491", name: "Argentina. Primera B Nacional" },
+  { id: "955407", name: "Argentina. Primera B Metropolitana" },
 ];
 
 /** Where a match comes from. */
