@@ -232,7 +232,7 @@ export default function LpfPlayPage() {
               </span>
             </div>
 
-            <div className="lpf-match-scroll flex max-h-[520px] flex-col gap-3 overflow-y-auto pr-1">
+            <div className="flex flex-col gap-3">
 
             {listState === "loading" && (
               <p className="border-2 border-white/20 px-3 py-4 text-center text-xs font-bold uppercase text-gray-400">
@@ -266,7 +266,7 @@ export default function LpfPlayPage() {
                 <span className="border-2 border-white/30 bg-black px-3 py-1 text-[10px] font-black uppercase tracking-widest text-accent-primary">
                   {competition}
                 </span>
-                <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="flex flex-wrap gap-2">
                   {list.map((match) => {
                     const isActive = match.id === activeId;
                     return (
