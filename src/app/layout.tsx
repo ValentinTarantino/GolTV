@@ -6,6 +6,7 @@ import Footer from "@/components/layout/Footer";
 import DesktopBackgroundParallax from "@/components/layout/DesktopBackgroundParallax";
 import BanChecker from "@/components/BanChecker";
 import SitePresence from "@/components/SitePresence";
+import OnlineCounter from "@/components/OnlineCounter";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { TimeZoneProvider } from "@/contexts/TimeZoneContext";
 
@@ -76,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DesktopBackgroundParallax />
         <BanChecker />
         <SitePresence />
+        <OnlineCounter />
         <LanguageProvider>
           <TimeZoneProvider>
             <Header />
