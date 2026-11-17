@@ -52,10 +52,10 @@ const BROWSER_HEADERS: Record<string, string> = {
 
 /** Competitions of sportplus that the section shows. */
 const SPORTPLUS_COMPETITIONS: Array<{ id: string; name: string }> = [
-  { id: "220557", name: "Argentina. Championship (F)" },
-  { id: "argentina-reserve-league", name: "Argentina. Reserve League" },
-  { id: "2922491", name: "Argentina. Primera B Nacional" },
-  { id: "955407", name: "Argentina. Primera B Metropolitana" },
+  { id: "220557", name: "Campeonato Femenino" },
+  { id: "argentina-reserve-league", name: "Liga de Reserva" },
+  { id: "2922491", name: "Primera B Nacional" },
+  { id: "955407", name: "Primera B Metropolitana" },
 ];
 
 /** Where a match comes from. */
@@ -641,7 +641,7 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
     matches.push({
       id,
       source: "angulismo",
-      competition: "Primera Nacional",
+      competition: "Primera B Nacional",
       home,
       away,
       start,
