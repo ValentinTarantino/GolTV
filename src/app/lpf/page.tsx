@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
+import ChatBox from "@/components/chat/ChatBox";
+import ViewerBadge from "@/components/matches/ViewerBadge";
 
 interface LpfMatch {
   id: string;
@@ -21,6 +23,17 @@ interface LpfMatch {
 
 type ListState = "loading" | "ready" | "error";
 type StreamState = "loading" | "ready" | "error";
+
+/**
+ * Chat/viewer APIs only accept numeric match ids, so the opaque `lpm_…`
+ * fixture id is folded into a stable decimal one (first 13 hex digits fit
+ * safely in a double).
+ */
+function chatMatchId(id: string): string {
+  const hex = id.replace(/^lpm_/, "").slice(0, 13);
+  const n = Number.parseInt(hex, 16);
+  return Number.isFinite(n) && n > 0 ? String(n) : "0";
+}
 
 /** The kickoff arrives in Argentina time, so it is rendered as UTC. */
 function formatTime(start: string): string {
@@ -175,15 +188,21 @@ export default function LpfPlayPage() {
     <main className="min-h-screen">
       <section className="mx-auto max-w-7xl px-3 py-7 sm:px-4 md:px-6 md:py-10">
         <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
-                {copy.nowPlaying}
-              </span>
-              <span className="truncate text-xs font-black uppercase text-accent-primary sm:text-sm">
-                {activeMatch ? `${activeMatch.home} vs ${activeMatch.away}` : copy.noChannel}
-              </span>
-            </div>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
+                <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
+                  {copy.nowPlaying}
+                </span>
+                <span className="flex min-w-0 items-center gap-2">
+                  {activeMatch && (
+                    <ViewerBadge matchId={chatMatchId(activeMatch.id)} active={activeMatch.status === "live"} />
+                  )}
+                  <span className="truncate text-xs font-black uppercase text-accent-primary sm:text-sm">
+                    {activeMatch ? `${activeMatch.home} vs ${activeMatch.away}` : copy.noChannel}
+                  </span>
+                </span>
+              </div>
 
             {streamState === "ready" && streamSrc && activeMatch ? (
               <VideoPlayer
@@ -219,7 +238,13 @@ export default function LpfPlayPage() {
                 )}
               </div>
             )}
+            </div>
 
+            {activeMatch && (
+              <div className="h-[420px] min-h-0 sm:h-[480px]">
+                <ChatBox matchId={chatMatchId(activeMatch.id)} />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-3">
