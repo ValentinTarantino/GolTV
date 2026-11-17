@@ -1,6 +1,6 @@
 # GolTV Libre
 
-[Espanol](#espanol) | [English](#english)
+[Español](#espanol) | [English](#english)
 
 ---
 
@@ -8,157 +8,99 @@
 
 ### Descripcion
 
-GolTV Libre es una plataforma web gratuita para seguir y ver partidos de futbol en vivo. La interfaz tiene estilo Neo-Brutalista, reproduce streams HLS de multiples canales, tiene chat en vivo por partido y funciona en espanol e ingles.
+GolTV Libre es una plataforma web gratuita para consultar partidos de futbol, abrir sus señales disponibles y participar en el chat de cada encuentro. Incluye secciones de partidos, ligas, Canales y LPF Play, con interfaz adaptable a celulares y escritorio, tema neo-brutalista e idiomas español e inglés.
 
-### Caracteristicas
+### Funcionalidades
 
-- Agenda de partidos en vivo agrupada por ligas y competiciones
-- 19 ligas cubiertas: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Campeonato Nacional Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Liga 1 Perú, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
-- Tablas de posiciones y brackets de copa en la pagina de ligas (scraping de Promiedos)
-- Estados en tiempo real: En Vivo, Proximo, Finalizado con marcadores y tiempos
-- Reproductor HLS integrado con selector de canales, selector de calidad y reload
-- 3 reproductores: Reproductor 1 (HLS con control total), Reproductor 2 (embeds de eventos) y Reproductor 3 (embeds del fixture secundario)
-- Fixture secundario: scraping de un agenda HTML alternativo que solo agrega los partidos que faltan en la agenda principal (la fuente principal siempre tiene prioridad)
-- Chat en vivo por partido con smart scroll (scrollea automaticamente si estas cerca del fondo, te deja leer si scrolleaste arriba); mensajes persistentes 24h via MongoDB
-- Contador de espectadores en vivo por partido, actualizado en tiempo real: heartbeat cada 5s y salida instantanea al cerrar/navegar (via MongoDB)
-- Busqueda de equipos en el header
-- Logos de equipos via TheSportsDB con fuzzy matching y aliases
-- Navegacion por fechas para ver partidos de otros dias
-- Auto-refresh de marcadores cada 30 segundos cuando hay partidos en vivo
-- Scroll restoration: al volver de un partido al home, se conserva la posicion
-- Meta tags Open Graph + OG images dinamicas para compartir links en redes sociales
-- Sitemap XML dinamico, robots.txt y manifest.json (PWA-ready)
-- Bilingue (Espanol / Ingles) con toggle dinamico
-- Logo custom como favicon
+- Agenda de partidos agrupada por competiciones, con marcadores, estados y horarios según la zona horaria elegida.
+- Navegación entre fechas, filtros de partidos en vivo, búsqueda de equipos y actualización automática de resultados.
+- Páginas de ligas con información de competiciones, posiciones y copas disponibles.
+- Página de partido con selección de señales, reproductores HLS e iframe y controles de reproducción.
+- Reproductor HLS con selección automática o manual de calidad, recarga y pantalla completa.
+- Canales deportivos en HLS o MPEG-DASH, selector de calidad DASH, reproducción a pantalla completa y controles de señal.
+- LPF Play con partidos seleccionados, escudos, horarios, estados y señales disponibles.
+- Chat por partido con colores personalizables, respuestas a mensajes, historial persistente y moderación.
+- Contador de presencia del sitio y de espectadores, con panel de administración para moderar el chat y gestionar bloqueos.
+- Diseño de pantalla completa para el reproductor y el chat, optimizado para escritorio y dispositivos móviles.
+- Interfaz en español e inglés, búsqueda, navegación adaptable y enlaces para compartir partidos.
+- Metadatos Open Graph, imágenes para compartir, sitemap, robots.txt y manifest de la aplicación.
 
-### Stack Tecnologico
+### Tecnologías
 
 - **Framework:** Next.js 16 (App Router)
-- **UI:** React 19
-- **Lenguaje:** TypeScript
-- **Estilos:** Tailwind CSS v4
-- **Video:** Hls.js
-- **Base de datos:** MongoDB (Atlas Free) — chat persistente
+- **Interfaz:** React 19, TypeScript y Tailwind CSS v4
+- **Reproducción:** hls.js y Shaka Player
+- **Datos y validación:** APIs de proveedores, Zod y Cheerio
+- **Persistencia:** MongoDB Atlas con almacenamiento temporal en memoria como respaldo
 - **Iconos:** Lucide React
-- **Testing:** Jest 30, React Testing Library, Cypress 16
-- **CI/CD:** GitHub Actions
-- **Contenedorizacion:** Docker, Docker Compose
+- **Pruebas:** Jest 30, React Testing Library y Cypress 16
+- **Despliegue:** GitHub Actions, Docker y Docker Compose
 
-### Fuentes de Datos
+### Secciones principales
 
-- **FutbolLibre:** Fuente principal. JSON estatico en Bunny CDN (Strapi v4), resolucion de partidos, resolucion de embeds. Cache 30 min
-- **PelotaLibre:** Fuente secundaria. Scraping del agenda HTML, multiples fuentes por partido. Cache 30 min
-- **Pelota Libre (pl):** Fixture secundario. Scraping de `agenda.html`; solo agrega partidos que la agenda principal no tiene (nunca duplica). Las fuentes de aqui alimentan al Reproductor 3 via iframe, decodificadas al server para ir directo al player (sin el chrome del sitio scrapeado). Cache 5 min
-- **API-Football (API-Sports):** Fixtures, ligas, escudos, marcadores. Multi-key rotation, limite ~70 llamadas/key/dia, cache 90s-2min
-- **RapidAPI (football-live-stream-api):** Partidos en vivo y URLs HLS. Limite ~35 llamadas/dia, cache 5-10 min
-- **Promiedos:** Tablas de posiciones y bracket de copas. Scraping de __NEXT_DATA__. Cache 10 min
-- **TheSportsDB:** Logos de equipos y ligas con busqueda fuzzy
+| Ruta | Contenido |
+|------|-----------|
+| `/` | Agenda, búsqueda, filtros y avisos |
+| `/leagues` | Ligas y competiciones |
+| `/watch/[matchId]` | Partido, reproductores y chat |
+| `/canales` | Canales deportivos en vivo |
+| `/lpf` | Partidos y señales de LPF Play |
 
-### Base de Datos
+### Desarrollo
 
-- **MongoDB Atlas (Free tier)** — persistencia del chat en vivo y contador de espectadores
-- Coleccion `chat_messages` con TTL automatico: los mensajes se borran a las 24 horas
-- Coleccion `viewers` con heartbeat cada 5s, "leave" al salir y TTL de 60s: cuenta espectadores activos (ultimos 45s) por partido
-- Indices: `{ matchId, ts }` para historial por partido y `ts` para el TTL; `{ matchId, viewerId }` unico para espectadores
-- Rate limit del chat por nick consultado en la base (consistente entre instancias serverless)
-- **Fallback en memoria:** si `MONGODB_URI` no esta definida, el chat funciona con un `Map` en memoria (usado por los tests y dev local sin DB)
-
-### Variables de Entorno
-
-Archivo `.env.local` en la raiz del proyecto:
-
-```
-API_FOOTBALL_KEY=clave_api_football
-RAPIDAPI_KEY=clave_rapidapi
-MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster0.example.mongodb.net/?appName=Cluster0
-MONGODB_DB=goltv
-```
-
-### Uso Cuidadoso de Cuotas
-
-| API | Limite interno | Cache |
-|-----|---------------|-------|
-| API-Football | ~70 llamadas/key/dia | fixtures ~90s, partido ~2min |
-| RapidAPI | ~35 llamadas/dia | all-match ~5min, link ~10min |
-| FutbolLibre | Sin limite fijo | agenda ~30min |
-| PelotaLibre | 300 llamadas/dia | agenda revalida ~5min, streams ~30min |
-
-- No ejecutar `npm run test:streams` en bucle
-- Si recibe 429, espere 5 minutos (cooldown automatico)
-
-### Testing
-
-| Tipo | Tests | Descripcion |
-|------|-------|-------------|
-| Unit (Jest) | 90 | Constantes, utilidades, streaming, tipos, parser del fixture secundario |
-| API Routes (Jest) | 59 | matches, match-by-id, standings, leagues, chat, viewers, health |
-| E2E (Cypress) | 32 | Home, navegacion, busqueda, ligas, responsive, idioma |
-| **Total** | **181** | **Cobertura completa de stack** |
+Requiere Node.js y npm. Desde la raíz del proyecto:
 
 ```bash
-npm test                          # 149 tests Jest
-npx cypress run                   # 32 tests E2E
-npm run validate                  # Lint + TypeScript + Jest + Build
+
+
+| Comando | Descripción |
+|---------|-------------|
+| `npm run dev` | Inicia el servidor de desarrollo |
+| `npm run build` | Genera el build de producción |
+| `npm run start` | Ejecuta el build de producción |
+| `npm run lint` | Ejecuta ESLint |
+| `npm test` | Ejecuta las pruebas Jest |
+| `npm run test:watch` | Ejecuta Jest en modo observación |
+| `npm run test:coverage` | Ejecuta Jest con cobertura |
+| `npm run cypress` | Abre Cypress |
+| `npm run cypress:run` | Ejecuta Cypress en modo headless |
+| `npm run test:e2e` | Inicia el servidor y ejecuta las pruebas E2E |
+| `npm run validate` | Ejecuta lint, TypeScript, Jest y build |
+| `npm run docker:build` | Construye la imagen Docker |
+| `npm run docker:run` | Ejecuta el contenedor en el puerto 3000 |
+| `npm run docker:compose` | Construye y levanta los servicios con Docker Compose |
+| `npm run sync:badges` | Sincroniza los escudos locales |
+| `npm run test:streams` | Comprueba señales externas |
+
+### Chat y administración
+
+El chat está asociado a cada partido, conserva los mensajes mediante MongoDB cuando está configurado y usa almacenamiento temporal en memoria como respaldo. Incluye respuestas, colores para nombre y mensaje, e historial limitado. El contador de presencia se actualiza periódicamente.
+
+El panel privado permite administrar la sesión, revisar la presencia, moderar mensajes y gestionar bloqueos. Configura `ADMIN_SECRET` en el entorno de despliegue y evita compartir la ruta del panel o sus credenciales.
+
+### Estructura del proyecto
+
+```text
+src/
+  app/                 Rutas, páginas y endpoints de la aplicación
+    api/               APIs de partidos, chat, reproducción y administración
+    canales/           Página de canales deportivos
+    leagues/           Página de ligas
+    lpf/               Página de LPF Play
+    watch/[matchId]/   Página de cada partido
+  components/          Interfaz, reproductores, chat y navegación
+  contexts/            Estado compartido, incluido el idioma
+  i18n/                Diccionarios en español e inglés
+  lib/                 Integraciones, modelos y lógica de la aplicación
+  __tests__/            Pruebas unitarias y de rutas API
+cypress/
+  e2e/                 Pruebas de extremo a extremo
+public/                Recursos estáticos, iconos y badges
 ```
 
-### Scripts Disponibles
+### CI y contenedores
 
-| Script | Descripcion |
-|--------|-------------|
-| `npm run dev` | Servidor de desarrollo |
-| `npm run build` | Build de produccion |
-| `npm run lint` | Linter ESLint |
-| `npm test` | Ejecutar tests Jest (149 tests) |
-| `npm run cypress` | Abrir Cypress E2E (browser) |
-| `npm run cypress:run` | Ejecutar Cypress headless |
-| `npm run test:e2e` | Abrir Cypress |
-| `npm run validate` | Lint + TypeScript + Tests + Build |
-| `npm run docker:build` | Construir imagen Docker |
-| `npm run docker:compose` | Levantar con Docker Compose |
-
-### CI/CD
-
-GitHub Actions ejecuta automaticamente en cada push/PR:
-
-1. **CI:** Lint + TypeScript + Jest tests + Build
-2. **Docker:** Build multi-stage + push a GitHub Container Registry (GHCR)
-
-### Estructura del Proyecto
-
-```
-goltv-libre/
-  src/
-    app/                    # Rutas y paginas (App Router)
-      api/                  # Endpoints API (matches, chat, health, leagues, standings, viewers, og)
-      leagues/              # Tablas de posiciones por liga
-      watch/[matchId]/      # Pagina del reproductor
-      sitemap.ts            # Sitemap XML dinamico
-      globals.css           # Temas y animaciones Tailwind
-      layout.tsx            # Layout global
-      page.tsx              # Home
-    components/             # Componentes
-      layout/               # Header, Footer
-      matches/              # MatchCard, MatchList, LiveBadge, ViewerBadge, DateNavigator
-      player/               # VideoPlayer, IframePlayer, ChannelSelector
-      chat/                 # ChatBox
-      search/               # SearchBar, MobileMenu
-      ui/                   # Skeleton, FootballLoader
-    contexts/               # LanguageContext
-    i18n/                   # Diccionarios ES/EN
-    lib/                    # Logica: API clients, tipos, constantes, utils, mongo
-    __tests__/              # Tests unitarios y de API routes (Jest)
-  cypress/                  # Tests E2E (Cypress)
-    e2e/                    # Specs: home, navigation, search, leagues, responsive...
-  public/                   # Iconos, robots.txt, manifest.json
-  .github/workflows/        # CI/CD (GitHub Actions)
-  Dockerfile                # Build multi-stage
-  docker-compose.yml        # Orquestacion de contenedores
-  package.json              # Dependencias y scripts
-```
-
-### Aviso Legal
-
-GolTV Libre es un proyecto con fines educativos y de demostracion tecnica. La aplicacion no aloja material audiovisual en sus propios servidores y se limita a indexar o enlazar flujos de terceros disponibles publicamente en internet.
+GitHub Actions ejecuta las verificaciones del proyecto en los flujos configurados. El repositorio incluye un `Dockerfile` multi-stage y `docker-compose.yml` para construir y ejecutar la aplicación en contenedores.
 
 ---
 
@@ -166,154 +108,94 @@ GolTV Libre es un proyecto con fines educativos y de demostracion tecnica. La ap
 
 ### Description
 
-GolTV Libre is a free web platform for watching live football matches. It features a Neo-Brutalist UI, multi-channel HLS stream playback, live chat per match, and works in both Spanish and English.
+GolTV Libre is a free web platform for checking football fixtures, opening available streams, and chatting about each match. It includes Matches, Leagues, Channels, and LPF Play sections, with a responsive neo-brutalist interface in Spanish and English.
 
 ### Features
 
-- Live match schedule grouped by leagues and competitions
-- 19 leagues covered: Liga Profesional, Copa Argentina, Brasileirao Serie A, Copa do Brasil, Campeonato Nacional Chile, Copa Chile, Liga AUF Uruguaya, Liga BetPlay Colombia, Liga 1 Peru, Copa Libertadores, Copa Sudamericana, Champions League, Europa League, La Liga, Premier League, Bundesliga, Serie A Italia, MLS, CONCACAF Champions Cup
-- League standings and cup brackets on the leagues page (scraped from Promiedos)
-- Real-time statuses: Live, Upcoming, Finished with scores and timers
-- Integrated HLS player with channel selector, quality selector and reload
-- 3 players: Player 1 (HLS with full control), Player 2 (event embeds) and Player 3 (secondary-fixture embeds)
-- Secondary fixture: scrapes an alternative HTML agenda and only adds matches the primary agenda is missing (the primary source always wins)
-- Live chat per match with smart scroll (auto-scrolls near the bottom, lets you read if you scrolled up); messages persisted for 24h via MongoDB
-- Live viewer counter per match, updated in real time: 5s heartbeat plus instant leave on close/navigate (via MongoDB)
-- Team search in the header
-- Team logos via TheSportsDB with fuzzy matching and aliases
-- Date navigation to view matches from other days
-- Auto-refresh of scores every 30 seconds when there are live matches
-- Scroll restoration: preserves your position when navigating back from a match
-- Open Graph meta tags + dynamic OG images for sharing links on social media
-- Dynamic XML sitemap, robots.txt and manifest.json (PWA-ready)
-- Bilingual (Spanish / English) with dynamic toggle
-- Custom logo as favicon
+- Match schedule grouped by competition, with scores, statuses, and kickoff times in the selected time zone.
+- Date navigation, live-only filters, team search, and automatic score refresh.
+- League pages with competition information, standings, and available cup brackets.
+- Match pages with channel selection, HLS and iframe players, and playback controls.
+- HLS player with automatic or manual quality selection, reload, and fullscreen.
+- Live sports channels over HLS or MPEG-DASH, DASH quality selection, fullscreen, and channel controls.
+- LPF Play fixtures with team crests, kickoff times, statuses, and available streams.
+- Per-match chat with customizable colors, replies, persistent history, and moderation.
+- Site presence and match viewer counters, with an admin panel for chat moderation and bans.
+- Fullscreen layouts for the player and chat, optimized for desktop and mobile.
+- Spanish and English UI, search, responsive navigation, and shareable match pages.
+- Open Graph metadata, share images, sitemap, robots.txt, and a web app manifest.
 
-### Tech Stack
+### Technology
 
 - **Framework:** Next.js 16 (App Router)
-- **UI:** React 19
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS v4
-- **Video:** Hls.js
-- **Database:** MongoDB (Atlas Free) — persistent chat
+- **UI:** React 19, TypeScript, and Tailwind CSS v4
+- **Playback:** hls.js and Shaka Player
+- **Data and validation:** Provider APIs, Zod, and Cheerio
+- **Persistence:** MongoDB Atlas with an in-memory fallback
 - **Icons:** Lucide React
-- **Testing:** Jest 30, React Testing Library, Cypress 16
-- **CI/CD:** GitHub Actions
-- **Containerization:** Docker, Docker Compose
+- **Testing:** Jest 30, React Testing Library, and Cypress 16
+- **Deployment:** GitHub Actions, Docker, and Docker Compose
 
-### Data Sources
+### Main sections
 
-- **FutbolLibre:** Primary source. Static JSON on Bunny CDN (Strapi v4), match parsing, embed resolution. 30 min cache
-- **PelotaLibre:** Secondary source. HTML agenda scraping, multiple sources per match. 30 min cache
-- **Pelota Libre (pl):** Secondary fixture. Scrapes `agenda.html`; only adds matches the primary agenda lacks (never duplicates). Its sources feed Player 3 via iframe, decoded server-side so the bare player loads (no scraped-site chrome). 5 min cache
-- **API-Football (API-Sports):** Fixtures, leagues, crests, scores. Multi-key rotation, ~70 calls/key/day limit, 90s-2min cache
-- **RapidAPI (football-live-stream-api):** Live matches and HLS URLs. ~35 calls/day limit, 5-10 min cache
-- **Promiedos:** League standings and cup brackets. __NEXT_DATA__ scraping. 10 min cache
-- **TheSportsDB:** Team and league logos with fuzzy search
+| Route | Content |
+|-------|---------|
+| `/` | Fixtures, search, filters, and notices |
+| `/leagues` | Leagues and competitions |
+| `/watch/[matchId]` | Match, players, and chat |
+| `/canales` | Live sports channels |
+| `/lpf` | LPF Play matches and streams |
+| `/sixseven` | Private admin panel |
 
-### Database
+### Development
 
-- **MongoDB Atlas (Free tier)** — live chat persistence and viewer counter
-- `chat_messages` collection with automatic TTL: messages are deleted after 24 hours
-- `viewers` collection with 5s heartbeat, explicit leave on exit and 60s TTL: counts active viewers (last 45s) per match
-- Indexes: `{ matchId, ts }` for per-match history and `ts` for the TTL; unique `{ matchId, viewerId }` for viewers
-- Per-nick chat rate limit queried from the database (consistent across serverless instances)
-- **In-memory fallback:** when `MONGODB_URI` is not set, chat runs on an in-memory `Map` (used by tests and local dev without a DB)
+Node.js and npm are required. From the project root:
 
-### Environment Variables
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the development server |
+| `npm run build` | Create the production build |
+| `npm run start` | Run the production build |
+| `npm run lint` | Run ESLint |
+| `npm test` | Run Jest tests |
+| `npm run test:watch` | Run Jest in watch mode |
+| `npm run test:coverage` | Run Jest with coverage |
+| `npm run cypress` | Open Cypress |
+| `npm run cypress:run` | Run Cypress headlessly |
+| `npm run test:e2e` | Start the server and run E2E tests |
+| `npm run validate` | Run lint, TypeScript, Jest, and build |
+| `npm run docker:build` | Build the Docker image |
+| `npm run docker:run` | Run the container on port 3000 |
+| `npm run docker:compose` | Build and start services with Docker Compose |
+| `npm run sync:badges` | Sync local team crests |
+| `npm run test:streams` | Check external streams |
 
-File `.env.local` in the project root:
+### Chat and administration
 
-```
-API_FOOTBALL_KEY=your_api_football_key
-RAPIDAPI_KEY=your_rapidapi_key
-MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster0.example.mongodb.net/?appName=Cluster0
-MONGODB_DB=goltv
-```
+Chat is scoped to each match, persists messages in MongoDB when configured, and falls back to in-memory storage when unavailable. It supports replies, separate name and message colors, and bounded message history. The site-wide presence counter updates periodically.
 
-### Rate Limit Management
+The private admin panel provides session management, presence overview, message moderation, and ban management. Configure `ADMIN_SECRET` in the deployment environment and keep the panel path and credentials private.
 
-| API | Internal limit | Cache |
-|-----|---------------|-------|
-| API-Football | ~70 calls/key/day | fixtures ~90s, match ~2min |
-| RapidAPI | ~35 calls/day | all-match ~5min, link ~10min |
-| FutbolLibre | No fixed limit | agenda ~30min |
-| PelotaLibre | 300 calls/day | agenda revalidates ~5min, streams ~30min |
+### Project structure
 
-- Do not loop `npm run test:streams`
-- After a 429, wait at least 5 minutes (automatic cooldown)
-
-### Testing
-
-| Type | Tests | Description |
-|------|-------|-------------|
-| Unit (Jest) | 90 | Constants, utilities, streaming, types, secondary fixture parser |
-| API Routes (Jest) | 59 | matches, match-by-id, standings, leagues, chat, viewers, health |
-| E2E (Cypress) | 32 | Home, navigation, search, leagues, responsive, language |
-| **Total** | **181** | **Full stack coverage** |
-
-```bash
-npm test                          # 149 Jest tests
-npx cypress run                   # 32 E2E tests
-npm run validate                  # Lint + TypeScript + Jest + Build
-```
-
-### Available Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Development server |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint linter |
-| `npm test` | Run Jest tests (149 tests) |
-| `npm run cypress` | Open Cypress E2E (browser) |
-| `npm run cypress:run` | Run Cypress headless |
-| `npm run test:e2e` | Open Cypress |
-| `npm run validate` | Lint + TypeScript + Tests + Build |
-| `npm run docker:build` | Build Docker image |
-| `npm run docker:compose` | Start with Docker Compose |
-
-### CI/CD
-
-GitHub Actions runs automatically on every push/PR:
-
-1. **CI:** Lint + TypeScript + Jest tests + Build
-2. **Docker:** Multi-stage build + push to GitHub Container Registry (GHCR)
-
-### Project Structure
-
-```
-goltv-libre/
-  src/
-    app/                    # Routes and pages (App Router)
-      api/                  # API endpoints (matches, chat, health, leagues, standings, viewers, og)
-      leagues/              # League standings page
-      watch/[matchId]/      # Player page
-      sitemap.ts            # Dynamic XML sitemap
-      globals.css           # Tailwind themes and animations
-      layout.tsx            # Global layout
-      page.tsx              # Home
-    components/             # Components
-      layout/               # Header, Footer
-      matches/              # MatchCard, MatchList, LiveBadge, ViewerBadge, DateNavigator
-      player/               # VideoPlayer, IframePlayer, ChannelSelector
-      chat/                 # ChatBox
-      search/               # SearchBar, MobileMenu
-      ui/                   # Skeleton, FootballLoader
-    contexts/               # LanguageContext
-    i18n/                   # Translation dictionaries (ES/EN)
-    lib/                    # Logic: API clients, types, constants, utils, mongo
-    __tests__/              # Unit and API route tests (Jest)
-  cypress/                  # E2E tests (Cypress)
-    e2e/                    # Specs: home, navigation, search, leagues, responsive...
-  public/                   # Icons, robots.txt, manifest.json
-  .github/workflows/        # CI/CD (GitHub Actions)
-  Dockerfile                # Multi-stage build
-  docker-compose.yml        # Container orchestration
-  package.json              # Dependencies and scripts
+```text
+src/
+  app/                 Application routes, pages, and endpoints
+    api/               Match, chat, playback, and admin APIs
+    canales/           Sports channels page
+    leagues/           Leagues page
+    lpf/               LPF Play page
+    watch/[matchId]/   Match page
+  components/          UI, players, chat, and navigation
+  contexts/            Shared state, including language
+  i18n/                Spanish and English dictionaries
+  lib/                 Integrations, models, and application logic
+  __tests__/            Unit and API route tests
+cypress/
+  e2e/                 End-to-end tests
+public/                Static assets, icons, and badges
 ```
 
-### Legal Disclaimer
+### CI and containers
 
-GolTV Libre is an educational and technical demonstration project. The platform does not host any video content on its servers and only links to publicly accessible third-party streams on the internet.
+GitHub Actions runs the configured project checks. The repository includes a multi-stage `Dockerfile` and `docker-compose.yml` for building and running the application in containers.
