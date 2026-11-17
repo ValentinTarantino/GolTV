@@ -155,6 +155,18 @@ export default function MobileMenu() {
             </Link>
           </div>
 
+          <div className="px-4 py-3 border-b-2 border-white">
+            <Link
+              href="/lpf"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#a855f7] text-black border-2 border-black shadow-[4px_4px_0px_0px_#fff] font-black text-sm uppercase"
+              id="mobile-lpf"
+            >
+              <Tv size={16} strokeWidth={3} />
+              <span>{t.lpf?.nav || "LPF PLAY"}</span>
+            </Link>
+          </div>
+
           <div className="flex-1 overflow-y-auto">
             {query.trim() && (
               filtered.length === 0 ? (

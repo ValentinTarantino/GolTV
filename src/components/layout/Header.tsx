@@ -71,6 +71,14 @@ export default function Header() {
               <Tv size={14} strokeWidth={3} />
               <span>{t.canales?.nav || "CANALES"}</span>
             </Link>
+            <Link
+              href="/lpf"
+              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#a855f7] bg-black shadow-[4px_4px_0px_0px_#a855f7] font-black text-xs sm:text-sm text-white hover:text-[#a855f7] hover:border-[#a855f7] transition-colors uppercase"
+              id="header-lpf"
+            >
+              <Tv size={14} strokeWidth={3} />
+              <span>{t.lpf?.nav || "LPF PLAY"}</span>
+            </Link>
             <TimeZoneSelect />
             <div className="flex items-center border-2 border-[#a3e635] bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm">
               <button
