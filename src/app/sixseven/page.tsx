@@ -9,6 +9,31 @@ export default function AdminPage() {
   const [admin, setAdmin] = useState(getAdminSession());
   const [bannedIPs, setBannedIPs] = useState<string[]>([]);
   const [ipInfoMap, setIpInfoMap] = useState<Record<string, { country?: string; city?: string; region?: string; isp?: string }>>({});
+  const [onlineCount, setOnlineCount] = useState<number | null>(null);
+
+  // Poll the site-wide presence counter while the admin panel is open.
+  useEffect(() => {
+    if (!admin.isAdmin) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/presence", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data.count === "number") setOnlineCount(data.count);
+      } catch {
+        // transient error — keep the last count
+      }
+    };
+
+    void poll();
+    const timer = setInterval(poll, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [admin.isAdmin]);
 
   const fetchBannedIPs = async () => {
     try {
@@ -140,7 +165,11 @@ export default function AdminPage() {
 
         <div className="p-4 border-2 border-white bg-black mb-6">
           <p className="text-white font-bold mb-4">Panel de administración</p>
-          <p className="text-gray-400 text-sm">Las funciones de moderación están disponibles en el chat.</p>
+          <p className="text-gray-400 text-sm mb-3">Las funciones de moderación están disponibles en el chat.</p>
+          <p className="text-white text-sm">
+            <span className="font-bold text-accent-primary">{onlineCount ?? "—"}</span>{" "}
+            personas en el sitio ahora
+          </p>
         </div>
 
         <div className="p-4 border-2 border-white bg-black">

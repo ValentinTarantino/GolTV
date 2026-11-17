@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import DesktopBackgroundParallax from "@/components/layout/DesktopBackgroundParallax";
 import BanChecker from "@/components/BanChecker";
+import SitePresence from "@/components/SitePresence";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { TimeZoneProvider } from "@/contexts/TimeZoneContext";
 
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col font-sans antialiased">
         <DesktopBackgroundParallax />
         <BanChecker />
+        <SitePresence />
         <LanguageProvider>
           <TimeZoneProvider>
             <Header />
