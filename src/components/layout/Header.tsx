@@ -43,7 +43,7 @@ export default function Header() {
                   WebkitBackgroundClip: "text",
                 }}
               >
-                GOLTV
+                G<span className="relative">O<span aria-hidden className="absolute left-[70%] top-1/2 h-[0.55em] w-[0.37em] -translate-x-1/2 -translate-y-1/2 skew-x-[-11.5deg] rounded-full bg-[#ffcc00]" /></span>LTV
               </span>
               <span className="text-accent-primary">LIBRE</span>
               <span
