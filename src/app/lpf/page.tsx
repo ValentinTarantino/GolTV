@@ -174,7 +174,7 @@ export default function LpfPlayPage() {
   return (
     <main className="min-h-screen">
       <section className="mx-auto max-w-7xl px-3 py-7 sm:px-4 md:px-6 md:py-10">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
               <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
@@ -220,17 +220,9 @@ export default function LpfPlayPage() {
               </div>
             )}
 
-            <div role="note" className="border-4 border-accent-primary bg-black p-3 shadow-brutal sm:p-4">
-              <div className="mb-1.5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-accent-primary sm:text-xs">
-                  {copy.helperTitle}
-                </span>
-              </div>
-              <p className="text-[11px] font-medium leading-relaxed text-gray-300 sm:text-sm">{copy.helperDesc}</p>
-            </div>
           </div>
 
-          <aside className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between border-4 border-white bg-black px-3 py-2 shadow-brutal">
               <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
                 {copy.matches}
@@ -272,21 +264,22 @@ export default function LpfPlayPage() {
                 <span className="border-2 border-white/30 bg-black px-3 py-1 text-[10px] font-black uppercase tracking-widest text-accent-primary">
                   {competition}
                 </span>
-                {list.map((match) => {
-                  const isActive = match.id === activeId;
-                  return (
-                    <button
-                      key={match.id}
-                      type="button"
-                      data-match={match.id}
-                      onClick={() => selectMatch(match.id)}
-                      title={`${match.home} vs ${match.away}`}
-                      className={`flex items-center justify-between gap-2 border-4 px-3 py-2.5 text-left transition-transform hover:-translate-y-0.5 ${
-                        isActive
-                          ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
-                          : "border-white bg-black text-white shadow-brutal"
-                      }`}
-                    >
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {list.map((match) => {
+                    const isActive = match.id === activeId;
+                    return (
+                      <button
+                        key={match.id}
+                        type="button"
+                        data-match={match.id}
+                        onClick={() => selectMatch(match.id)}
+                        title={`${match.home} vs ${match.away}`}
+                        className={`flex w-52 shrink-0 items-center justify-between gap-2 border-4 px-3 py-2.5 text-left transition-transform hover:-translate-y-0.5 sm:w-64 ${
+                          isActive
+                            ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
+                            : "border-white bg-black text-white shadow-brutal"
+                        }`}
+                      >
                       <span className="flex min-w-0 items-center gap-2">
                         <TeamCrest src={match.homeLogo} name={match.home} />
                         <span className="text-[10px] font-black uppercase opacity-60">vs</span>
@@ -305,12 +298,13 @@ export default function LpfPlayPage() {
                           </span>
                         )}
                       </span>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ))}
-          </aside>
+          </div>
         </div>
       </section>
     </main>
