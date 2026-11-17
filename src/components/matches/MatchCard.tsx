@@ -16,6 +16,19 @@ interface MatchCardProps {
   prioritizeLogos?: boolean;
 }
 
+function nationalTeamFlag(teamName: string): string | null {
+  const key = teamName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+
+  if (key === "singapur" || key === "singapore") return "🇸🇬";
+  if (key === "japon" || key === "japan") return "🇯🇵";
+  if (key === "rusia" || key === "russia") return "🇷🇺";
+  return null;
+}
+
 export default function MatchCard({ match, prioritizeLogos = false }: MatchCardProps) {
   const { t, language } = useLanguage();
   const { timeZone } = useTimeZone();
@@ -77,6 +90,10 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
                 unoptimized={crestFallback.home}
                 onError={() => setCrestFallback((f) => (f.home ? f : { ...f, home: true }))}
               />
+            ) : nationalTeamFlag(match.homeTeam.name) ? (
+              <span className="flex h-full items-center justify-center text-3xl" role="img" aria-label={match.homeTeam.name}>
+                {nationalTeamFlag(match.homeTeam.name)}
+              </span>
             ) : null}
           </div>
           <span className="truncate text-sm sm:text-base font-bold text-white uppercase tracking-tight">
@@ -144,6 +161,10 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
                 unoptimized={crestFallback.away}
                 onError={() => setCrestFallback((f) => (f.away ? f : { ...f, away: true }))}
               />
+            ) : nationalTeamFlag(match.awayTeam.name) ? (
+              <span className="flex h-full items-center justify-center text-3xl" role="img" aria-label={match.awayTeam.name}>
+                {nationalTeamFlag(match.awayTeam.name)}
+              </span>
             ) : null}
           </div>
         </div>

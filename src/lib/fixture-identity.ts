@@ -99,6 +99,13 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   slovenia: "slovenia",
   azerbaiyan: "azerbaijan",
   azerbaijan: "azerbaijan",
+  // National-team feeds use both the Spanish abbreviation and full country name.
+  eeuu: "unitedstates",
+  estadosunidos: "unitedstates",
+  estadosunidosdeamerica: "unitedstates",
+  unitedstates: "unitedstates",
+  unitedstatesofamerica: "unitedstates",
+  usa: "unitedstates",
 };
 
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {

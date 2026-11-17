@@ -733,6 +733,32 @@ describe("/api/matches", () => {
     expect(names).not.toContain("CONCACAF Champions Cup");
   });
 
+  it("deduplicates EE. UU. and Estados Unidos national-team fixtures", async () => {
+    const kickoff = `${todayISO()}T21:00:00-03:00`;
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        league: "Liga de Naciones de la CONCACAF",
+        homeTeam: "EE. UU.",
+        awayTeam: "Haití",
+        dateISO: kickoff,
+        slug: "eeuu-haiti",
+      }),
+      flMatch({
+        league: "Liga de Naciones de la CONCACAF",
+        homeTeam: "Estados Unidos",
+        awayTeam: "Haití",
+        dateISO: kickoff,
+        slug: "estados-unidos-haiti",
+      }),
+    ]);
+
+    const res = await GET(makeRequest(todayISO()));
+    const data = await res.json();
+
+    expect(data.matches).toHaveLength(1);
+    expect(data.matches[0].homeTeam.name).toBe("EE. UU.");
+  });
+
   it("returns empty array when agenda is empty", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([]);
 
