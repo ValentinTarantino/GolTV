@@ -331,6 +331,15 @@ export default function LpfPlayPage() {
           </div>
         </div>
       </section>
+
+      {listState === "loading" && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/90 backdrop-blur-sm">
+          <RefreshCw size={36} strokeWidth={3} className="animate-spin text-accent-primary" />
+          <span className="text-xs font-black uppercase tracking-widest text-white sm:text-sm">
+            {copy.loadingMatches}
+          </span>
+        </div>
+      )}
     </main>
   );
 }

@@ -37,17 +37,9 @@ const ANGULISMO_FALLBACK =
 
 const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-  "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
-  "Sec-Ch-Ua": '"Chromium";v="132", "Not(A:Brand";v="8", "Google Chrome";v="132"',
-  "Sec-Ch-Ua-Mobile": "?0",
-  "Sec-Ch-Ua-Platform": '"Windows"',
-  "Sec-Fetch-Dest": "document",
-  "Sec-Fetch-Mode": "navigate",
-  "Sec-Fetch-Site": "same-origin",
-  "Sec-Fetch-User": "?1",
-  "Upgrade-Insecure-Requests": "1",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  Accept: "application/json,text/html,*/*",
+  "Accept-Language": "es-AR,es;q=0.9",
 };
 
 /** Competitions of sportplus that the section shows. */
@@ -388,8 +380,19 @@ async function sportplusPlaylist(competitionId: string, matchIdValue: string): P
   }
 
   const url = `${SPORTPLUS_SITE}/football/${competitionId}/${matchIdValue}/`;
-  const page = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
-  if (!page) {
+  let page: string | null = null;
+  try {
+    const res = await fetch(url, {
+      headers: { ...BROWSER_HEADERS, Referer: `${SPORTPLUS_SITE}/football/` },
+      redirect: "follow",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    page = await res.text();
+  } catch {
+    page = null;
+  }
+  if (!page || !page.includes('"ls"')) {
     console.warn(`[lpf] no stream source for ${competitionId}/${matchIdValue}`);
     return null;
   }
@@ -399,6 +402,7 @@ async function sportplusPlaylist(competitionId: string, matchIdValue: string): P
       if (clean.startsWith("https://") && /\.m3u8(\?|$)/i.test(clean)) return clean;
     }
   }
+  console.warn(`[lpf] no m3u8 in page ${competitionId}/${matchIdValue} (len ${page.length}, hasLs=${page.includes('"ls"')})`);
   return null;
 }
 
@@ -776,9 +780,12 @@ export async function inspectLiveFallback(): Promise<{
 export async function resolveLpfMatchStream(id: string): Promise<LpfMatchStream | null> {
   if (!/^lpm_[a-f0-9]{16}$/.test(id)) return null;
 
-  const { refs } = await buildMatches();
+  const { matches, refs } = await buildMatches();
   const ref = refs.get(id);
-  if (!ref) return null;
+  if (!ref) {
+    console.warn(`[lpf] match not found: ${id} | known: ${matches.slice(0, 3).map((m) => m.id).join(", ")}`);
+    return null;
+  }
 
   return resolveRefStream(ref, id);
 }
