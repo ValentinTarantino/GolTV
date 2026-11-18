@@ -191,4 +191,27 @@ describe("public chat and message colors", () => {
     expect(screen.getByRole("log")).toHaveTextContent(first.text);
     expect(screen.getByRole("alert")).toHaveTextContent("Unauthorized");
   });
+
+  it("drops a message another session deleted as soon as the poll reports it", async () => {
+    let deleted: string[] = [];
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url === "/api/admin/session") {
+        return Promise.resolve({ ok: true, json: async () => ({ isAdmin: false }) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ messages: [first], persistent: true, deleted }),
+      });
+    });
+
+    render(<ChatBox matchId="123" />);
+    await loadMessages();
+    expect(screen.getByRole("log")).toHaveTextContent(first.text);
+
+    // The admin deletes it elsewhere: the next poll exposes the tombstone.
+    deleted = [first.id];
+    await act(async () => { jest.advanceTimersByTime(3000); });
+
+    expect(screen.getByRole("log")).not.toHaveTextContent(first.text);
+  });
 });

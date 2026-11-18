@@ -7,6 +7,10 @@ const MONGODB_DB = process.env.MONGODB_DB || "goltv";
 export const CHAT_COLLECTION = "chat_messages";
 export const CHAT_TTL_SECONDS = 24 * 60 * 60;
 
+// Tombstones of deleted messages: without them, clients that poll with an
+// `offset` keep showing a message that another session removed.
+export const CHAT_DELETED_COLLECTION = "chat_deleted";
+
 export const VIEWERS_COLLECTION = "viewers";
 export const VIEWERS_TTL_SECONDS = 60;
 
@@ -63,10 +67,14 @@ function connect(uri: string): CachedClient {
 async function ensureIndexes(db: Db): Promise<void> {
   const chat = db.collection(CHAT_COLLECTION);
   const viewers = db.collection(VIEWERS_COLLECTION);
+  const deleted = db.collection(CHAT_DELETED_COLLECTION);
   await Promise.all([
     chat.createIndex({ matchId: 1, ts: 1 }),
     // Auto-delete messages older than 24h
     chat.createIndex({ ts: 1 }, { expireAfterSeconds: CHAT_TTL_SECONDS }),
+    // Tombstones follow the same lifetime as the messages they remove
+    deleted.createIndex({ matchId: 1, ts: -1 }),
+    deleted.createIndex({ ts: 1 }, { expireAfterSeconds: CHAT_TTL_SECONDS }),
     // One live entry per viewer per match (heartbeat upsert)
     viewers.createIndex({ matchId: 1, viewerId: 1 }, { unique: true }),
     // Safety cleanup: entries stop being relevant long before this

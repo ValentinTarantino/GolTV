@@ -122,11 +122,23 @@ function ChatSession({ matchId }: ChatBoxProps) {
         return;
       }
       setError(null);
+      // Tombstones: messages another session deleted. The poll only appends,
+      // so without this the deleted message would stay until a reload.
+      const removed: string[] = Array.isArray(data.deleted) ? data.deleted : [];
+      if (removed.length) {
+        const removedSet = new Set(removed);
+        setMessages(prev => {
+          const next = prev.filter(message => !removedSet.has(message.id));
+          return next.length === prev.length ? prev : next;
+        });
+      }
       if (data.messages?.length) {
         setMessages(prev => {
           const ids = new Set(prev.map(message => message.id));
           const incoming = data.messages.filter((message: ChatMessage) =>
-            !ids.has(message.id) && !deletedIdsRef.current.has(message.id)
+            !ids.has(message.id)
+            && !deletedIdsRef.current.has(message.id)
+            && !removed.includes(message.id)
           );
           if (!incoming.length) return prev;
           offsetRef.current = incoming[incoming.length - 1].ts;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getChatMessages, addChatMessage, isIPBanned } from "@/lib/chat";
+import { getChatMessages, addChatMessage, isIPBanned, getDeletedChatMessageIds } from "@/lib/chat";
 import { isMongoConfigured } from "@/lib/mongo";
 import { validateQuery, validateBody, createErrorResponse, chatPostSchema } from "@/lib/validators";
 
@@ -44,8 +44,14 @@ export async function GET(request: Request) {
   const { matchId, offset } = validation.data;
   const offsetNum = offset ? parseInt(offset, 10) : 0;
   try {
-    const messages = await getChatMessages(matchId, isNaN(offsetNum) ? 0 : offsetNum);
-    return Response.json({ messages, persistent: isMongoConfigured() }, { headers: { "Cache-Control": "no-store" } });
+    const safeOffset = isNaN(offsetNum) ? 0 : offsetNum;
+    const messages = await getChatMessages(matchId, safeOffset);
+    // Only a client that already holds history needs the tombstones.
+    const deleted = safeOffset > 0 ? await getDeletedChatMessageIds(matchId) : [];
+    return Response.json(
+      { messages, persistent: isMongoConfigured(), deleted },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch {
     return createErrorResponse("Chat unavailable", 503);
   }

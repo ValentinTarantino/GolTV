@@ -1,5 +1,5 @@
 ﻿import { getCache, setCache, incrementCounter } from "./cache";
-import { getChatCollection } from "./mongo";
+import { CHAT_DELETED_COLLECTION, getChatCollection, getDb } from "./mongo";
 import { isChatColor, isChatPaletteColor, type ChatColors } from "./chat-colors";
 
 export interface ChatMessage {
@@ -20,9 +20,11 @@ export interface ChatMessage {
 }
 
 const MAX_MESSAGES_PER_MATCH = 200;
+const MAX_DELETED_IDS = 200;
 const RATE_LIMIT_MS = 3000;
 const CHAT_RATE_LIMIT_KEY = "chat:ratelimit";
 const CHAT_MESSAGES_KEY = "chat:messages";
+const CHAT_DELETED_KEY = "chat:deleted";
 const BANNED_IPS_KEY = "chat:banned_ips";
 
 let msgCounter = 0;
@@ -84,6 +86,92 @@ async function getMessagesFromCache(matchId: string): Promise<ChatMessage[]> {
 
 async function saveMessagesToCache(matchId: string, messages: ChatMessage[]): Promise<void> {
   await setCache(`${CHAT_MESSAGES_KEY}:${matchId}`, messages, 24 * 60 * 60 * 1000);
+}
+
+interface DeletedMessageDoc {
+  matchId: string;
+  id: string;
+  ts: number;
+}
+
+async function getDeletedCollection() {
+  const db = await getDb();
+  return db ? db.collection<DeletedMessageDoc>(CHAT_DELETED_COLLECTION) : null;
+}
+
+/**
+ * Ids of messages deleted from this match. Clients poll with an `offset` and
+ * only ever append, so they need this list to drop messages another session
+ * removed — otherwise the message survives until the page is reloaded.
+ */
+export async function getDeletedChatMessageIds(matchId: string): Promise<string[]> {
+  const ids = new Set<string>();
+
+  const cached = await getCache<string[]>(`${CHAT_DELETED_KEY}:${matchId}`);
+  for (const id of cached ?? []) ids.add(id);
+
+  const collection = await getDeletedCollection();
+  if (collection) {
+    try {
+      const docs = await collection
+        .find({ matchId }, { projection: { id: 1 } })
+        .sort({ ts: -1 })
+        .limit(MAX_DELETED_IDS)
+        .toArray();
+      for (const doc of docs) ids.add(doc.id);
+    } catch (error) {
+      console.warn("[chat] MongoDB tombstone read error:", error);
+    }
+  }
+
+  return Array.from(ids);
+}
+
+/** Removes a message and leaves a tombstone so every open chat drops it. */
+export async function deleteChatMessage(matchId: string, messageId: string): Promise<boolean> {
+  let deleted = false;
+
+  const collection = await getChatCollection();
+  if (collection) {
+    try {
+      const result = await collection.deleteOne({ id: messageId, matchId });
+      if (result.deletedCount > 0) deleted = true;
+    } catch (error) {
+      console.warn("[chat] MongoDB delete error:", error);
+    }
+  }
+
+  // Cache is both the fallback store and the local mirror used by the reader.
+  const messages = await getMessagesFromCache(matchId);
+  if (messages.some((message) => message.id === messageId)) {
+    await saveMessagesToCache(matchId, messages.filter((message) => message.id !== messageId));
+    deleted = true;
+  }
+
+  if (!deleted) return false;
+
+  const previous = (await getCache<string[]>(`${CHAT_DELETED_KEY}:${matchId}`)) ?? [];
+  const tombstones = previous.includes(messageId) ? previous : [...previous, messageId];
+  await setCache(
+    `${CHAT_DELETED_KEY}:${matchId}`,
+    tombstones.slice(-MAX_DELETED_IDS),
+    24 * 60 * 60 * 1000
+  );
+
+  const tombstonesCollection = await getDeletedCollection();
+  if (tombstonesCollection) {
+    try {
+      await tombstonesCollection.updateOne(
+        { matchId, id: messageId },
+        { $set: { ts: Date.now() } },
+        { upsert: true }
+      );
+    } catch (error) {
+      console.warn("[chat] MongoDB tombstone write error:", error);
+    }
+  }
+
+  return true;
 }
 
 async function getBannedIPs(): Promise<Set<string>> {

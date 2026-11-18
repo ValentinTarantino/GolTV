@@ -1,65 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getDb } from "@/lib/mongo";
-import { getCache, setCache } from "@/lib/cache";
-import type { ChatMessage } from "@/lib/chat";
+import { deleteChatMessage } from "@/lib/chat";
 
 const SESSION_COOKIE = "goltv_admin_session";
-const CHAT_MESSAGES_KEY = "chat:messages";
-const CHAT_COLLECTION = "chat_messages";
 
+/**
+ * Deletes one chat message for everybody. The deletion also stores a
+ * tombstone so open chats (which poll with an offset and only append) drop
+ * the message on their next read instead of waiting for a page reload.
+ */
 export async function POST(request: NextRequest) {
+  const cookieStore = await cookies();
+  const session = cookieStore.get(SESSION_COOKIE);
+
+  if (!session || session.value !== "authenticated") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let payload: { messageId?: unknown; matchId?: unknown };
   try {
-    // Verify admin session
-    const cookieStore = await cookies();
-    const session = cookieStore.get(SESSION_COOKIE);
-    
-    if (!session || session.value !== "authenticated") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
 
-    const { messageId, matchId } = await request.json();
-    
-    if (!messageId || !matchId) {
-      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
-    }
+  const { messageId, matchId } = payload;
+  if (typeof messageId !== "string" || typeof matchId !== "string" || !messageId || !matchId) {
+    return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+  }
 
-    // Try MongoDB first
-    const db = await getDb();
-    if (db) {
-      try {
-        const collection = db.collection(CHAT_COLLECTION);
-        const result = await collection.deleteOne({ id: messageId, matchId });
-        
-        if (result.deletedCount > 0) {
-          // Also remove from cache
-          const messages = await getCache<ChatMessage[]>(`${CHAT_MESSAGES_KEY}:${matchId}`);
-          if (messages) {
-            const filtered = messages.filter(m => m.id !== messageId);
-            await setCache(`${CHAT_MESSAGES_KEY}:${matchId}`, filtered, 24 * 60 * 60 * 1000);
-          }
-          return NextResponse.json({ success: true });
-        }
-      } catch (error) {
-        console.warn("[admin/delete-message] MongoDB error:", error);
-      }
-    }
-
-    // Fallback to cache only
-    const messages = await getCache<ChatMessage[]>(`${CHAT_MESSAGES_KEY}:${matchId}`);
-    
-    if (!messages) {
-      return NextResponse.json({ error: "No messages found" }, { status: 404 });
-    }
-
-    const filtered = messages.filter(m => m.id !== messageId);
-    
-    if (filtered.length === messages.length) {
+  try {
+    const deleted = await deleteChatMessage(matchId, messageId);
+    if (!deleted) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
-
-    await setCache(`${CHAT_MESSAGES_KEY}:${matchId}`, filtered, 24 * 60 * 60 * 1000);
-
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
