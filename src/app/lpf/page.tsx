@@ -331,21 +331,21 @@ export default function LpfPlayPage() {
                       >
                       <span className="flex items-center justify-center gap-2">
                         <TeamCrest src={match.homeLogo} name={match.home} />
-                        <span className="text-[9px] font-black uppercase opacity-60 sm:text-[10px]">vs</span>
+                        <span className="text-[9px] font-black uppercase opacity-80 sm:text-[10px]">vs</span>
                         <TeamCrest src={match.awayLogo} name={match.away} />
                       </span>
-                      <span className="truncate text-center text-[10px] font-black uppercase leading-tight sm:text-left">
-                        {match.home} <span className="opacity-60">vs</span> {match.away}
+                      <span className="text-center text-[10px] font-black uppercase leading-tight sm:text-left">
+                        {match.home} <span className="opacity-80">vs</span> {match.away}
                       </span>
                       <span className="flex items-center justify-between gap-1">
-                        <span className="truncate text-[9px] font-bold uppercase opacity-80 sm:text-[10px]">{formatTime(match.start)}</span>
+                        <span className="text-[9px] font-bold uppercase sm:text-[10px]">{formatTime(match.start)}</span>
                         {match.status === "live" ? (
                           <span className="flex shrink-0 items-center gap-1 text-[9px] font-black uppercase">
                             <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
                             {copy.live}
                           </span>
                         ) : (
-                          <span className="shrink-0 text-[9px] font-black uppercase opacity-70">
+                          <span className="shrink-0 text-[9px] font-black uppercase">
                             {statusLabel(match.status)}
                           </span>
                         )}
