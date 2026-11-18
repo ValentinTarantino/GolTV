@@ -17,12 +17,32 @@ interface LpfMatch {
   awayLogo?: string;
   start: string;
   status: "live" | "upcoming" | "finished";
+  /** The match the section opens with (the provider's live pick). */
+  featured?: boolean;
   viewTid?: string;
   viewMid?: string;
 }
 
 type ListState = "loading" | "ready" | "error";
 type StreamState = "loading" | "ready" | "error";
+
+/** One player of the selected match ("Fuente 1", "Fuente 2"…). */
+interface StreamSource {
+  src: string;
+  kind: "hls" | "iframe";
+  /** Resolution the provider announces, when it does. */
+  quality?: string;
+}
+
+/** The section opens on the featured match; otherwise a live one at random. */
+function pickRandomMatch(list: LpfMatch[]): string | null {
+  if (!list.length) return null;
+  const featured = list.find((match) => match.featured);
+  if (featured) return featured.id;
+  const live = list.filter((match) => match.status === "live");
+  const pool = live.length ? live : list;
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
 
 /**
  * Chat/viewer APIs only accept numeric match ids, so the opaque `lpm_…`
@@ -81,7 +101,7 @@ export default function LpfPlayPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [streamSrc, setStreamSrc] = useState<string | null>(null);
   const [streamKind, setStreamKind] = useState<"hls" | "iframe">("hls");
-  const [streamSources, setStreamSources] = useState<string[]>([]);
+  const [streamSources, setStreamSources] = useState<StreamSource[]>([]);
   const [sourceIndex, setSourceIndex] = useState(0);
   const [streamState, setStreamState] = useState<StreamState>("loading");
   const [streamReload, setStreamReload] = useState(0);
@@ -96,13 +116,7 @@ export default function LpfPlayPage() {
         const next = Array.isArray(data.matches) ? data.matches : [];
         setMatches(next);
         setListState("ready");
-        setActiveId(
-          (current) =>
-            current ??
-            next.find((m) => m.status === "live")?.id ??
-            next[0]?.id ??
-            null
-        );
+        setActiveId((current) => current ?? pickRandomMatch(next));
       })
       .catch(() => {
         if (cancelled) return;
@@ -121,15 +135,19 @@ export default function LpfPlayPage() {
 
     fetch(`/api/lpf/matches/${encodeURIComponent(activeId)}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { src?: string | null; kind?: "hls" | "iframe" | null; sources?: string[] }) => {
+      .then((data: { src?: string | null; kind?: "hls" | "iframe" | null; sources?: StreamSource[] }) => {
         if (cancelled) return;
         if (!data.src) {
           setStreamState("error");
           return;
         }
+        setStreamSources(
+          Array.isArray(data.sources) && data.sources.length
+            ? data.sources
+            : [{ src: data.src, kind: data.kind ?? "hls" }]
+        );
         setStreamSrc(data.src);
         setStreamKind(data.kind ?? "hls");
-        setStreamSources(data.sources ?? []);
         setSourceIndex(0);
         setStreamState("ready");
       })
@@ -144,6 +162,9 @@ export default function LpfPlayPage() {
   }, [activeId, streamReload]);
 
   const activeMatch = matches.find((match) => match.id === activeId) ?? null;
+  const activeSource =
+    streamSources[sourceIndex] ??
+    (streamSrc ? { src: streamSrc, kind: streamKind } : null);
 
   const groups = useMemo(() => {
     const map = new Map<string, LpfMatch[]>();
@@ -178,6 +199,17 @@ export default function LpfPlayPage() {
     [activeId]
   );
 
+  // A match the provider has not opened yet gets its sources as soon as the
+  // broadcast starts, so the page asks again on its own instead of making the
+  // visitor reload. Every attempt is silent: no spinner, no lost source. A
+  // live match retries sooner, since its player can also drop mid-game.
+  useEffect(() => {
+    if (streamState !== "error" || !activeId) return;
+    const live = matches.find((match) => match.id === activeId)?.status === "live";
+    const timer = setInterval(() => setStreamReload((n) => n + 1), live ? 25_000 : 45_000);
+    return () => clearInterval(timer);
+  }, [streamState, activeId, matches]);
+
   const statusLabel = (status: LpfMatch["status"]) => {
     if (status === "live") return copy.live;
     if (status === "finished") return copy.finished;
@@ -204,11 +236,11 @@ export default function LpfPlayPage() {
                 </span>
               </div>
 
-            {streamState === "ready" && streamSrc && activeMatch ? (
+            {streamState === "ready" && activeSource && activeMatch ? (
               <VideoPlayer
-                url={streamSrc}
+                url={activeSource.src}
                 title={`${activeMatch.home} vs ${activeMatch.away}`}
-                kind={streamKind}
+                kind={activeSource.kind}
                 preferFastStart
               />
             ) : (
@@ -223,10 +255,18 @@ export default function LpfPlayPage() {
                 ) : (
                   <div className="flex max-w-sm flex-col items-center gap-3 px-6 text-center">
                     <AlertCircle size={30} strokeWidth={3} className="text-accent-red" />
-                    <span className="text-sm font-black uppercase text-white">{copy.unavailable}</span>
-                    <span className="text-xs font-medium leading-relaxed text-gray-400">
-                      {copy.unavailableDesc}
-                    </span>
+                    {activeMatch?.status === "upcoming" ? (
+                      <span className="text-xs font-medium leading-relaxed text-gray-300">
+                        {copy.sourcesAtKickoff}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-sm font-black uppercase text-white">{copy.unavailable}</span>
+                        <span className="text-xs font-medium leading-relaxed text-gray-400">
+                          {copy.unavailableDesc}
+                        </span>
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={reloadStream}
@@ -238,22 +278,15 @@ export default function LpfPlayPage() {
                 )}
               </div>
             )}
-            </div>
 
-            {activeMatch && (
-              <div className="h-[380px] min-h-0 sm:h-[480px] lg:h-[560px]">
-                <ChatBox matchId={chatMatchId(activeMatch.id)} />
-              </div>
-            )}
-
-            {streamSources.length > 1 && (
-              <div className="flex flex-wrap gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
+            {streamState === "ready" && streamSources.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
                 <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
                   {copy.sources}
                 </span>
-                {streamSources.map((src, idx) => (
+                {streamSources.map((source, idx) => (
                   <button
-                    key={src}
+                    key={`${source.src}-${idx}`}
                     type="button"
                     onClick={() => setSourceIndex(idx)}
                     className={`border-2 px-2 py-1 text-[10px] font-black uppercase transition-transform hover:-translate-y-0.5 ${
@@ -262,9 +295,22 @@ export default function LpfPlayPage() {
                         : "border-white bg-black text-white"
                     }`}
                   >
-                    {idx + 1}
+                    {copy.sourceLabel} {idx + 1}
+                    {source.quality && (
+                      <>
+                        {" "}
+                        <span className="opacity-70">{source.quality}</span>
+                      </>
+                    )}
                   </button>
                 ))}
+              </div>
+            )}
+            </div>
+
+            {activeMatch && (
+              <div className="h-[380px] min-h-0 sm:h-[480px] lg:h-[560px]">
+                <ChatBox matchId={chatMatchId(activeMatch.id)} />
               </div>
             )}
           </div>

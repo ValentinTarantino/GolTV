@@ -1,9 +1,30 @@
 /**
  * @jest-environment node
  */
-import { extractAngulismoPlayers, isPrimeraNacionalEvent } from "@/lib/lpf-matches";
+import {
+  competitionFromUri,
+  extractAngulismoPlayers,
+  isPrimeraNacionalEvent,
+} from "@/lib/lpf-matches";
 
 describe("lpf matches source", () => {
+  describe("competitionFromUri", () => {
+    it("reads the tournament the provider encodes in its path", () => {
+      expect(
+        competitionFromUri("/ru/live/Football/119243-Spain-Copa-del-Rey/772080218-Alcoyano-Mallorca")
+      ).toBe("Spain. Copa del Rey");
+    });
+
+    it("falls back to the plain name when there is no country", () => {
+      expect(competitionFromUri("/live/Football/77-Friendly/1-A-B")).toBe("Friendly");
+    });
+
+    it("returns null when the path has no tournament", () => {
+      expect(competitionFromUri(undefined)).toBeNull();
+      expect(competitionFromUri("/live/Football/")).toBeNull();
+    });
+  });
+
   describe("isPrimeraNacionalEvent", () => {
     it("accepts the Primera Nacional of the agenda", () => {
       expect(

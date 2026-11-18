@@ -70,7 +70,7 @@ export async function GET(): Promise<Response> {
     { matches: payload },
     {
       headers: {
-        "Cache-Control": "public, max-age=30, stale-while-revalidate=120",
+        "Cache-Control": "no-store",
       },
     }
   );

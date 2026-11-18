@@ -69,6 +69,8 @@ export interface LpfMatch {
   /** ISO date in Argentina time (-03:00). */
   start: string;
   status: "live" | "upcoming" | "finished";
+  /** Set on the rotating live match that opens the section. */
+  featured?: boolean;
   /**
    * Provider coordinates of a sportplus match. Public data (they appear in
    * the provider's own URLs); the browser uses them to ask the provider's
@@ -83,8 +85,8 @@ export interface LpfMatch {
 export interface LpfMatchStream {
   src: string;
   kind: "hls" | "iframe";
-  /** Alternative sources (all HLS URLs from the ls array). */
-  sources?: string[];
+  /** Every player of the match, the primary one first. */
+  sources?: Array<{ src: string; kind: "hls" | "iframe"; quality?: string }>;
 }
 
 interface MatchRef {
@@ -300,6 +302,9 @@ function sportplusStatus(item: SportplusItem): LpfMatch["status"] {
   return "finished";
 }
 
+/** Competition label of the random live match that opens the section. */
+const LIVE_COMPETITION = "Fútbol en vivo";
+
 /* ------------------------------------------------------------------ *
  * Sportplus
  * ------------------------------------------------------------------ */
@@ -310,8 +315,24 @@ interface SportplusItem {
   start?: string;
   status?: string;
   tournament_id?: number;
+  /** Path of the match on the provider's site, e.g. `/ru/live/Football/119243-Spain-Copa-del-Rey/...`. */
+  uri?: string;
   home?: { name?: string; pk_id?: number };
   away?: { name?: string; pk_id?: number };
+}
+
+/**
+ * Competition name from the provider's own path, formatted the way the site
+ * lists tournaments: "Spain. Copa del Rey".
+ */
+export function competitionFromUri(uri?: string): string | null {
+  if (!uri) return null;
+  const segment = uri.split("/").find((part) => /^\d+-[a-z0-9-]+$/i.test(part));
+  if (!segment) return null;
+  const parts = segment.replace(/^\d+-/, "").split("-").filter(Boolean);
+  if (parts.length < 2) return parts[0] ?? null;
+  const [country, ...rest] = parts;
+  return `${country}. ${rest.join(" ")}`;
 }
 
 async function sportplusMatches(competitionId: string): Promise<SportplusItem[]> {
@@ -335,16 +356,46 @@ function sportplusViewUrl(competitionId: string, matchIdValue: string): string {
   )}&lang=es&lcfg=es&fw=3.1`;
 }
 
-/** All `.m3u8` URLs from an `ls` array, already decoded. */
+/**
+ * The real playback options of a match, in the order the provider lists
+ * them. Identical links (or the same file with another signature) are the
+ * same option and are kept once.
+ */
 function playlistsFromLs(ls: unknown): string[] {
   if (!Array.isArray(ls)) return [];
   const out: string[] = [];
+  const seen = new Set<string>();
   for (const candidate of ls) {
-    if (typeof candidate === "string" && /^https:\/\/[^"'\s]+\.m3u8(\?|$)/i.test(candidate)) {
-      out.push(candidate);
-    }
+    if (typeof candidate !== "string") continue;
+    if (!/^https:\/\/[^"'\s]+\.m3u8(\?|$)/i.test(candidate)) continue;
+    const url = new URL(candidate);
+    const key = `${url.origin}${url.pathname}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(candidate);
   }
   return out;
+}
+
+/** Resolution the playlist announces, so the option can be labelled honestly. */
+async function playlistQuality(playlistUrl: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(playlistUrl, {
+      headers: { Accept: "*/*", "User-Agent": BROWSER_HEADERS["User-Agent"] },
+      signal: AbortSignal.timeout(4000),
+      cache: "no-store",
+    });
+    if (!res.ok) return undefined;
+    const text = await res.text();
+    const heights = [...text.matchAll(/RESOLUTION=\d+x(\d+)/gi)]
+      .map((match) => Number(match[1]))
+      .filter((height) => Number.isFinite(height) && height > 0);
+    if (!heights.length) return undefined;
+    if (heights.length > 1) return "Auto";
+    return `${heights[0]}p`;
+  } catch {
+    return undefined;
+  }
 }
 
 /** First `.m3u8` of an `ls` array, already decoded. */
@@ -360,7 +411,14 @@ function playlistFromLs(ls: unknown): string | null {
  * is reachable from every network; the match page is only a fallback because
  * the site in front of it refuses datacenter traffic with a 404.
  */
-async function sportplusPlaylist(competitionId: string, matchIdValue: string): Promise<{ primary: string | null; sources: string[] }> {
+async function sportplusPlaylist(
+  competitionId: string,
+  matchIdValue: string
+): Promise<{ primary: string | null; sources: Array<{ src: string; quality?: string }> }> {
+  /** Adds the resolution each option announces; a link that fails is kept. */
+  const withQuality = async (urls: string[]) =>
+    Promise.all(urls.map(async (src) => ({ src, quality: await playlistQuality(src) })));
+
   const playlistsOf = (text: string | null): { primary: string | null; sources: string[] } => {
     if (!text) return { primary: null, sources: [] };
     try {
@@ -373,7 +431,7 @@ async function sportplusPlaylist(competitionId: string, matchIdValue: string): P
 
   const view = await fetchText(sportplusViewUrl(competitionId, matchIdValue), `${SPORTPLUS_SITE}/football/`);
   const direct = playlistsOf(view);
-  if (direct.primary) return direct;
+  if (direct.primary) return { primary: direct.primary, sources: await withQuality(direct.sources) };
 
   // Serverless IPs get the match data with `ls` stripped; the home relay
   // egresses through a residential connection where the provider answers
@@ -386,7 +444,7 @@ async function sportplusPlaylist(competitionId: string, matchIdValue: string): P
       `${SPORTPLUS_SITE}/football/`
     );
     const viaRelay = playlistsOf(relayView);
-    if (viaRelay.primary) return viaRelay;
+    if (viaRelay.primary) return { primary: viaRelay.primary, sources: await withQuality(viaRelay.sources) };
   }
 
   const url = `${SPORTPLUS_SITE}/football/${competitionId}/${matchIdValue}/`;
@@ -412,7 +470,7 @@ async function sportplusPlaylist(competitionId: string, matchIdValue: string): P
       if (clean.startsWith("https://") && /\.m3u8(\?|$)/i.test(clean)) {
         const primary = clean;
         const sources = playlistsFromLs((JSON.parse(`{"ls":[${block[1]}]}`) as { item?: { ls?: unknown } }).item?.ls);
-        return { primary, sources };
+        return { primary, sources: await withQuality(sources) };
       }
     }
   }
@@ -524,6 +582,25 @@ export function badgeNameFor(name: string): string {
   return BADGE_ALIASES[key] ?? clean;
 }
 
+/**
+ * The same fixture listed twice by the provider (it publishes the same game
+ * under two ids when it moves the kickoff). Two teams can not play each other
+ * twice in 48 hours, so that window is enough to tell a duplicate apart from
+ * a real rematch.
+ */
+const FIXTURE_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+/** Identity of a fixture: the canonical pair of teams. */
+export function fixtureKey(home: string, away: string): string {
+  const canon = (name: string) =>
+    cleanTeamName(name)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  return `${canon(home)}|${canon(away)}`;
+}
+
 /** Splits the "A vs B" title of an event. */
 function splitTeams(event: string): [string, string] {
   const clean = event.replace(/^.*?:\s*/, "").trim();
@@ -588,6 +665,76 @@ export function extractAngulismoPlayers(event: AngulismoEvent): Array<{ name: st
  * Public API
  * ------------------------------------------------------------------ */
 
+/**
+ * The live football match that opens the section, taken from the provider's
+ * global index.
+ *
+ * The competitions of the section can be empty or all scheduled; this keeps
+ * the page playing something real, with every source the provider publishes.
+ *
+ * The pick must be deterministic: the list and the resolver run in different
+ * route bundles (own module memory), so a random choice there makes the id
+ * the list handed out unknown to the resolver.
+ */
+async function featuredLiveFootball(): Promise<{ match: LpfMatch; ref: MatchRef } | null> {
+  return cached("lpf:live-featured:v1", LIST_TTL, async () => {
+    const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
+    const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
+    if (!text) return null;
+
+    let items: SportplusItem[] = [];
+    try {
+      items = (JSON.parse(text) as { items?: SportplusItem[] }).items ?? [];
+    } catch {
+      return null;
+    }
+
+    const candidates = items
+      .map((item) => ({
+        item,
+        home: item.home?.name?.trim() ?? "",
+        away: item.away?.name?.trim() ?? "",
+      }))
+      .filter(
+        (entry) =>
+          entry.item.status === "live" &&
+          entry.item.id &&
+          entry.item.tournament_id !== undefined &&
+          entry.home &&
+          entry.away
+      );
+
+    if (!candidates.length) return null;
+    // The section opens with the Peruvian league when the provider carries it:
+    // stable pick (index order), so the list and the resolver agree on the id.
+    const peruvian = candidates.find((entry) => /peru/i.test(entry.item.uri ?? ""));
+    const chosen = peruvian ?? candidates[0];
+    const ref: MatchRef = {
+      source: "sportplus",
+      competitionId: String(chosen.item.tournament_id),
+      matchId: String(chosen.item.id),
+    };
+
+    return {
+      ref,
+      match: {
+        id: matchId(ref),
+        source: "sportplus",
+        competition: competitionFromUri(chosen.item.uri) ?? LIVE_COMPETITION,
+        home: chosen.home,
+        away: chosen.away,
+        homePk: chosen.item.home?.pk_id,
+        awayPk: chosen.item.away?.pk_id,
+        start: chosen.item.start ? toArgentina(chosen.item.start) : "",
+        status: "live",
+        featured: true,
+        viewTid: ref.competitionId,
+        viewMid: ref.matchId,
+      },
+    };
+  });
+}
+
 /** Raw sportplus answers, cached so the list can be rebuilt on every call. */
 async function sportplusData(): Promise<Array<{ competition: { id: string; name: string }; items: SportplusItem[] }>> {
   return cached("lpf:sportplus:v2", LIST_TTL, async () => {
@@ -614,9 +761,30 @@ async function angulismoData(): Promise<AngulismoEvent[]> {
  * its own memory, so the resolver can not rely on a shared map.
  */
 async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, MatchRef> }> {
-  const [sportplus, angulismo] = await Promise.all([sportplusData(), angulismoData()]);
+  const [sportplus, angulismo, featured] = await Promise.all([
+    sportplusData(),
+    angulismoData(),
+    featuredLiveFootball(),
+  ]);
   const matches: LpfMatch[] = [];
   const refs = new Map<string, MatchRef>();
+  /** Kickoffs per fixture, to drop the duplicates the provider repeats. */
+  const kickoffs = new Map<string, number[]>();
+
+  /**
+   * True when the provider published the same fixture again under another id
+   * (it does that when it reschedules the game). The first one is kept.
+   */
+  const isDuplicateFixture = (home: string, away: string, start: string): boolean => {
+    const at = start ? Date.parse(start) : Number.NaN;
+    if (!Number.isFinite(at)) return false;
+    const key = fixtureKey(home, away);
+    const known = kickoffs.get(key) ?? [];
+    if (known.some((other) => Math.abs(other - at) < FIXTURE_WINDOW_MS)) return true;
+    known.push(at);
+    kickoffs.set(key, known);
+    return false;
+  };
 
   for (const { competition, items } of sportplus) {
     for (const item of items) {
@@ -625,6 +793,7 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
       const away = item.away?.name?.trim() ?? "";
       if (!matchIdValue || !home || !away) continue;
       const start = item.start ? toArgentina(item.start) : "";
+      if (isDuplicateFixture(home, away, start)) continue;
       const ref: MatchRef = { source: "sportplus", competitionId: competition.id, matchId: matchIdValue };
       const id = matchId(ref);
       refs.set(id, ref);
@@ -649,6 +818,7 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
     if (!title) continue;
     const [home, away] = splitTeams(title);
     const start = eventDate(event);
+    if (isDuplicateFixture(home, away, start)) continue;
     // `start` is wall-clock Argentina time for display; the status needs the
     // real instant, three hours ahead.
     const instant = parseEventDate(event).date?.toISOString() ?? "";
@@ -670,6 +840,13 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
     });
   }
 
+  // The featured match of the moment: a random live game, so the section
+  // always has something playing with all of its sources.
+  if (featured && !refs.has(featured.match.id)) {
+    refs.set(featured.match.id, featured.ref);
+    matches.push(featured.match);
+  }
+
   // Matches the providers drop stay listed for a while: their stream usually
   // outlives the agenda entry. The store lives in the shared cache so the
   // resolver keeps finding the reference.
@@ -680,6 +857,8 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
 
   for (const [id, entry] of Object.entries(stored)) {
     if (freshIds.has(id)) continue;
+    // The featured game rotates every minute: never keep old ones around.
+    if (entry.match.featured) continue;
     const age = now - entry.seenAt;
     if (age > RECENT_TTL) continue;
     const status =
@@ -699,6 +878,7 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
 
   const next: Record<string, { match: LpfMatch; ref: MatchRef; seenAt: number }> = {};
   for (const match of matches) {
+    if (match.featured) continue;
     const ref = refs.get(match.id);
     if (!ref) continue;
     next[match.id] = {
@@ -729,7 +909,15 @@ async function resolveRefStream(ref: MatchRef, id: string): Promise<LpfMatchStre
       sportplusPlaylist(ref.competitionId, ref.matchId)
     );
     if (!result.primary) return null;
-    return { src: result.primary, kind: "hls", sources: result.sources };
+    return {
+      src: result.primary,
+      kind: "hls",
+      sources: result.sources.map((source) => ({
+        src: source.src,
+        kind: "hls" as const,
+        quality: source.quality,
+      })),
+    };
   }
 
   const events = await angulismoData();
@@ -741,8 +929,13 @@ async function resolveRefStream(ref: MatchRef, id: string): Promise<LpfMatchStre
     }) === id
   );
   if (!event) return null;
-  const player = extractAngulismoPlayers(event)[0];
-  return player ? { src: player.iframe, kind: "iframe" } : null;
+  const players = extractAngulismoPlayers(event);
+  if (!players.length) return null;
+  return {
+    src: players[0].iframe,
+    kind: "iframe",
+    sources: players.map((player) => ({ src: player.iframe, kind: "iframe" as const })),
+  };
 }
 
 /**

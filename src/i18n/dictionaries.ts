@@ -370,6 +370,7 @@ export const dictionaries = {
       noChannel: "Sin canal",
       channels: "Canales",
       sources: "Fuentes",
+      sourceLabel: "Fuente",
       live: "Vivo",
       matches: "Partidos",
       scheduled: "Programado",
@@ -379,6 +380,8 @@ export const dictionaries = {
       loadingStream: "Conectando señal...",
       unavailable: "Señal no disponible",
       unavailableDesc: "Este canal no está emitiendo en este momento. Probá con otro.",
+      sourcesAtKickoff:
+        "Las fuentes de este partido aparecen cuando arranca la transmisión. Se actualiza solo.",
       empty: "No hay canales disponibles",
       emptyDesc: "La fuente todavía no publicó reproductores de LPF Play.",
       helperTitle: "¿No encontrás tu partido?",
@@ -424,6 +427,7 @@ export const dictionaries = {
       noChannel: "No channel",
       channels: "Channels",
       sources: "Sources",
+      sourceLabel: "Source",
       live: "Live",
       matches: "Matches",
       scheduled: "Scheduled",
@@ -433,6 +437,8 @@ export const dictionaries = {
       loadingStream: "Connecting signal...",
       unavailable: "Signal unavailable",
       unavailableDesc: "This channel is not broadcasting right now. Try another one.",
+      sourcesAtKickoff:
+        "The sources of this match show up when the broadcast starts. It updates on its own.",
       empty: "No channels available",
       emptyDesc: "The source has not published any LPF Play players yet.",
       helperTitle: "Can't find your match?",
