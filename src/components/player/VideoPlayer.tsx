@@ -226,7 +226,15 @@ function HlsPlayer({
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
 
-        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+        // 502/503/504 from the relay are recoverable: the upstream may be
+        // temporarily unreachable or cold-starting. Treat them as network errors.
+        const isGatewayError =
+          data.response?.code &&
+          data.response.code >= 500 &&
+          data.response.code <= 504;
+        const effectiveType = isGatewayError ? Hls.ErrorTypes.NETWORK_ERROR : data.type;
+
+        if (effectiveType === Hls.ErrorTypes.MEDIA_ERROR) {
           // Recoverable: detach/reattach media; swap audio codec if it repeats
           if (hlsRef.current !== hls) return;
           if (mediaErrorRetries >= 3) {
@@ -240,7 +248,7 @@ function HlsPlayer({
           return;
         }
 
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+        if (effectiveType === Hls.ErrorTypes.NETWORK_ERROR) {
           // Retry with backoff before surfacing the error screen
           if (networkErrorRetries >= 3 || hlsRef.current !== hls) {
             // After the soft retries fail, a whole new session is opened:
