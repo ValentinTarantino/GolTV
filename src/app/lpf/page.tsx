@@ -81,6 +81,8 @@ export default function LpfPlayPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [streamSrc, setStreamSrc] = useState<string | null>(null);
   const [streamKind, setStreamKind] = useState<"hls" | "iframe">("hls");
+  const [streamSources, setStreamSources] = useState<string[]>([]);
+  const [sourceIndex, setSourceIndex] = useState(0);
   const [streamState, setStreamState] = useState<StreamState>("loading");
   const [streamReload, setStreamReload] = useState(0);
 
@@ -119,7 +121,7 @@ export default function LpfPlayPage() {
 
     fetch(`/api/lpf/matches/${encodeURIComponent(activeId)}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { src?: string | null; kind?: "hls" | "iframe" | null }) => {
+      .then((data: { src?: string | null; kind?: "hls" | "iframe" | null; sources?: string[] }) => {
         if (cancelled) return;
         if (!data.src) {
           setStreamState("error");
@@ -127,6 +129,8 @@ export default function LpfPlayPage() {
         }
         setStreamSrc(data.src);
         setStreamKind(data.kind ?? "hls");
+        setStreamSources(data.sources ?? []);
+        setSourceIndex(0);
         setStreamState("ready");
       })
       .catch(() => {
@@ -239,6 +243,28 @@ export default function LpfPlayPage() {
             {activeMatch && (
               <div className="h-[380px] min-h-0 sm:h-[480px] lg:h-[560px]">
                 <ChatBox matchId={chatMatchId(activeMatch.id)} />
+              </div>
+            )}
+
+            {streamSources.length > 1 && (
+              <div className="flex flex-wrap gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
+                <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
+                  {copy.sources}
+                </span>
+                {streamSources.map((src, idx) => (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => setSourceIndex(idx)}
+                    className={`border-2 px-2 py-1 text-[10px] font-black uppercase transition-transform hover:-translate-y-0.5 ${
+                      idx === sourceIndex
+                        ? "border-accent-primary bg-accent-primary text-black"
+                        : "border-white bg-black text-white"
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
               </div>
             )}
           </div>

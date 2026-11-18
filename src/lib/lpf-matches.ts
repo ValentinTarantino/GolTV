@@ -83,6 +83,8 @@ export interface LpfMatch {
 export interface LpfMatchStream {
   src: string;
   kind: "hls" | "iframe";
+  /** Alternative sources (all HLS URLs from the ls array). */
+  sources?: string[];
 }
 
 interface MatchRef {
@@ -333,15 +335,22 @@ function sportplusViewUrl(competitionId: string, matchIdValue: string): string {
   )}&lang=es&lcfg=es&fw=3.1`;
 }
 
-/** First `.m3u8` of an `ls` array, already decoded. */
-function playlistFromLs(ls: unknown): string | null {
-  if (!Array.isArray(ls)) return null;
+/** All `.m3u8` URLs from an `ls` array, already decoded. */
+function playlistsFromLs(ls: unknown): string[] {
+  if (!Array.isArray(ls)) return [];
+  const out: string[] = [];
   for (const candidate of ls) {
     if (typeof candidate === "string" && /^https:\/\/[^"'\s]+\.m3u8(\?|$)/i.test(candidate)) {
-      return candidate;
+      out.push(candidate);
     }
   }
-  return null;
+  return out;
+}
+
+/** First `.m3u8` of an `ls` array, already decoded. */
+function playlistFromLs(ls: unknown): string | null {
+  const all = playlistsFromLs(ls);
+  return all[0] ?? null;
 }
 
 /**
@@ -351,19 +360,20 @@ function playlistFromLs(ls: unknown): string | null {
  * is reachable from every network; the match page is only a fallback because
  * the site in front of it refuses datacenter traffic with a 404.
  */
-async function sportplusPlaylist(competitionId: string, matchIdValue: string): Promise<string | null> {
-  const playlistOf = (text: string | null): string | null => {
-    if (!text) return null;
+async function sportplusPlaylist(competitionId: string, matchIdValue: string): Promise<{ primary: string | null; sources: string[] }> {
+  const playlistsOf = (text: string | null): { primary: string | null; sources: string[] } => {
+    if (!text) return { primary: null, sources: [] };
     try {
-      return playlistFromLs((JSON.parse(text) as { item?: { ls?: unknown } }).item?.ls);
+      const all = playlistsFromLs((JSON.parse(text) as { item?: { ls?: unknown } }).item?.ls);
+      return { primary: all[0] ?? null, sources: all };
     } catch {
-      return null;
+      return { primary: null, sources: [] };
     }
   };
 
   const view = await fetchText(sportplusViewUrl(competitionId, matchIdValue), `${SPORTPLUS_SITE}/football/`);
-  const direct = playlistOf(view);
-  if (direct) return direct;
+  const direct = playlistsOf(view);
+  if (direct.primary) return direct;
 
   // Serverless IPs get the match data with `ls` stripped; the home relay
   // egresses through a residential connection where the provider answers
@@ -375,8 +385,8 @@ async function sportplusPlaylist(competitionId: string, matchIdValue: string): P
       `${relay}/view?id=${encodeURIComponent(matchIdValue)}&tid=${encodeURIComponent(competitionId)}&key=${encodeURIComponent(secret)}`,
       `${SPORTPLUS_SITE}/football/`
     );
-    const viaRelay = playlistOf(relayView);
-    if (viaRelay) return viaRelay;
+    const viaRelay = playlistsOf(relayView);
+    if (viaRelay.primary) return viaRelay;
   }
 
   const url = `${SPORTPLUS_SITE}/football/${competitionId}/${matchIdValue}/`;
@@ -394,16 +404,20 @@ async function sportplusPlaylist(competitionId: string, matchIdValue: string): P
   }
   if (!page || !page.includes('"ls"')) {
     console.warn(`[lpf] no stream source for ${competitionId}/${matchIdValue}`);
-    return null;
+    return { primary: null, sources: [] };
   }
   for (const block of page.matchAll(/"ls":\[([^\]]*)\]/g)) {
     for (const url of block[1].matchAll(/https?:\\u002F\\u002F[^"]+/g)) {
       const clean = url[0].replace(/\\u002F/g, "/");
-      if (clean.startsWith("https://") && /\.m3u8(\?|$)/i.test(clean)) return clean;
+      if (clean.startsWith("https://") && /\.m3u8(\?|$)/i.test(clean)) {
+        const primary = clean;
+        const sources = playlistsFromLs((JSON.parse(`{"ls":[${block[1]}]}`) as { item?: { ls?: unknown } }).item?.ls);
+        return { primary, sources };
+      }
     }
   }
   console.warn(`[lpf] no m3u8 in page ${competitionId}/${matchIdValue} (len ${page.length}, hasLs=${page.includes('"ls"')})`);
-  return null;
+  return { primary: null, sources: [] };
 }
 
 /* ------------------------------------------------------------------ *
@@ -711,10 +725,11 @@ export async function listLpfMatches(): Promise<LpfMatch[]> {
 /** The player of one provider reference. */
 async function resolveRefStream(ref: MatchRef, id: string): Promise<LpfMatchStream | null> {
   if (ref.source === "sportplus") {
-    const playlist = await cached(`lpf:match:v2:${id}`, STREAM_TTL, () =>
+    const result = await cached(`lpf:match:v2:${id}`, STREAM_TTL, () =>
       sportplusPlaylist(ref.competitionId, ref.matchId)
     );
-    return playlist ? { src: playlist, kind: "hls" } : null;
+    if (!result.primary) return null;
+    return { src: result.primary, kind: "hls", sources: result.sources };
   }
 
   const events = await angulismoData();
