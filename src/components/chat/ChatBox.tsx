@@ -54,6 +54,10 @@ function ChatSession({ matchId }: ChatBoxProps) {
   const [bannedIPs, setBannedIPs] = useState<Set<string>>(new Set());
   const [ipInfo, setIpInfo] = useState<{ country?: string; city?: string; region?: string; isp?: string } | null>(null);
   const offsetRef = useRef(0);
+  // Tombstones of messages this session deleted. The poll can still receive a
+  // deleted message (an in-flight request, or a read that raced the delete),
+  // so without this it reappears until the page is reloaded.
+  const deletedIdsRef = useRef<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const nickInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -121,7 +125,9 @@ function ChatSession({ matchId }: ChatBoxProps) {
       if (data.messages?.length) {
         setMessages(prev => {
           const ids = new Set(prev.map(message => message.id));
-          const incoming = data.messages.filter((message: ChatMessage) => !ids.has(message.id));
+          const incoming = data.messages.filter((message: ChatMessage) =>
+            !ids.has(message.id) && !deletedIdsRef.current.has(message.id)
+          );
           if (!incoming.length) return prev;
           offsetRef.current = incoming[incoming.length - 1].ts;
           return [...prev, ...incoming];
@@ -173,21 +179,30 @@ function ChatSession({ matchId }: ChatBoxProps) {
     savePreference(field === "nickColor" ? NICK_COLOR_KEY : TEXT_COLOR_KEY, value);
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
+  const handleDeleteMessage = async (message: ChatMessage) => {
+    // Optimistic: hide it right away and keep it buried even if a poll in
+    // flight brings it back. The tombstone is lifted only if the delete fails.
+    deletedIdsRef.current.add(message.id);
+    setMessages(prev => prev.filter(m => m.id !== message.id));
+    setReplyingTo(prev => (prev?.id === message.id ? null : prev));
+    setError(null);
+
     try {
       const res = await fetch("/api/admin/delete-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId, matchId }),
+        body: JSON.stringify({ messageId: message.id, matchId }),
       });
-      const data = await res.json();
-      if (data.success) {
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-      } else {
-        setError(data.error || "Error al borrar mensaje");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "Error al borrar mensaje");
       }
-    } catch {
-      setError("Error al borrar mensaje");
+    } catch (err) {
+      deletedIdsRef.current.delete(message.id);
+      setMessages(prev => (prev.some(m => m.id === message.id)
+        ? prev
+        : [...prev, message].sort((a, b) => a.ts - b.ts)));
+      setError(err instanceof Error && err.message ? err.message : "Error al borrar mensaje");
     }
   };
 
@@ -343,7 +358,7 @@ function ChatSession({ matchId }: ChatBoxProps) {
                 </button>
                 {admin.isAdmin && (
                   <button
-                    onClick={() => handleDeleteMessage(message.id)}
+                    onClick={() => handleDeleteMessage(message)}
                     className="p-1 hover:bg-red-600 rounded"
                     title="Borrar mensaje"
                   >

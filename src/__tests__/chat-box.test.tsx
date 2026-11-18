@@ -146,4 +146,49 @@ describe("public chat and message colors", () => {
     expect(screen.getByRole("log")).not.toHaveTextContent(first.text);
     expect(global.fetch).toHaveBeenLastCalledWith("/api/chat?matchId=456&offset=0", { cache: "no-store" });
   });
+
+  it("removes a deleted message immediately and keeps the poll from bringing it back", async () => {
+    sessionStorage.setItem("goltv_admin_flag", "true");
+    global.fetch = jest.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "/api/admin/session") {
+        return Promise.resolve({ ok: true, json: async () => ({ isAdmin: true }) });
+      }
+      if (url === "/api/admin/delete-message") {
+        expect(JSON.parse(String(init?.body))).toEqual({ messageId: first.id, matchId: "123" });
+        return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+      }
+      // The poll keeps answering with the deleted message: the UI must ignore it.
+      return Promise.resolve({ ok: true, json: async () => ({ messages: [first], persistent: true }) });
+    });
+
+    render(<ChatBox matchId="123" />);
+    await loadMessages();
+    expect(screen.getByRole("log")).toHaveTextContent(first.text);
+
+    await act(async () => { fireEvent.click(screen.getByTitle("Borrar mensaje")); });
+    expect(screen.getByRole("log")).not.toHaveTextContent(first.text);
+
+    await act(async () => { jest.advanceTimersByTime(3000); });
+    expect(screen.getByRole("log")).not.toHaveTextContent(first.text);
+  });
+
+  it("restores the message when the delete request fails", async () => {
+    sessionStorage.setItem("goltv_admin_flag", "true");
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url === "/api/admin/session") {
+        return Promise.resolve({ ok: true, json: async () => ({ isAdmin: true }) });
+      }
+      if (url === "/api/admin/delete-message") {
+        return Promise.resolve({ ok: false, json: async () => ({ error: "Unauthorized" }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ messages: [first], persistent: true }) });
+    });
+
+    render(<ChatBox matchId="123" />);
+    await loadMessages();
+    await act(async () => { fireEvent.click(screen.getByTitle("Borrar mensaje")); });
+
+    expect(screen.getByRole("log")).toHaveTextContent(first.text);
+    expect(screen.getByRole("alert")).toHaveTextContent("Unauthorized");
+  });
 });
