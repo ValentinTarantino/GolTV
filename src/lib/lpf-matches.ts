@@ -69,8 +69,6 @@ export interface LpfMatch {
   /** ISO date in Argentina time (-03:00). */
   start: string;
   status: "live" | "upcoming" | "finished";
-  /** Set on the rotating live match that opens the section. */
-  featured?: boolean;
   /**
    * Provider coordinates of a sportplus match. Public data (they appear in
    * the provider's own URLs); the browser uses them to ask the provider's
@@ -302,9 +300,6 @@ function sportplusStatus(item: SportplusItem): LpfMatch["status"] {
   return "finished";
 }
 
-/** Competition label of the random live match that opens the section. */
-const LIVE_COMPETITION = "Fútbol en vivo";
-
 /* ------------------------------------------------------------------ *
  * Sportplus
  * ------------------------------------------------------------------ */
@@ -315,24 +310,8 @@ interface SportplusItem {
   start?: string;
   status?: string;
   tournament_id?: number;
-  /** Path of the match on the provider's site, e.g. `/ru/live/Football/119243-Spain-Copa-del-Rey/...`. */
-  uri?: string;
   home?: { name?: string; pk_id?: number };
   away?: { name?: string; pk_id?: number };
-}
-
-/**
- * Competition name from the provider's own path, formatted the way the site
- * lists tournaments: "Spain. Copa del Rey".
- */
-export function competitionFromUri(uri?: string): string | null {
-  if (!uri) return null;
-  const segment = uri.split("/").find((part) => /^\d+-[a-z0-9-]+$/i.test(part));
-  if (!segment) return null;
-  const parts = segment.replace(/^\d+-/, "").split("-").filter(Boolean);
-  if (parts.length < 2) return parts[0] ?? null;
-  const [country, ...rest] = parts;
-  return `${country}. ${rest.join(" ")}`;
 }
 
 async function sportplusMatches(competitionId: string): Promise<SportplusItem[]> {
@@ -665,76 +644,6 @@ export function extractAngulismoPlayers(event: AngulismoEvent): Array<{ name: st
  * Public API
  * ------------------------------------------------------------------ */
 
-/**
- * The live football match that opens the section, taken from the provider's
- * global index.
- *
- * The competitions of the section can be empty or all scheduled; this keeps
- * the page playing something real, with every source the provider publishes.
- *
- * The pick must be deterministic: the list and the resolver run in different
- * route bundles (own module memory), so a random choice there makes the id
- * the list handed out unknown to the resolver.
- */
-async function featuredLiveFootball(): Promise<{ match: LpfMatch; ref: MatchRef } | null> {
-  return cached("lpf:live-featured:v1", LIST_TTL, async () => {
-    const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
-    const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
-    if (!text) return null;
-
-    let items: SportplusItem[] = [];
-    try {
-      items = (JSON.parse(text) as { items?: SportplusItem[] }).items ?? [];
-    } catch {
-      return null;
-    }
-
-    const candidates = items
-      .map((item) => ({
-        item,
-        home: item.home?.name?.trim() ?? "",
-        away: item.away?.name?.trim() ?? "",
-      }))
-      .filter(
-        (entry) =>
-          entry.item.status === "live" &&
-          entry.item.id &&
-          entry.item.tournament_id !== undefined &&
-          entry.home &&
-          entry.away
-      );
-
-    if (!candidates.length) return null;
-    // The section opens with the Peruvian league when the provider carries it:
-    // stable pick (index order), so the list and the resolver agree on the id.
-    const peruvian = candidates.find((entry) => /peru/i.test(entry.item.uri ?? ""));
-    const chosen = peruvian ?? candidates[0];
-    const ref: MatchRef = {
-      source: "sportplus",
-      competitionId: String(chosen.item.tournament_id),
-      matchId: String(chosen.item.id),
-    };
-
-    return {
-      ref,
-      match: {
-        id: matchId(ref),
-        source: "sportplus",
-        competition: competitionFromUri(chosen.item.uri) ?? LIVE_COMPETITION,
-        home: chosen.home,
-        away: chosen.away,
-        homePk: chosen.item.home?.pk_id,
-        awayPk: chosen.item.away?.pk_id,
-        start: chosen.item.start ? toArgentina(chosen.item.start) : "",
-        status: "live",
-        featured: true,
-        viewTid: ref.competitionId,
-        viewMid: ref.matchId,
-      },
-    };
-  });
-}
-
 /** Raw sportplus answers, cached so the list can be rebuilt on every call. */
 async function sportplusData(): Promise<Array<{ competition: { id: string; name: string }; items: SportplusItem[] }>> {
   return cached("lpf:sportplus:v2", LIST_TTL, async () => {
@@ -761,11 +670,7 @@ async function angulismoData(): Promise<AngulismoEvent[]> {
  * its own memory, so the resolver can not rely on a shared map.
  */
 async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, MatchRef> }> {
-  const [sportplus, angulismo, featured] = await Promise.all([
-    sportplusData(),
-    angulismoData(),
-    featuredLiveFootball(),
-  ]);
+  const [sportplus, angulismo] = await Promise.all([sportplusData(), angulismoData()]);
   const matches: LpfMatch[] = [];
   const refs = new Map<string, MatchRef>();
   /** Kickoffs per fixture, to drop the duplicates the provider repeats. */
@@ -840,13 +745,6 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
     });
   }
 
-  // The featured match of the moment: a random live game, so the section
-  // always has something playing with all of its sources.
-  if (featured && !refs.has(featured.match.id)) {
-    refs.set(featured.match.id, featured.ref);
-    matches.push(featured.match);
-  }
-
   // Matches the providers drop stay listed for a while: their stream usually
   // outlives the agenda entry. The store lives in the shared cache so the
   // resolver keeps finding the reference.
@@ -854,11 +752,15 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
   const storeKey = "lpf:recent:v1";
   const stored = (await getCache<Record<string, { match: LpfMatch; ref: MatchRef; seenAt: number }>>(storeKey)) ?? {};
   const freshIds = new Set(matches.map((match) => match.id));
+  /** Competitions the section publishes; anything else left the agenda. */
+  const sectionCompetitions = new Set([
+    ...SPORTPLUS_COMPETITIONS.map((competition) => competition.name),
+    "Primera B Nacional",
+  ]);
 
   for (const [id, entry] of Object.entries(stored)) {
     if (freshIds.has(id)) continue;
-    // The featured game rotates every minute: never keep old ones around.
-    if (entry.match.featured) continue;
+    if (!sectionCompetitions.has(entry.match.competition)) continue;
     const age = now - entry.seenAt;
     if (age > RECENT_TTL) continue;
     const status =
@@ -878,7 +780,6 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
 
   const next: Record<string, { match: LpfMatch; ref: MatchRef; seenAt: number }> = {};
   for (const match of matches) {
-    if (match.featured) continue;
     const ref = refs.get(match.id);
     if (!ref) continue;
     next[match.id] = {

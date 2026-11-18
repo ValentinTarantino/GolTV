@@ -17,8 +17,6 @@ interface LpfMatch {
   awayLogo?: string;
   start: string;
   status: "live" | "upcoming" | "finished";
-  /** The match the section opens with (the provider's live pick). */
-  featured?: boolean;
   viewTid?: string;
   viewMid?: string;
 }
@@ -34,11 +32,9 @@ interface StreamSource {
   quality?: string;
 }
 
-/** The section opens on the featured match; otherwise a live one at random. */
+/** The section opens on a live match when there is one. */
 function pickRandomMatch(list: LpfMatch[]): string | null {
   if (!list.length) return null;
-  const featured = list.find((match) => match.featured);
-  if (featured) return featured.id;
   const live = list.filter((match) => match.status === "live");
   const pool = live.length ? live : list;
   return pool[Math.floor(Math.random() * pool.length)].id;
