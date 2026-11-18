@@ -237,7 +237,7 @@ export default function LpfPlayPage() {
             </div>
 
             {activeMatch && (
-              <div className="h-[420px] min-h-0 sm:h-[480px]">
+              <div className="h-[380px] min-h-0 sm:h-[480px] lg:h-[560px]">
                 <ChatBox matchId={chatMatchId(activeMatch.id)} />
               </div>
             )}
@@ -287,7 +287,7 @@ export default function LpfPlayPage() {
                 <span className="border-2 border-white/30 bg-black px-3 py-1 text-[10px] font-black uppercase tracking-widest text-accent-primary">
                   {competition}
                 </span>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
                   {list.map((match) => {
                     const isActive = match.id === activeId;
                     return (
@@ -297,26 +297,29 @@ export default function LpfPlayPage() {
                         data-match={match.id}
                         onClick={() => selectMatch(match.id)}
                         title={`${match.home} vs ${match.away}`}
-                        className={`flex w-52 shrink-0 items-center justify-between gap-2 border-4 px-3 py-2.5 text-left transition-transform hover:-translate-y-0.5 sm:w-64 ${
+                        className={`flex w-full min-w-0 flex-col gap-1.5 border-4 px-2.5 py-2 text-left transition-transform hover:-translate-y-0.5 sm:w-52 sm:shrink-0 sm:px-3 sm:py-2.5 md:w-64 ${
                           isActive
                             ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
                             : "border-white bg-black text-white shadow-brutal"
                         }`}
                       >
-                      <span className="flex min-w-0 items-center gap-2">
+                      <span className="flex items-center justify-center gap-2">
                         <TeamCrest src={match.homeLogo} name={match.home} />
-                        <span className="text-[10px] font-black uppercase opacity-60">vs</span>
+                        <span className="text-[9px] font-black uppercase opacity-60 sm:text-[10px]">vs</span>
                         <TeamCrest src={match.awayLogo} name={match.away} />
                       </span>
-                      <span className="flex shrink-0 flex-col items-end gap-0.5">
-                        <span className="text-[10px] font-bold uppercase opacity-80">{formatTime(match.start)}</span>
+                      <span className="truncate text-center text-[10px] font-black uppercase leading-tight sm:text-left">
+                        {match.home} <span className="opacity-60">vs</span> {match.away}
+                      </span>
+                      <span className="flex items-center justify-between gap-1">
+                        <span className="truncate text-[9px] font-bold uppercase opacity-80 sm:text-[10px]">{formatTime(match.start)}</span>
                         {match.status === "live" ? (
-                          <span className="flex items-center gap-1 text-[9px] font-black uppercase">
+                          <span className="flex shrink-0 items-center gap-1 text-[9px] font-black uppercase">
                             <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
                             {copy.live}
                           </span>
                         ) : (
-                          <span className="text-[9px] font-black uppercase opacity-70">
+                          <span className="shrink-0 text-[9px] font-black uppercase opacity-70">
                             {statusLabel(match.status)}
                           </span>
                         )}

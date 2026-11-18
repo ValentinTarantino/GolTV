@@ -577,11 +577,14 @@ export function extractAngulismoPlayers(event: AngulismoEvent): Array<{ name: st
 /** Raw sportplus answers, cached so the list can be rebuilt on every call. */
 async function sportplusData(): Promise<Array<{ competition: { id: string; name: string }; items: SportplusItem[] }>> {
   return cached("lpf:sportplus:v2", LIST_TTL, async () => {
-    const out: Array<{ competition: { id: string; name: string }; items: SportplusItem[] }> = [];
-    for (const competition of SPORTPLUS_COMPETITIONS) {
-      out.push({ competition, items: await sportplusMatches(competition.id) });
-    }
-    return out;
+    // Parallel: four sequential fetches can each burn the 20s timeout on a
+    // slow upstream and the route would look dead long before they finish.
+    return Promise.all(
+      SPORTPLUS_COMPETITIONS.map(async (competition) => ({
+        competition,
+        items: await sportplusMatches(competition.id),
+      }))
+    );
   });
 }
 
