@@ -99,6 +99,11 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   slovenia: "slovenia",
   azerbaiyan: "azerbaijan",
   azerbaijan: "azerbaijan",
+  // Brazilian providers alternate "RB Bragantino", "Red Bull Bragantino" and
+  // the sponsor-less "Bragantino" for the same Série A club.
+  rbbragantino: "redbullbragantino",
+  redbullbragantino: "redbullbragantino",
+  bragantino: "redbullbragantino",
   // National-team feeds use both the Spanish abbreviation and full country name.
   eeuu: "unitedstates",
   estadosunidos: "unitedstates",

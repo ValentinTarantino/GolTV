@@ -28,6 +28,9 @@ describe("fixture identity", () => {
     [0, "North Macedonia", "FYR Macedonia"],
     [0, "EE. UU.", "Estados Unidos"],
     [0, "United States", "USA"],
+    [0, "RB Bragantino", "Red Bull Bragantino"],
+    [0, "Bragantino", "Red Bull Bragantino"],
+    [39, "Vitória", "Vitoria"],
   ])("canonicalizes provider names in league %s: %s / %s", (league, first, second) => {
     expect(canonicalTeamForDedup(first, league)).toBe(canonicalTeamForDedup(second, league));
   });
