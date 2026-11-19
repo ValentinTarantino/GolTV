@@ -32,12 +32,9 @@ interface StreamSource {
   quality?: string;
 }
 
-/** The section opens on a live match when there is one. */
-function pickRandomMatch(list: LpfMatch[]): string | null {
-  if (!list.length) return null;
-  const live = list.filter((match) => match.status === "live");
-  const pool = live.length ? live : list;
-  return pool[Math.floor(Math.random() * pool.length)].id;
+/** The section always opens on the first match of the list. */
+function pickInitialMatch(list: LpfMatch[]): string | null {
+  return list[0]?.id ?? null;
 }
 
 /**
@@ -112,7 +109,7 @@ export default function LpfPlayPage() {
         const next = Array.isArray(data.matches) ? data.matches : [];
         setMatches(next);
         setListState("ready");
-        setActiveId((current) => current ?? pickRandomMatch(next));
+        setActiveId((current) => current ?? pickInitialMatch(next));
       })
       .catch(() => {
         if (cancelled) return;

@@ -4,7 +4,7 @@ import { getMatchById } from "@/lib/api-football";
 import { getStreamsForMatch } from "@/lib/streaming";
 import { getAgendaStream, findAgendaStreams } from "@/lib/agenda-source";
 import { findEventStreams } from "@/lib/event-source";
-import { findSecondaryStreams } from "@/lib/secondary-source";
+import { findSecondaryStreams, warmSecondaryPlayers } from "@/lib/secondary-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
 import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo } from "@/lib/constants";
 import { isIPBanned } from "@/lib/chat";
@@ -64,9 +64,9 @@ export async function GET(
       channels.push(...await findPrimaryStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "1") {
       channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));
+      warmSecondaryPlayers(channels);
     } else if (playerMode === "2") {
-      // Player 2 now uses Secondary Streams (old Player 1)
-      channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));
+      channels.push(...await findPlayerTwoStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "4") {
       channels.push(...await findEventStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "5") {
@@ -113,6 +113,7 @@ export async function GET(
     const channels = playerMode === "6"
       ? await findPrimaryStreams(homeTeam, awayTeam)
       : await findSecondaryStreams(homeTeam, awayTeam);
+    if (playerMode === "1") warmSecondaryPlayers(channels);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,

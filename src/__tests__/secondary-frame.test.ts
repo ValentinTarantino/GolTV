@@ -31,6 +31,7 @@ describe("/api/secondary bare frame", () => {
     global.fetch = jest.fn(async (url: string) => ({
       ok: pages.has(url),
       status: pages.has(url) ? 200 : 404,
+      headers: { get: (name: string) => (name.toLowerCase() === "content-type" ? "text/html; charset=utf-8" : null) },
       text: async () => pages.get(url) ?? "",
     })) as unknown as typeof fetch;
   });
@@ -56,14 +57,16 @@ describe("/api/secondary bare frame", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("frames an already-resolved player without resolving or fetching it", async () => {
+  it("frames an already-resolved player when it is not a playable document", async () => {
     const res = await GET(request("https://player.test/stream/75"));
     const body = await res.text();
 
     expect(res.status).toBe(200);
     expect(body).toContain('<iframe src="https://player.test/stream/75"');
     expect(body).toContain("background: #000");
-    expect(global.fetch).not.toHaveBeenCalled();
+    // The probe may fetch the URL to look for a deeper player, but a plain
+    // wrapper document must never be served back as the player itself.
+    expect(body).not.toContain("<base href");
   });
 
   it("frames only the deepest player on a black document", async () => {
@@ -77,6 +80,24 @@ describe("/api/secondary bare frame", () => {
     // The scraped wrapper chain must never be rendered to the visitor.
     expect(body).not.toContain("wrapper.test");
     expect(body).not.toContain("agenda.test/espn-deportes.php");
+  });
+
+  it("serves the final player document same-origin with autoplay injected", async () => {
+    pages.set("https://player.test/embed", '<iframe src="https://player.test/final"></iframe>');
+    pages.set(
+      "https://player.test/final",
+      '<html><head><title>p</title></head><body><div id="player" class="clappr"></div>' +
+        '<script src="https://cdn.example.com/clappr.min.js"></script></body></html>'
+    );
+    const res = await GET(request("https://player.test/embed"));
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(body).toContain('<base href="https://player.test/final">');
+    expect(body).toContain("clappr-big-play-button");
+    expect(body).toContain('id="player"');
+    // The wrapper document itself must not be framed anymore.
+    expect(body).not.toContain('<iframe src="https://player.test/final"');
   });
 
   it("answers a dark waiting panel when no player is published yet", async () => {

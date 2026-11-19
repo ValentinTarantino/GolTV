@@ -20,6 +20,7 @@ jest.mock("@/lib/event-source", () => ({
 
 jest.mock("@/lib/secondary-source", () => ({
   findSecondaryStreams: jest.fn().mockResolvedValue([]),
+  warmSecondaryPlayers: jest.fn(),
 }));
 
 jest.mock("@/lib/player-two-source", () => ({

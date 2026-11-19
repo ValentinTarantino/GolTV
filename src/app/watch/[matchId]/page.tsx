@@ -34,7 +34,7 @@ function WatchPageInner({
   // back to the default player.
   const playerParam = searchParams.get("player");
   const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4" | "5" | "6">(
-    playerParam === "1" || playerParam === "3" || playerParam === "4" || playerParam === "5" || playerParam === "6" ? playerParam : "1"
+    playerParam === "1" || playerParam === "2" || playerParam === "3" || playerParam === "4" || playerParam === "5" || playerParam === "6" ? playerParam : "1"
   );
 
   useEffect(() => {
@@ -171,6 +171,7 @@ function WatchPageInner({
               {([
                 { mode: "1", label: t.player.playerOne },
                 { mode: "6", label: t.player.playerTwo },
+                { mode: "2", label: t.player.playerTwoB },
                 { mode: "3", label: t.player.playerThree },
                 { mode: "4", label: t.player.playerFour },
                 { mode: "5", label: t.player.playerFive },

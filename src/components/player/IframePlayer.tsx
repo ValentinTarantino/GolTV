@@ -51,12 +51,15 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
   useEffect(() => {
     if (isPrimaryFeed) return;
     if (!isLoading) return;
+    // /api/secondary resolves the provider's whole iframe chain server-side
+    // before answering (~20s on a cold cache), so it needs a wider window.
+    const timeout = proxiedUrl.includes("/api/secondary") ? 60000 : 15000;
     const timer = setTimeout(() => {
       setIsLoading(false);
       setTimedOut(true);
-    }, 15000);
+    }, timeout);
     return () => clearTimeout(timer);
-  }, [isPrimaryFeed, isLoading, attempt]);
+  }, [isPrimaryFeed, isLoading, attempt, proxiedUrl]);
 
   const dismissTip = () => {
     setShowTip(false);
