@@ -383,6 +383,10 @@ export const dictionaries = {
       unavailableDesc: "Este canal no está emitiendo en este momento. Probá con otro.",
       sourcesAtKickoff:
         "Las fuentes de este partido aparecen cuando arranca la transmisión. Se actualiza solo.",
+      patienceNotice:
+        "La transmisión puede tardar varios minutos en arrancar. Tené paciencia, se actualiza solo.",
+      fullscreen: "Ver partido y chat en pantalla completa",
+      exitFullscreen: "Salir de pantalla completa",
       empty: "No hay canales disponibles",
       emptyDesc: "La fuente todavía no publicó reproductores de LPF Play.",
       helperTitle: "¿No encontrás tu partido?",
@@ -440,6 +444,10 @@ export const dictionaries = {
       unavailableDesc: "This channel is not broadcasting right now. Try another one.",
       sourcesAtKickoff:
         "The sources of this match show up when the broadcast starts. It updates on its own.",
+      patienceNotice:
+        "The broadcast may take a few minutes to start. Please be patient, it updates on its own.",
+      fullscreen: "View match and chat in fullscreen",
+      exitFullscreen: "Exit fullscreen",
       empty: "No channels available",
       emptyDesc: "The source has not published any LPF Play players yet.",
       helperTitle: "Can't find your match?",

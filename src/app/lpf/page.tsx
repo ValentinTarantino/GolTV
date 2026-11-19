@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
@@ -94,6 +94,8 @@ export default function LpfPlayPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [streamSrc, setStreamSrc] = useState<string | null>(null);
   const [streamKind, setStreamKind] = useState<"hls" | "iframe">("hls");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const [streamSources, setStreamSources] = useState<StreamSource[]>([]);
   const [sourceIndex, setSourceIndex] = useState(0);
   const [streamState, setStreamState] = useState<StreamState>("loading");
@@ -203,6 +205,20 @@ export default function LpfPlayPage() {
     return () => clearInterval(timer);
   }, [streamState, activeId, matches]);
 
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void stageRef.current?.requestFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
   const statusLabel = (status: LpfMatch["status"]) => {
     if (status === "live") return copy.live;
     if (status === "finished") return copy.finished;
@@ -213,7 +229,10 @@ export default function LpfPlayPage() {
     <main className="min-h-screen">
       <section className="mx-auto max-w-7xl px-3 py-7 sm:px-4 md:px-6 md:py-10">
         <div className="flex flex-col gap-5">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div
+            ref={stageRef}
+            className={`grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] ${isFullscreen ? "bg-neutral-950 p-3" : ""}`}
+          >
             <div className="flex min-w-0 flex-col gap-4">
               <div className="flex flex-wrap items-center justify-between gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
                 <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
@@ -226,8 +245,21 @@ export default function LpfPlayPage() {
                   <span className="truncate text-xs font-black uppercase text-accent-primary sm:text-sm">
                     {activeMatch ? `${activeMatch.home} vs ${activeMatch.away}` : copy.noChannel}
                   </span>
+                  <button
+                    type="button"
+                    onClick={toggleFullscreen}
+                    title={isFullscreen ? copy.exitFullscreen : copy.fullscreen}
+                    aria-label={isFullscreen ? copy.exitFullscreen : copy.fullscreen}
+                    className="shrink-0 border-2 border-white bg-black p-1.5 text-white transition-colors hover:bg-accent-primary hover:text-black"
+                  >
+                    {isFullscreen ? <Minimize2 size={14} strokeWidth={3} /> : <Maximize2 size={14} strokeWidth={3} />}
+                  </button>
                 </span>
               </div>
+
+              <p className="border-2 border-accent-primary/60 bg-black px-3 py-1.5 text-[10px] font-bold uppercase leading-snug tracking-wide text-gray-300 sm:text-[11px]">
+                {copy.patienceNotice}
+              </p>
 
             {streamState === "ready" && activeSource && activeMatch ? (
               <VideoPlayer
@@ -302,7 +334,7 @@ export default function LpfPlayPage() {
             </div>
 
             {activeMatch && (
-              <div className="h-[380px] min-h-0 sm:h-[480px] lg:h-[560px]">
+              <div className={isFullscreen ? "h-full min-h-[320px]" : "h-[380px] min-h-0 sm:h-[480px] lg:h-[560px]"}>
                 <ChatBox matchId={chatMatchId(activeMatch.id)} />
               </div>
             )}
