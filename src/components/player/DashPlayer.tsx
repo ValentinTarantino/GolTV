@@ -52,6 +52,13 @@ export default function DashPlayer({ url, title, clearKey }: DashPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<{ destroy: () => Promise<void>; unload: () => Promise<void> } | null>(null);
+  /**
+   * Teardown of the previous channel. Destroying a Shaka player is async and
+   * it detaches the media element when it finishes; if the next channel
+   * attaches before that, the old detach leaves the new player without a
+   * source. The next channel waits for this promise first.
+   */
+  const teardownRef = useRef<Promise<void> | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -103,6 +110,14 @@ export default function DashPlayer({ url, title, clearKey }: DashPlayerProps) {
       try {
         const shaka = (await import("shaka-player/dist/shaka-player.compiled.js")).default;
         if (cancelled) return;
+
+        // The previous channel must be fully detached before this one attaches
+        // to the same <video>, or its late detach kills this stream.
+        const pending = teardownRef.current;
+        teardownRef.current = null;
+        if (pending) await pending.catch(() => {});
+
+        if (cancelled) return;
         if (!shaka.Player.isBrowserSupported()) {
           setHasError(true);
           setIsLoading(false);
@@ -115,7 +130,9 @@ export default function DashPlayer({ url, title, clearKey }: DashPlayerProps) {
         instance.configure({
           streaming: {
             bufferingGoal: 20,
-            rebufferingGoal: 4,
+            // A live channel starts as soon as it has a couple of seconds
+            // buffered; waiting for four was most of the switch delay.
+            rebufferingGoal: 2,
             bufferBehind: 30,
           },
           abr: {
@@ -139,10 +156,9 @@ export default function DashPlayer({ url, title, clearKey }: DashPlayerProps) {
         // Shaka 5 only knows the media element once it is attached.
         await instance.attach(video);
         await instance.load(url);
-        if (cancelled) {
-          await instance.destroy();
-          return;
-        }
+        // The cleanup of an abandoned run owns the teardown; destroying here
+        // as well would race with the next channel.
+        if (cancelled) return;
 
         const tracks = instance.getVariantTracks().filter((track) => track.height || track.bandwidth);
         setQualityTracks(tracks);
@@ -168,7 +184,7 @@ export default function DashPlayer({ url, title, clearKey }: DashPlayerProps) {
       cancelled = true;
       const instance = playerRef.current;
       playerRef.current = null;
-      if (instance) void instance.destroy();
+      if (instance) teardownRef.current = instance.destroy().catch(() => {});
     };
   }, [url, clearKey, retryToken]);
   useEffect(() => {

@@ -298,9 +298,26 @@ const TOKEN_AAD = Buffer.from("goltv-lpf-relay");
 const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 const RELAY_PATH = "/api/lpf/stream";
 
+/** Per-process fallback used only when the environment does not set a key. */
+const DEV_RELAY_KEY = "goltv-development-only-lpf-key";
+let warnedAboutRelayKey = false;
+
+/**
+ * Key of the sealed relay tokens. A missing secret is a hard error in a
+ * deployed build: the old public fallback let anyone forge relay tokens.
+ */
 function tokenKey(): Buffer {
-  const secret = process.env.LPF_PROXY_SECRET?.trim() || "goltv-lpf-relay";
-  return createHash("sha256").update(secret).digest();
+  const secret = process.env.LPF_PROXY_SECRET?.trim();
+  if (secret) return createHash("sha256").update(secret).digest();
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("LPF_PROXY_SECRET is not configured");
+  }
+  if (!warnedAboutRelayKey) {
+    warnedAboutRelayKey = true;
+    console.warn("[lpf] LPF_PROXY_SECRET missing: using the development relay key");
+  }
+  return createHash("sha256").update(DEV_RELAY_KEY).digest();
 }
 
 /** Encrypts an upstream URL so playlist and segment paths stay anonymous. */

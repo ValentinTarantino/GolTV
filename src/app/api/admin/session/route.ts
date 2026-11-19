@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-
-const SESSION_COOKIE = "goltv_admin_session";
+import { ADMIN_SESSION_COOKIE, isValidAdminSession } from "@/lib/admin-session";
 
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get(SESSION_COOKIE);
-    
-    if (!session || session.value !== "authenticated") {
-      return NextResponse.json({ isAdmin: false });
-    }
-
-    return NextResponse.json({ isAdmin: true });
+    const session = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+    return NextResponse.json({ isAdmin: isValidAdminSession(session) });
   } catch {
     return NextResponse.json({ isAdmin: false });
   }

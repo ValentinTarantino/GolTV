@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { deleteChatMessage } from "@/lib/chat";
-
-const SESSION_COOKIE = "goltv_admin_session";
+import { isAdminRequest } from "@/lib/admin-session";
 
 /**
  * Deletes one chat message for everybody. The deletion also stores a
@@ -10,10 +8,7 @@ const SESSION_COOKIE = "goltv_admin_session";
  * the message on their next read instead of waiting for a page reload.
  */
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies();
-  const session = cookieStore.get(SESSION_COOKIE);
-
-  if (!session || session.value !== "authenticated") {
+  if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

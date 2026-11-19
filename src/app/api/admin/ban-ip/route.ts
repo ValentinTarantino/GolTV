@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { banIP, unbanIP, getBannedIPList } from "@/lib/chat";
-
-const ADMIN_SESSION_COOKIE = "goltv_admin_session";
-
-function isAdminRequest(request: NextRequest): boolean {
-  const session = request.cookies.get(ADMIN_SESSION_COOKIE);
-  return session?.value === "authenticated";
-}
+import { isAdminRequest } from "@/lib/admin-session";
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {

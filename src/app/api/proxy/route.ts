@@ -1,39 +1,94 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isIPBanned } from "@/lib/chat";
+import { incrementCounter } from "@/lib/cache";
+import { getClientIP } from "@/lib/client-ip";
 
-function getClientIP(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
+/** Requests allowed per address per minute: the player only needs a handful. */
+const MAX_REQUESTS_PER_MINUTE = 90;
+
+/** Ceiling for a proxied document. Media pages are far smaller than this. */
+const MAX_BODY_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Only what a media page needs. The old code forwarded the whole request,
+ * including `cookie` and `authorization`, so any host the visitor loaded
+ * through the proxy received this site's session cookies.
+ */
+const FORWARDED_HEADERS = [
+  "accept",
+  "accept-language",
+  "range",
+  "if-none-match",
+  "if-modified-since",
+];
+
+/**
+ * Rejects loopback, private ranges and cloud metadata endpoints. Without this
+ * the route is an SSRF primitive: `?url=http://169.254.169.254/` (or any
+ * internal service) would answer from inside the server.
+ */
+function isBlockedTarget(url: URL): boolean {
+  if (url.protocol !== "http:" && url.protocol !== "https:") return true;
+
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (!host) return true;
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host.endsWith(".local") || host.endsWith(".internal") || host.endsWith(".home.arpa")) return true;
+  if (host === "metadata.google.internal") return true;
+  // Bare intranet names ("metadata", "redis") never carry a dot.
+  if (!host.includes(".") && !host.includes(":")) return true;
+
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const a = Number(v4[1]);
+    const b = Number(v4[2]);
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 169 && b === 254) return true; // link-local, cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // carrier grade NAT
+    if (a >= 224) return true; // multicast and reserved
+    return false;
   }
-  const realIP = request.headers.get("x-real-ip");
-  if (realIP) return realIP;
-  const cfIP = request.headers.get("cf-connecting-ip");
-  if (cfIP) return cfIP;
-  return "unknown";
+
+  if (host.includes(":")) {
+    if (host === "::1" || host === "::") return true;
+    if (host.startsWith("fe80") || host.startsWith("fc") || host.startsWith("fd")) return true;
+    const mapped = host.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (mapped) return isBlockedTarget(new URL(`http://${mapped[1]}/`));
+  }
+
+  return false;
 }
 
-export async function GET(request: NextRequest) {
-  const clientIP = getClientIP(request);
+/** Ban check plus a per-address budget for every proxy verb. */
+async function denyRequest(request: NextRequest): Promise<Response | null> {
+  const clientIP = getClientIP(request.headers);
   if (await isIPBanned(clientIP)) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
+  const hits = await incrementCounter(`proxy:${clientIP}`, 60_000);
+  if (hits > MAX_REQUESTS_PER_MINUTE) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+  return null;
+}
+
+export async function GET(request: NextRequest) {
+  const denied = await denyRequest(request);
+  if (denied) return denied;
   return handleProxy(request);
 }
 
 export async function POST(request: NextRequest) {
-  const clientIP = getClientIP(request);
-  if (await isIPBanned(clientIP)) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
-  }
+  const denied = await denyRequest(request);
+  if (denied) return denied;
   return handleProxy(request);
 }
 
 export async function HEAD(request: NextRequest) {
-  const clientIP = getClientIP(request);
-  if (await isIPBanned(clientIP)) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
-  }
+  const denied = await denyRequest(request);
+  if (denied) return denied;
   return handleProxy(request);
 }
 
@@ -41,7 +96,7 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, HEAD, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
       "Access-Control-Allow-Headers": "*",
       "Access-Control-Max-Age": "86400",
     },
@@ -57,20 +112,24 @@ async function handleProxy(request: NextRequest) {
     return NextResponse.json({ error: "Missing URL parameter" }, { status: 400 });
   }
 
-  console.log("[Proxy] Requesting:", url);
-
   try {
     const targetUrl = new URL(url);
-    const method = request.method;
-    
-    // Forward all request headers but modify important ones
+    // SSRF guard: no loopback, no private ranges, no cloud metadata.
+    if (isBlockedTarget(targetUrl)) {
+      return NextResponse.json({ error: "Target not allowed" }, { status: 403 });
+    }
+
+    // Reading a media page never needs POST, and an open POST relay can be
+    // used to spam a third party with your infrastructure as the source.
+    const method = request.method === "HEAD" ? "HEAD" : "GET";
+
+    // Only the headers a media page needs. Forwarding the whole request used
+    // to hand the visitor's session cookie to whatever host they passed in.
     const headers = new Headers();
-    request.headers.forEach((value, key) => {
-      // Skip hop-by-hop headers
-      if (!['host', 'connection', 'keep-alive', 'transfer-encoding', 'te', 'trailer', 'upgrade'].includes(key.toLowerCase())) {
-        headers.set(key, value);
-      }
-    });
+    for (const name of FORWARDED_HEADERS) {
+      const value = request.headers.get(name);
+      if (value) headers.set(name, value);
+    }
 
     // Set headers to simulate real browser
     headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
@@ -96,16 +155,19 @@ async function handleProxy(request: NextRequest) {
       redirect: "manual", // Handle redirects manually
     });
 
-    console.log("[Proxy] Response status:", response.status);
-    console.log("[Proxy] Response headers:", Object.fromEntries(response.headers.entries()));
-
     // Handle redirects
     if (response.status === 301 || response.status === 302 || response.status === 307 || response.status === 308) {
       const location = response.headers.get("location");
-      console.log("[Proxy] Redirect to:", location);
       if (location) {
-        const redirectUrl = new URL(location, targetUrl).toString();
-        return NextResponse.redirect(`${request.nextUrl.origin}/api/proxy?url=${encodeURIComponent(redirectUrl)}`);
+        const redirectUrl = new URL(location, targetUrl);
+        // A public host can redirect straight into the private network; the
+        // guard has to run on the destination too, not only on the input.
+        if (isBlockedTarget(redirectUrl)) {
+          return NextResponse.json({ error: "Target not allowed" }, { status: 403 });
+        }
+        return NextResponse.redirect(
+          `${request.nextUrl.origin}/api/proxy?url=${encodeURIComponent(redirectUrl.toString())}`
+        );
       }
     }
 
@@ -115,17 +177,22 @@ async function handleProxy(request: NextRequest) {
     }
 
     const contentType = response.headers.get("content-type") || "text/html";
-    const body = await response.text();
 
-    console.log("[Proxy] Content type:", contentType);
-    console.log("[Proxy] Body length:", body.length);
+    // Only text is ever processed; a binary or huge body would just sit in
+    // memory on the server until the function times out.
+    const declaredLength = Number(response.headers.get("content-length") ?? "0");
+    if (declaredLength > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: "Response too large" }, { status: 413 });
+    }
+    const body = await response.text();
+    if (body.length > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: "Response too large" }, { status: 413 });
+    }
 
     // Process HTML content
     let modifiedBody = body;
     if (contentType.includes("text/html")) {
       const proxyBase = `${request.nextUrl.origin}/api/proxy`;
-      
-      console.log("[Proxy] Processing HTML, blocking ads and rewriting URLs");
       
       // Ad blocking patterns (similar to uBlock Origin EasyList)
       const adPatterns = [
@@ -209,7 +276,7 @@ async function handleProxy(request: NextRequest) {
 
     // Add permissive headers
     responseHeaders.set("Access-Control-Allow-Origin", "*");
-    responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, HEAD, OPTIONS");
+    responseHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
     responseHeaders.set("Access-Control-Allow-Headers", "*");
     responseHeaders.set("Access-Control-Max-Age", "86400");
     responseHeaders.set("X-Frame-Options", "ALLOWALL");
@@ -221,7 +288,9 @@ async function handleProxy(request: NextRequest) {
       headers: responseHeaders,
     });
   } catch (error) {
-    console.error("Proxy error:", error);
-    return NextResponse.json({ error: "Proxy error: " + (error as Error).message }, { status: 500 });
+    // The message can carry the upstream URL and internal detail; log it,
+    // answer with a code only.
+    console.error("[Proxy] error:", error);
+    return NextResponse.json({ error: "Proxy error" }, { status: 502 });
   }
 }

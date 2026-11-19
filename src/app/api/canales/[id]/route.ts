@@ -19,16 +19,27 @@ export async function GET(
     return Response.json({ src: null, kind: null, clearKey: null }, { status: 404 });
   }
 
-  return Response.json(
-    {
-      src: canalRelayUrl(resolved.url),
-      kind: resolved.kind,
-      clearKey: resolved.clearKey,
-    },
-    {
-      headers: {
-        "Cache-Control": "no-store",
+  try {
+    return Response.json(
+      {
+        // An iframe channel is the third party page itself; there is nothing to
+        // relay. Everything else goes out sealed.
+        src:
+          resolved.kind === "iframe"
+            ? resolved.url
+            : canalRelayUrl(resolved.url, { encrypted: resolved.clearKey !== null }),
+        kind: resolved.kind,
+        clearKey: resolved.clearKey,
       },
-    }
-  );
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch {
+    // No relay secret: refusing is the only safe answer, sealing with a
+    // public key would hand out forgeable tokens.
+    return Response.json({ src: null, kind: null, clearKey: null }, { status: 503 });
+  }
 }

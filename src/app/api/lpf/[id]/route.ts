@@ -21,8 +21,14 @@ export async function GET(
     return Response.json({ error: "unavailable" }, { status: 404, headers: NOT_FOUND_HEADERS });
   }
 
-  return Response.json(
-    { src: `/api/lpf/stream?t=${sealLpfUrl(stream)}` },
-    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
-  );
+  try {
+    return Response.json(
+      { src: `/api/lpf/stream?t=${sealLpfUrl(stream)}` },
+      { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+    );
+  } catch {
+    // No relay secret: sealing with a public key would hand out forgeable
+    // tokens, so the channel is reported as unavailable instead.
+    return Response.json({ error: "unavailable" }, { status: 503, headers: NOT_FOUND_HEADERS });
+  }
 }

@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const ADMIN_SESSION_COOKIE = "goltv_admin_session";
-
-function isAdminRequest(request: NextRequest): boolean {
-  const session = request.cookies.get(ADMIN_SESSION_COOKIE);
-  return session?.value === "authenticated";
-}
+import { isAdminRequest } from "@/lib/admin-session";
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const ip = request.nextUrl.searchParams.get("ip");
-  if (!ip) {
+  const ip = request.nextUrl.searchParams.get("ip") ?? "";
+  // Only a literal address goes into the lookup URL; no paths, no hosts.
+  if (!/^[0-9a-fA-F:.]{3,45}$/.test(ip)) {
     return NextResponse.json({ error: "IP is required" }, { status: 400 });
   }
 

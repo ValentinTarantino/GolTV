@@ -3,7 +3,7 @@ import {
   fetchUpstream,
   isCanalStreamHost,
   neutralizeDrmBoxes,
-  openCanalUrl,
+  openCanalToken,
   rewriteCanalManifest,
   rewriteCanalPlaylist,
 } from "@/lib/streams";
@@ -37,11 +37,13 @@ const MANIFEST_HEADERS = {
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const token = params.get("t") ?? "";
-  const sealed = openCanalUrl(token);
+  const sealed = openCanalToken(token);
   if (!sealed) return new Response("Invalid stream reference", { status: 400 });
 
+  const options = { encrypted: sealed.encrypted };
+
   // The player substitutes the DASH placeholders next to the sealed token.
-  let target = expandDashTemplate(sealed, params);
+  let target = expandDashTemplate(sealed.url, params);
 
   // Low latency HLS asks for the parts of a segment with its own query
   // parameters; they belong to the upstream request, not to the sealed token.
@@ -85,9 +87,20 @@ export async function GET(request: Request): Promise<Response> {
     const isManifest =
       upstream.pathname.toLowerCase().endsWith(".mpd") || contentType.includes("dash");
 
-    if (isPlaylist) {
+    // Several channels hide the playlist behind an `?url=` proxy whose own
+    // address does not end in `.m3u8`; those proxies answer `text/html` (an
+    // empty page when the channel is dead). The body decides.
+    const looksTextual = !isManifest && contentType.includes("html");
+
+    if (isPlaylist || looksTextual) {
       const body = await upstreamRes.text();
-      return new Response(rewriteCanalPlaylist(body, finalUrl), {
+      const trimmed = body.trim().replace(/^\uFEFF/, "");
+      // An empty or non playlist answer is a dead channel, not a valid one:
+      // without this the player waits forever on a black frame.
+      if (!trimmed.startsWith("#EXTM3U")) {
+        return new Response("Stream unavailable", { status: 503 });
+      }
+      return new Response(rewriteCanalPlaylist(body, finalUrl, options), {
         status: 200,
         headers: {
           ...MANIFEST_HEADERS,
@@ -98,7 +111,8 @@ export async function GET(request: Request): Promise<Response> {
 
     if (isManifest) {
       const body = await upstreamRes.text();
-      return new Response(rewriteCanalManifest(body, finalUrl), {
+      if (!body.trim()) return new Response("Stream unavailable", { status: 503 });
+      return new Response(rewriteCanalManifest(body, finalUrl, options), {
         status: 200,
         headers: {
           ...MANIFEST_HEADERS,
@@ -116,11 +130,12 @@ export async function GET(request: Request): Promise<Response> {
       if (value) outHeaders[name] = value;
     }
 
-    // The media arrives in the clear but still carries the encryption boxes
-    // of the old feed; the browser would ask for a license that does not
-    // exist, so the boxes are neutralized before the segment goes out.
+    // The old feeds arrive in the clear but still carry the encryption boxes;
+    // the browser would ask for a license that does not exist, so the boxes
+    // are neutralized before the segment goes out. A channel that is really
+    // encrypted keeps them: there the ClearKey does the decryption.
     const isInit = upstream.pathname.toLowerCase().includes("-init.");
-    if (isInit) {
+    if (isInit && !sealed.encrypted) {
       const body = neutralizeDrmBoxes(Buffer.from(await upstreamRes.arrayBuffer()));
       return new Response(new Uint8Array(body), {
         status: upstreamRes.status,

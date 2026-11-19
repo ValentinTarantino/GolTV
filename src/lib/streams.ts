@@ -24,6 +24,10 @@ const FETCH_TIMEOUT_MS = 20_000;
 const MAX_SITEMAP_PAGES = 8;
 const RELAY_PATH = "/api/canales/stream";
 const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
+/** The channel catalog of the embed app changes rarely; ten minutes is safe. */
+const EMBED_TTL = 10 * 60 * 1000;
+/** Catalog published by the embed app when its own URL does not name a repo. */
+const EMBED_REPO_FALLBACK = "el20chinitdt/Automatizador-de-Tokens";
 
 const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":
@@ -78,7 +82,8 @@ export interface CanalClearKey {
 
 /** A resolved channel: where to fetch it and how to decrypt it. */
 export interface CanalSource {
-  kind: "hls" | "dash";
+  /** `iframe`: a third party player page, the only shape some posts have. */
+  kind: "hls" | "dash" | "iframe";
   url: string;
   clearKey: CanalClearKey | null;
 }
@@ -274,8 +279,10 @@ function softDecode(value: string): string {
 }
 
 /**
- * Decrypts a `div.aes-v` payload: the AES-GCM key is `_rk` unmasked with
- * `_m`, and the ciphertext carries the auth tag in its last 16 bytes.
+ * Decrypts a `div.aes-v` payload. Two key shapes are published:
+ *   - `_rk` unmasked with `_m`, the most common one,
+ *   - a plain `Uint8Array` (`kb`/`k`) that already is the AES key.
+ * The ciphertext carries the auth tag in its last 16 bytes.
  */
 export function decryptAesPayload(html: string): string | null {
   try {
@@ -291,27 +298,39 @@ export function decryptAesPayload(html: string): string | null {
       .map((_, el) => $(el).html() ?? "")
       .get()
       .join("\n");
-    const maskMatch = script.match(/_m\s*=\s*\[([^\]]*)\]/);
-    const keyMatch = script.match(/_rk\s*=\s*new Uint8Array\(\[([^\]]*)\]/);
-    if (!maskMatch || !keyMatch) return null;
 
-    const mask = numericArray(maskMatch[1]);
-    const keyBytes = numericArray(keyMatch[1]);
-    if (mask.length === 0 || keyBytes.length === 0) return null;
-    if (![16, 24, 32].includes(keyBytes.length)) return null;
-
-    const key = Buffer.from(keyBytes.map((byte, index) => byte ^ mask[index % mask.length]));
     const iv = base64urlToBuffer(ivRaw);
     const cipherText = base64urlToBuffer(ctRaw);
     if (iv.length !== 12 || cipherText.length <= 16) return null;
 
-    const decipher = createDecipheriv(`aes-${key.length * 8}-gcm`, key, iv) as GcmDecipher;
-    decipher.setAuthTag(cipherText.subarray(cipherText.length - 16));
-    const plain = Buffer.concat([
-      decipher.update(cipherText.subarray(0, cipherText.length - 16)),
-      decipher.final(),
-    ]);
-    return plain.toString("utf8");
+    const candidates: Buffer[] = [];
+    const mask = numericArray(script.match(/_m\s*=\s*\[([^\]]*)\]/)?.[1] ?? "");
+    const masked = script.match(/_rk\s*=\s*new Uint8Array\(\[([^\]]*)\]/)?.[1] ?? "";
+    if (masked && mask.length > 0) {
+      const bytes = numericArray(masked);
+      if ([16, 24, 32].includes(bytes.length)) {
+        candidates.push(Buffer.from(bytes.map((byte, index) => byte ^ mask[index % mask.length])));
+      }
+    }
+    for (const match of script.matchAll(/new Uint8Array\(\[([^\]]*)\]/g)) {
+      const bytes = numericArray(match[1]);
+      if ([16, 24, 32].includes(bytes.length)) candidates.push(Buffer.from(bytes));
+    }
+
+    const body = cipherText.subarray(0, cipherText.length - 16);
+    const tag = cipherText.subarray(cipherText.length - 16);
+
+    for (const key of candidates) {
+      try {
+        const decipher = createDecipheriv(`aes-${key.length * 8}-gcm`, key, iv) as GcmDecipher;
+        decipher.setAuthTag(tag);
+        return Buffer.concat([decipher.update(body), decipher.final()]).toString("utf8");
+      } catch {
+        /* wrong key; try the next shape */
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -342,36 +361,47 @@ function documentFromCfg(cfg: string): string | null {
   }
 }
 
-/**
- * Every document that may hold the encrypted player: the post payload, the
- * `cfg` it references, and the `cfg` of any iframe the post or the payload
- * embeds.
- */
-function candidateDocuments(postHtml: string): string[] {
-  const docs: string[] = [];
-  const payload = unescapePayload(postHtml);
-  const sources: string[] = payload ? [payload] : [];
+/** Every `cfg` reference of a document, in the `?cfg=` and `#cfg=` shapes. */
+function cfgReferences(source: string): string[] {
+  return [...source.matchAll(/cfg=([^&"'\s<>]+)/gi)].map((match) => match[1]).filter(Boolean);
+}
 
-  for (const source of sources) {
-    docs.push(source);
-    const cfg = source.match(/cfg=([^&"'\s<>]+)/)?.[1];
-    if (cfg) {
-      const doc = documentFromCfg(cfg);
-      if (doc) docs.push(doc);
-    }
+/**
+ * The documents of a post, one level per `cfg`: the post payload, and the
+ * `cfg` of every iframe it holds. The providers nest this chain (post →
+ * player document → player app), so it is walked breadth first instead of
+ * assuming a fixed depth.
+ */
+function candidateDocuments(postHtml: string, maxDepth = 5): string[] {
+  const docs: string[] = [];
+  const seen = new Set<string>();
+  const pending: string[] = [];
+
+  const payload = unescapePayload(postHtml);
+  if (payload) pending.push(payload);
+  for (const match of postHtml.matchAll(/<iframe[^>]*src=["']([^"']+)["']/gi)) {
+    pending.push(match[1]);
   }
 
-  const frames = [
-    ...[...postHtml.matchAll(/<iframe[^>]*src=["']([^"']+)["']/gi)].map((m) => m[1]),
-    ...sources.flatMap((source) =>
-      [...source.matchAll(/<iframe[^>]*src=["']([^"']+)["']/gi)].map((m) => m[1])
-    ),
-  ];
-  for (const frame of frames) {
-    const cfg = frame.match(/[?#&]cfg=([^&#]+)/)?.[1];
-    if (!cfg) continue;
-    const doc = documentFromCfg(cfg);
-    if (doc) docs.push(doc);
+  for (let depth = 0; depth < maxDepth && pending.length > 0; depth++) {
+    const next: string[] = [];
+    for (const source of pending.splice(0)) {
+      if (seen.has(source)) continue;
+      seen.add(source);
+      docs.push(source);
+
+      // A decrypted document may hold another sealed player, so its own
+      // references are queued as well.
+      const player = decryptAesPayload(source);
+      const nested = player ? [source, player] : [source];
+      for (const text of nested) {
+        for (const cfg of cfgReferences(text)) {
+          const doc = documentFromCfg(cfg);
+          if (doc && !seen.has(doc)) next.push(doc);
+        }
+      }
+    }
+    pending.push(...next);
   }
 
   return docs;
@@ -385,7 +415,26 @@ export function extractStreamUrl(playerHtml: string): string | null {
   for (const candidate of candidates) {
     const wrapped = candidate.match(/[?&]url=([^&]+)/);
     const target = wrapped ? decodeURIComponent(wrapped[1]) : candidate;
-    const url = httpsUrl(target);
+    // Some players wrap a plain `http` playlist in an `https` proxy; the
+    // wrapper is the only address the relay can fetch.
+    const url = httpsUrl(target) ?? (wrapped ? httpsUrl(candidate) : null);
+    if (url) return url.toString();
+  }
+  return null;
+}
+
+/**
+ * The DASH manifest of a player document. Some players publish it behind a
+ * proxy parameter (`?url=…`), exactly like the HLS playlists.
+ */
+export function extractDashUrl(playerHtml: string): string | null {
+  const candidates = [...playerHtml.matchAll(/https?:\/\/[^"'\s<>\\]+?\.mpd[^"'\s<>\\]*/gi)].map(
+    (match) => match[0]
+  );
+  for (const candidate of candidates) {
+    const wrapped = candidate.match(/[?&]url=([^&]+)/);
+    const target = wrapped ? decodeURIComponent(wrapped[1]) : candidate;
+    const url = httpsUrl(target) ?? (wrapped ? httpsUrl(candidate) : null);
     if (url) return url.toString();
   }
   return null;
@@ -413,18 +462,248 @@ export function extractDashSource(playerHtml: string): CanalSource | null {
   return { kind: "dash", url: url.toString(), clearKey };
 }
 
+/* ------------------------------------------------------------------ *
+ * Embed catalog (the current shape of the player documents)
+ * ------------------------------------------------------------------ */
+
+interface EmbedBlob {
+  version?: number;
+  xor?: boolean;
+  iv?: string;
+  data?: string;
+  k?: string;
+  sha256?: string;
+}
+
+interface EmbedCanal {
+  name?: unknown;
+  path?: unknown;
+  clearkey?: unknown;
+}
+
+interface EmbedConfig {
+  baseUrl?: unknown;
+  token?: unknown;
+  canal?: unknown;
+  canales?: unknown;
+}
+
+function unhex(value: string): Buffer {
+  return Buffer.from(value.replace(/[^0-9a-f]/gi, ""), "hex");
+}
+
+/** Repeating XOR, exactly as the embed app does it before AES-GCM. */
+function xorKeyStream(data: Buffer, key: Buffer): Buffer {
+  const out = Buffer.allocUnsafe(data.length);
+  for (let index = 0; index < data.length; index++) {
+    out[index] = data[index] ^ key[index % key.length];
+  }
+  return out;
+}
+
+/**
+ * Decrypts one entry of the public catalog: the AES-GCM key travels in the
+ * same blob (`k`), so the whole thing is obfuscation, not a secret. The
+ * payload is the base URL, the token and the channel of the provider.
+ */
+export function decryptEmbedPayload(blob: EmbedBlob): string | null {
+  try {
+    const version = Number(blob.version);
+    if (![4, 5, 6].includes(version)) return null;
+
+    const keyBytes = unhex(String(blob.k ?? ""));
+    if (![16, 24, 32].includes(keyBytes.length)) return null;
+
+    const iv = Buffer.from(String(blob.iv ?? ""), "base64");
+    if (iv.length !== 12) return null;
+
+    let data: Buffer = Buffer.from(String(blob.data ?? ""), "base64");
+    if (data.length <= 16) return null;
+
+    if (blob.sha256) {
+      const digest = createHash("sha256").update(data).digest("hex");
+      if (digest !== String(blob.sha256)) return null;
+    }
+
+    // Version 5 onwards always applies the XOR layer.
+    if (blob.xor || version >= 5) data = xorKeyStream(data, keyBytes);
+
+    const decipher = createDecipheriv(`aes-${keyBytes.length * 8}-gcm`, keyBytes, iv) as GcmDecipher;
+    decipher.setAAD(Buffer.from(`elchini-embed-v${version}`));
+    decipher.setAuthTag(data.subarray(data.length - 16));
+    const plain = Buffer.concat([
+      decipher.update(data.subarray(0, data.length - 16)),
+      decipher.final(),
+    ]);
+    return plain.toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** `<owner>/<repo>` of the catalog, read from the URL of the embed app. */
+function embedRepoFrom(playerUrl: URL): string {
+  const host = playerUrl.hostname.toLowerCase();
+  if (host.endsWith(".github.io")) {
+    const owner = host.split(".")[0];
+    const segment = playerUrl.pathname.split("/").filter(Boolean)[0] ?? "";
+    const repo = segment && !/\.\w+$/.test(segment) ? segment : `${owner}.github.io`;
+    return `${owner}/${repo}`;
+  }
+  return EMBED_REPO_FALLBACK;
+}
+
+/** Entries of the public catalog, by channel id. */
+async function embedCatalog(repo: string): Promise<Record<string, EmbedBlob> | null> {
+  return cached<Record<string, EmbedBlob> | null>(`canales:embeds:v1:${repo}`, EMBED_TTL, async () => {
+    const [owner, name] = repo.split("/");
+    if (!owner || !name) return null;
+
+    const urls = [
+      `https://${owner.toLowerCase()}.github.io/${name}/token.json?t=${Date.now()}`,
+      `https://raw.githubusercontent.com/${owner}/${name}/refs/heads/main/token.json`,
+      `https://raw.githubusercontent.com/${owner}/${name}/master/token.json`,
+    ];
+
+    for (const url of urls) {
+      const text = await fetchText(url);
+      if (!text) continue;
+      try {
+        const parsed = JSON.parse(text) as { embeds?: unknown };
+        if (!parsed.embeds || typeof parsed.embeds !== "object") continue;
+        return parsed.embeds as Record<string, EmbedBlob>;
+      } catch {
+        /* try the next mirror */
+      }
+    }
+    return null;
+  });
+}
+
+/** `kid:key` in hex, the format the embed stores, to the one Shaka expects. */
+function clearKeyFromPair(value: string): CanalClearKey | null {
+  const [kid, key] = value.split(":").map((part) => part.trim());
+  if (!/^[0-9a-f]{32}$/i.test(kid ?? "") || !/^[0-9a-f]{32}$/i.test(key ?? "")) return null;
+  return { kid: hexToBase64Url(kid), key: hexToBase64Url(key) };
+}
+
+/** Turns one entry of the catalog into a playable source. */
+function sourceFromEmbedConfig(config: EmbedConfig): CanalSource | null {
+  const base = httpsUrl(String(config.baseUrl ?? "").trim());
+  if (!base) return null;
+
+  const list = Array.isArray(config.canales)
+    ? (config.canales as EmbedCanal[])
+    : config.canal && typeof config.canal === "object"
+      ? [config.canal as EmbedCanal]
+      : [];
+
+  const canal = list.find(
+    (candidate) => candidate && typeof candidate === "object" && typeof candidate.path === "string"
+  );
+  if (!canal) return null;
+
+  const path = String(canal.path).trim();
+  if (!path) return null;
+
+  const url = new URL(path.startsWith("/") ? path : `/${path}`, base);
+  const token = String(config.token ?? "").trim();
+  if (token) url.searchParams.set("token", token);
+  // The app always asks for a small DVR window; the provider expects it.
+  url.searchParams.set("dvr_window_length", "60");
+
+  return {
+    kind: /\.m3u8$/i.test(url.pathname) ? "hls" : "dash",
+    url: url.toString(),
+    clearKey: clearKeyFromPair(String(canal.clearkey ?? "")),
+  };
+}
+
+/** The `?embed_ch=` app of a player document, when it embeds one. */
+function embedFrame(playerHtml: string): URL | null {
+  for (const match of playerHtml.matchAll(/<iframe[^>]*src=["']([^"']+)["']/gi)) {
+    const url = httpsUrl(match[1]);
+    if (url && url.searchParams.has("embed_ch")) return url;
+  }
+  return null;
+}
+
+/**
+ * Last resort: some posts end in a third party player page and publish no
+ * stream of their own. Sealing it would break it (the browser has to load
+ * that document), so the page goes out as an iframe channel.
+ */
+function iframeSource(playerHtml: string): CanalSource | null {
+  for (const match of playerHtml.matchAll(/<iframe[^>]*src=["']([^"']+)["']/gi)) {
+    const url = httpsUrl(match[1]);
+    if (!url) continue;
+    // A sealed player is decoded here, never handed to the browser.
+    if (url.searchParams.has("cfg") || url.searchParams.has("embed_ch")) continue;
+    return { kind: "iframe", url: url.toString(), clearKey: null };
+  }
+  return null;
+}
+
+/** Follows the embed app of a player document down to the sealed stream. */
+async function sourceFromEmbed(playerHtml: string): Promise<CanalSource | null> {
+  const frame = embedFrame(playerHtml);
+  if (!frame) return null;
+
+  const canalId = (frame.searchParams.get("embed_ch") ?? "").trim().toLowerCase();
+  if (!canalId) return null;
+
+  const catalog = await embedCatalog(embedRepoFrom(frame));
+  if (!catalog) return null;
+
+  const blob = catalog[canalId];
+  if (!blob || typeof blob !== "object") return null;
+
+  const plain = decryptEmbedPayload(blob);
+  if (!plain) return null;
+
+  try {
+    return sourceFromEmbedConfig(JSON.parse(plain) as EmbedConfig);
+  } catch {
+    return null;
+  }
+}
+
 /** Resolves the playable source of a post. */
-function sourceFromPost(postHtml: string): CanalSource | null {
+async function sourceFromPost(postHtml: string): Promise<CanalSource | null> {
+  /** Player documents that hold no direct stream yet; they may embed the app. */
+  const players: string[] = [];
+
   for (const doc of candidateDocuments(postHtml)) {
     const player = decryptAesPayload(doc);
-    const candidates = [player, doc].filter((value): value is string => Boolean(value));
-    for (const candidate of candidates) {
+    for (const candidate of [player, doc]) {
+      if (!candidate) continue;
       const playlist = extractStreamUrl(candidate);
       if (playlist) return { kind: "hls", url: playlist, clearKey: null };
       const dash = extractDashSource(candidate);
       if (dash) return dash;
+
+      // A player that publishes its manifest without the `manifestUri`
+      // wrapper still plays, it just has no ClearKey of its own.
+      const manifest = extractDashUrl(candidate);
+      if (manifest) return { kind: "dash", url: manifest, clearKey: null };
     }
+    if (player) players.push(player);
   }
+
+  // The current posts no longer publish a stream: their player loads a small
+  // app that keeps the catalog (base url, token, clear keys) encrypted in a
+  // public JSON. Following that chain is the only way to play them.
+  for (const player of players) {
+    const embedded = await sourceFromEmbed(player);
+    if (embedded) return embedded;
+  }
+
+  // Channels whose chain ends in a third party player page: nothing to relay.
+  for (const player of players) {
+    const wrapped = iframeSource(player);
+    if (wrapped) return wrapped;
+  }
+
   return null;
 }
 
@@ -487,23 +766,58 @@ export async function resolveCanalById(id: string): Promise<CanalSource | null> 
 
 const TOKEN_AAD = Buffer.from("goltv-canales-relay");
 
+/** Marks the tokens of a channel whose media is really CENC encrypted. */
+export interface CanalSealOptions {
+  encrypted?: boolean;
+}
+
+/** A sealed reference: the upstream URL and how its media must be treated. */
+export interface CanalToken {
+  url: string;
+  encrypted: boolean;
+}
+
+/** Per-process fallback used only when the environment does not set a key. */
+const DEV_RELAY_KEY = "goltv-development-only-relay-key";
+let warnedAboutRelayKey = false;
+
+/**
+ * Key of the sealed relay tokens.
+ *
+ * It has to come from the environment: the old public fallback let anybody
+ * mint tokens for the allowlisted hosts, so the relay accepted requests the
+ * app never created. A deployed build refuses to seal instead of inventing a
+ * key; locally a constant keeps tokens usable across restarts.
+ */
 function tokenKey(): Buffer {
-  const secret = process.env.CANALES_PROXY_SECRET?.trim() || "goltv-canales-relay";
-  return createHash("sha256").update(secret).digest();
+  const secret = process.env.CANALES_PROXY_SECRET?.trim();
+  if (secret) return createHash("sha256").update(secret).digest();
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("CANALES_PROXY_SECRET is not configured");
+  }
+  if (!warnedAboutRelayKey) {
+    warnedAboutRelayKey = true;
+    console.warn("[canales] CANALES_PROXY_SECRET missing: using the development relay key");
+  }
+  return createHash("sha256").update(DEV_RELAY_KEY).digest();
 }
 
 /** Encrypts an upstream URL so manifest and segment paths stay anonymous. */
-export function sealCanalUrl(url: string): string {
+export function sealCanalUrl(url: string, options: CanalSealOptions = {}): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", tokenKey(), iv);
   cipher.setAAD(TOKEN_AAD);
-  const payload = Buffer.from(JSON.stringify({ u: url, e: Date.now() + TOKEN_TTL_MS }), "utf8");
+  const payload = Buffer.from(
+    JSON.stringify({ u: url, e: Date.now() + TOKEN_TTL_MS, k: options.encrypted ? 1 : 0 }),
+    "utf8"
+  );
   const cipherText = Buffer.concat([cipher.update(payload), cipher.final()]);
   return Buffer.concat([iv, cipherText, cipher.getAuthTag()]).toString("base64url");
 }
 
 /** Opens a token minted by `sealCanalUrl`; null when tampered or expired. */
-export function openCanalUrl(token: string): string | null {
+export function openCanalToken(token: string): CanalToken | null {
   try {
     const raw = Buffer.from(token, "base64url");
     if (raw.length < 12 + 17) return null;
@@ -516,13 +830,20 @@ export function openCanalUrl(token: string): string | null {
     decipher.setAuthTag(tag);
     const plain = Buffer.concat([decipher.update(cipherText), decipher.final()]).toString("utf8");
 
-    const parsed = JSON.parse(plain) as { u?: unknown; e?: unknown };
+    const parsed = JSON.parse(plain) as { u?: unknown; e?: unknown; k?: unknown };
     if (typeof parsed.u !== "string" || typeof parsed.e !== "number") return null;
     if (parsed.e < Date.now()) return null;
-    return httpsUrl(parsed.u)?.toString() ?? null;
+    const url = httpsUrl(parsed.u);
+    if (!url) return null;
+    return { url: url.toString(), encrypted: parsed.k === 1 };
   } catch {
     return null;
   }
+}
+
+/** Opens a token and returns only its URL, for the callers that ignore DRM. */
+export function openCanalUrl(token: string): string | null {
+  return openCanalToken(token)?.url ?? null;
 }
 
 /** Hosts the relay will fetch. Configured per deployment via `CANALES_STREAM_HOSTS`. */
@@ -537,21 +858,25 @@ export function isCanalStreamHost(url: URL): boolean {
 }
 
 /** Client-facing relay URL for an upstream playlist, manifest or segment. */
-export function canalRelayUrl(url: string): string {
-  return `${RELAY_PATH}?t=${sealCanalUrl(url)}`;
+export function canalRelayUrl(url: string, options: CanalSealOptions = {}): string {
+  return `${RELAY_PATH}?t=${sealCanalUrl(url, options)}`;
 }
 
 /** Rewrites every URI of a playlist to a sealed relay URL. */
-export function rewriteCanalPlaylist(body: string, upstream: URL): string {
+export function rewriteCanalPlaylist(
+  body: string,
+  upstream: URL,
+  options: CanalSealOptions = {}
+): string {
   const seal = (value: string): string => {
     if (/^(data|blob):/i.test(value)) return value;
     try {
-      return canalRelayUrl(new URL(value, upstream).toString());
+      return canalRelayUrl(new URL(value, upstream).toString(), options);
     } catch {
       // Some playlists carry values with stray spaces; they still point to a
       // segment, so they are encoded instead of dropped.
       try {
-        return canalRelayUrl(new URL(value.trim().replace(/\s+/g, "%20"), upstream).toString());
+        return canalRelayUrl(new URL(value.trim().replace(/\s+/g, "%20"), upstream).toString(), options);
       } catch {
         return value;
       }
@@ -605,14 +930,23 @@ const DASH_PLACEHOLDERS: Array<[string, string]> = [
 
 /**
  * Rewrites a DASH manifest so every segment reference goes back through the
- * relay. The DRM declarations are dropped: the segments of these channels
- * come in the clear and a license request would always fail.
+ * relay.
+ *
+ * Channels whose segments really are CENC encrypted keep their `cenc`
+ * declaration, because the browser needs the key id to decrypt them with the
+ * ClearKey of the channel; the Widevine and PlayReady entries are dropped, as
+ * their license servers do not exist. Clear channels lose every declaration
+ * so the old feed does not ask for a license that never existed.
  */
-export function rewriteCanalManifest(body: string, upstream: URL): string {
+export function rewriteCanalManifest(
+  body: string,
+  upstream: URL,
+  options: CanalSealOptions = {}
+): string {
   const seal = (value: string): string => {
     if (/^(data|blob):/i.test(value)) return value;
     try {
-      return canalRelayUrl(new URL(value, upstream).toString());
+      return canalRelayUrl(new URL(value, upstream).toString(), options);
     } catch {
       return value;
     }
@@ -620,13 +954,16 @@ export function rewriteCanalManifest(body: string, upstream: URL): string {
 
   const sealTemplate = (value: string): string => {
     if (/^(data|blob):/i.test(value)) return value;
+    // The template carries XML entities (`&amp;`) that the manifest parser
+    // would have decoded; the relay needs the plain separator.
+    const plain = value.replace(/&amp;/gi, "&");
     let absolute: string;
     try {
-      absolute = new URL(value, upstream).toString();
+      absolute = new URL(plain, upstream).toString();
     } catch {
       return value;
     }
-    const parts = [`t=${sealCanalUrl(absolute)}`];
+    const parts = [`t=${sealCanalUrl(absolute, options)}`];
     for (const [placeholder, name] of DASH_PLACEHOLDERS) {
       if (absolute.includes(placeholder)) parts.push(`${name}=${placeholder}`);
     }
@@ -634,8 +971,8 @@ export function rewriteCanalManifest(body: string, upstream: URL): string {
   };
 
   const resolved = resolveRepresentationIds(body).replace(
-    /<ContentProtection\b[^>]*?(?:\/>|>[\s\S]*?<\/ContentProtection>)\s*/g,
-    ""
+    /<ContentProtection\b([^>]*?)(?:\/>|>[\s\S]*?<\/ContentProtection>)\s*/g,
+    (match, attrs: string) => (options.encrypted && /mp4protection/i.test(attrs) ? match : "")
   );
 
   return resolved

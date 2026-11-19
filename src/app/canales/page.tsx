@@ -16,8 +16,18 @@ interface CanalClearKey {
   key: string;
 }
 
+interface ResolvedChannel {
+  src: string;
+  kind: "hls" | "dash" | "iframe";
+  clearKey: CanalClearKey | null;
+  at: number;
+}
+
 type ListState = "loading" | "ready" | "error";
 type StreamState = "loading" | "ready" | "error";
+
+/** How long a resolved channel stays usable in the browser. */
+const RESOLVED_TTL = 4 * 60 * 1000;
 
 export default function CanalesPage() {
   const { t } = useLanguage();
@@ -33,21 +43,68 @@ export default function CanalesPage() {
   const [clearKey, setClearKey] = useState<CanalClearKey | null>(null);
   const [streamState, setStreamState] = useState<StreamState>("loading");
   const [streamReload, setStreamReload] = useState(0);
-  const prefetchedRef = useRef<Set<string>>(new Set());
+  const resolvedRef = useRef<Map<string, ResolvedChannel>>(new Map());
+  const inFlightRef = useRef<Map<string, Promise<ResolvedChannel>>>(new Map());
+  const warmedRef = useRef<Set<string>>(new Set());
 
   /**
-   * Warms the server cache for a channel before the visitor clicks it. The
-   * first resolution of a channel has to fetch its post and decrypt the
-   * player, which takes a few seconds; doing it on hover makes the click
-   * start playing right away.
+   * Resolves a channel once and remembers it. The first resolution walks the
+   * post → player → catalog chain on the server, so keeping the answer makes
+   * a switch back immediate instead of another round trip.
    */
-  const prefetchChannel = useCallback((id: string) => {
-    if (prefetchedRef.current.has(id)) return;
-    prefetchedRef.current.add(id);
-    fetch(`/api/canales/${encodeURIComponent(id)}`).catch(() => {
-      prefetchedRef.current.delete(id);
-    });
+  const loadChannel = useCallback(async (id: string): Promise<ResolvedChannel> => {
+    const cached = resolvedRef.current.get(id);
+    if (cached && Date.now() - cached.at < RESOLVED_TTL) return cached;
+
+    const running = inFlightRef.current.get(id);
+    if (running) return running;
+
+    const task = (async () => {
+      const res = await fetch(`/api/canales/${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as {
+        src?: string | null;
+        kind?: "hls" | "dash" | "iframe" | null;
+        clearKey?: CanalClearKey | null;
+      };
+      if (!data.src) throw new Error("sin fuente");
+      const entry: ResolvedChannel = {
+        src: data.src,
+        kind: data.kind ?? "hls",
+        clearKey: data.clearKey ?? null,
+        at: Date.now(),
+      };
+      resolvedRef.current.set(id, entry);
+      return entry;
+    })();
+
+    inFlightRef.current.set(id, task);
+    try {
+      return await task;
+    } finally {
+      inFlightRef.current.delete(id);
+    }
   }, []);
+
+  /**
+   * Warms a channel before the visitor clicks it: server cache, client cache
+   * and (on hover/focus) the relay path, so the first segment does not pay
+   * DNS and TLS against the provider.
+   */
+  const prefetchChannel = useCallback(
+    (id: string, warmStream = false) => {
+      void loadChannel(id)
+        .then((entry) => {
+          if (warmStream && entry.kind !== "iframe") {
+            fetch(entry.src, { cache: "no-store" }).catch(() => {});
+          }
+        })
+        .catch(() => {
+          resolvedRef.current.delete(id);
+        });
+    },
+    [loadChannel]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -80,29 +137,20 @@ export default function CanalesPage() {
 
     const resolve = async (attempt: number) => {
       try {
-        const res = await fetch(`/api/canales/${encodeURIComponent(activeId)}`);
-        if (!res.ok) throw new Error(String(res.status));
-        const data = (await res.json()) as {
-          src?: string | null;
-          kind?: "hls" | "dash" | "iframe" | null;
-          clearKey?: CanalClearKey | null;
-        };
+        const entry = await loadChannel(activeId);
         if (cancelled) return;
-        if (!data.src) {
-          setStreamState("error");
-          return;
-        }
-        setStreamSrc(data.src);
-        setStreamKind(data.kind ?? "hls");
-        setClearKey(data.clearKey ?? null);
+        setStreamSrc(entry.src);
+        setStreamKind(entry.kind);
+        setClearKey(entry.clearKey);
         setStreamState("ready");
       } catch {
         if (cancelled) return;
+        resolvedRef.current.delete(activeId);
         // The first attempt can hit a cold upstream; one more try before
         // telling the visitor the channel is down.
         if (attempt < 2) {
           setStreamState("loading");
-          await new Promise((r) => setTimeout(r, 1200));
+          await new Promise((r) => setTimeout(r, 400));
           if (!cancelled) await resolve(attempt + 1);
           return;
         }
@@ -115,7 +163,42 @@ export default function CanalesPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeId, streamReload]);
+  }, [activeId, streamReload, loadChannel]);
+
+  /**
+   * Warms the rest of the list while the visitor is reading, one channel at a
+   * time so the section never competes with the stream that is playing.
+   */
+  useEffect(() => {
+    const pending = channels.map((channel) => channel.id).filter((id) => id !== activeId);
+    if (pending.length === 0) return;
+
+    let cancelled = false;
+    const warmNext = () => {
+      if (cancelled) return;
+      const id = pending.shift();
+      if (!id) return;
+      if (!warmedRef.current.has(id)) {
+        warmedRef.current.add(id);
+        prefetchChannel(id);
+      }
+      window.setTimeout(warmNext, 150);
+    };
+
+    let cancel = () => {};
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(warmNext, { timeout: 2000 });
+      cancel = () => window.cancelIdleCallback(handle);
+    } else {
+      const handle = window.setTimeout(warmNext, 800);
+      cancel = () => window.clearTimeout(handle);
+    }
+
+    return () => {
+      cancelled = true;
+      cancel();
+    };
+  }, [channels, activeId, prefetchChannel]);
 
   const activeChannel = channels.find((channel) => channel.id === activeId) ?? null;
 
@@ -138,10 +221,11 @@ export default function CanalesPage() {
   }, [channels]);
 
   const reloadStream = useCallback(() => {
+    if (activeId) resolvedRef.current.delete(activeId);
     setStreamState("loading");
     setStreamSrc(null);
     setStreamReload((n) => n + 1);
-  }, []);
+  }, [activeId]);
 
   const reloadList = useCallback(() => {
     setListState("loading");
@@ -150,12 +234,13 @@ export default function CanalesPage() {
 
   const selectChannel = useCallback(
     (id: string) => {
-      prefetchChannel(id);
       if (id === activeId) {
+        resolvedRef.current.delete(id);
         setStreamState("loading");
         setStreamReload((n) => n + 1);
         return;
       }
+      prefetchChannel(id);
       // The current frame stays on screen while the new channel resolves, so
       // the section never flashes black on a switch.
       setStreamState("loading");
@@ -171,8 +256,8 @@ export default function CanalesPage() {
         key={channel.id}
         type="button"
         onClick={() => selectChannel(channel.id)}
-        onMouseEnter={() => prefetchChannel(channel.id)}
-        onFocus={() => prefetchChannel(channel.id)}
+        onMouseEnter={() => prefetchChannel(channel.id, true)}
+        onFocus={() => prefetchChannel(channel.id, true)}
         className={`inline-flex w-full min-w-0 items-center justify-between gap-1 border-2 px-2 py-2 text-left transition-transform hover:-translate-y-0.5 ${
           isActive
             ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
@@ -213,7 +298,6 @@ export default function CanalesPage() {
                   kind={streamKind}
                   clearKey={streamKind === "dash" ? clearKey : null}
                   preferFastStart
-                  cropBottom={0.075}
                 />
                 {streamState === "loading" ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/70">

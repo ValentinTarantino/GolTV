@@ -16,8 +16,6 @@ interface HlsPlayerProps {
   borderlessFullscreen?: boolean;
   /** Starts on the light rendition so the first picture arrives right away. */
   preferFastStart?: boolean;
-  /** Cuts a fraction of the bottom of the picture (restreamer watermark). */
-  cropBottom?: number;
 }
 
 interface QualityLevelInfo {
@@ -60,7 +58,6 @@ function HlsPlayer({
   headers,
   borderlessFullscreen = false,
   preferFastStart = false,
-  cropBottom = 0,
 }: HlsPlayerProps) {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -144,7 +141,11 @@ function HlsPlayer({
             maxTimeToFirstByteMs: 30_000,
             maxLoadTimeMs: 60_000,
             timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000, backoff: "exponential" },
-            errorRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000, backoff: "exponential" },
+            // HTTP errors on the manifest are mostly "the channel is dead"
+            // (the relay answers 503 when the provider published nothing); two
+            // quick tries keep a flaky edge recoverable without spinning for a
+            // minute on a black frame. The component opens a new session too.
+            errorRetry: { maxNumRetry: 2, retryDelayMs: 1_000, maxRetryDelayMs: 2_000, backoff: "exponential" },
           },
         },
         playlistLoadPolicy: {
@@ -225,6 +226,20 @@ function HlsPlayer({
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
+
+        // A failed request for the manifest itself is a dead channel: the
+        // relay only answers 4xx/503 there when the provider published
+        // nothing, so retrying for a minute would just spin on a black frame.
+        const isDeadManifest =
+          (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+            data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT) &&
+          typeof data.response?.code === "number" &&
+          data.response.code >= 400;
+        if (isDeadManifest) {
+          setHasError(true);
+          setIsLoading(false);
+          return;
+        }
 
         // 502/503/504 from the relay are recoverable: the upstream may be
         // temporarily unreachable or cold-starting. Treat them as network errors.
@@ -403,14 +418,6 @@ function HlsPlayer({
       <video
         ref={videoRef}
         className="h-full w-full"
-        style={
-          cropBottom > 0
-            ? {
-                transform: `scale(${1 + cropBottom})`,
-                transformOrigin: "top center",
-              }
-            : undefined
-        }
         playsInline
         autoPlay
       />
@@ -584,11 +591,9 @@ interface VideoPlayerProps extends IframeChannelBridgeProps {
   clearKey?: { kid: string; key: string } | null;
   /** Starts on the light rendition so the first picture arrives right away. */
   preferFastStart?: boolean;
-  /** Cuts a fraction of the bottom of the picture (restreamer watermark). */
-  cropBottom?: number;
 }
 
-export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen, channel, onChannels, clearKey, preferFastStart, cropBottom }: VideoPlayerProps) {
+export default function VideoPlayer({ url, title, headers, kind, borderlessFullscreen, channel, onChannels, clearKey, preferFastStart }: VideoPlayerProps) {
   if (kind === "iframe") {
     return <IframePlayer url={url} title={title} channel={channel} onChannels={onChannels} />;
   }
@@ -602,7 +607,6 @@ export default function VideoPlayer({ url, title, headers, kind, borderlessFulls
       headers={headers}
       borderlessFullscreen={borderlessFullscreen}
       preferFastStart={preferFastStart}
-      cropBottom={cropBottom}
     />
   );
 }
