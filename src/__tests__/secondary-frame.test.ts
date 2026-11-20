@@ -82,7 +82,7 @@ describe("/api/secondary bare frame", () => {
     expect(body).not.toContain("agenda.test/espn-deportes.php");
   });
 
-  it("serves the final player document same-origin with autoplay injected", async () => {
+  it("frames the resolved player URL without serving provider documents", async () => {
     pages.set("https://player.test/embed", '<iframe src="https://player.test/final"></iframe>');
     pages.set(
       "https://player.test/final",
@@ -93,11 +93,10 @@ describe("/api/secondary bare frame", () => {
     const body = await res.text();
 
     expect(res.status).toBe(200);
-    expect(body).toContain('<base href="https://player.test/final">');
-    expect(body).toContain("clappr-big-play-button");
-    expect(body).toContain('id="player"');
-    // The wrapper document itself must not be framed anymore.
-    expect(body).not.toContain('<iframe src="https://player.test/final"');
+    expect(body).toContain('<iframe src="https://player.test/embed"');
+    expect(body).toContain("background: #000");
+    expect(body).not.toContain("<base href");
+    expect(body).not.toContain("clappr-big-play-button");
   });
 
   it("answers a dark waiting panel when no player is published yet", async () => {

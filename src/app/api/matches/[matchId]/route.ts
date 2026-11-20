@@ -4,7 +4,8 @@ import { getMatchById } from "@/lib/api-football";
 import { getStreamsForMatch } from "@/lib/streaming";
 import { getAgendaStream, findAgendaStreams } from "@/lib/agenda-source";
 import { findEventStreams } from "@/lib/event-source";
-import { findSecondaryStreams, warmSecondaryPlayers } from "@/lib/secondary-source";
+import { findSecondaryStreams } from "@/lib/secondary-source";
+import { findSportplusStreams } from "@/lib/sportplus-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
 import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo } from "@/lib/constants";
 import { isIPBanned } from "@/lib/chat";
@@ -45,7 +46,7 @@ export async function GET(
   if ("error" in queryValidation) return queryValidation.error;
 
   const { streamId, eventSlug, eventSources, player, home, away, league } = queryValidation.data;
-  const playerMode = player === "2" || player === "3" || player === "4" || player === "5" || player === "6" ? player : "1";
+  const playerMode = player === "1" || player === "3" || player === "4" || player === "5" || player === "6" || player === "7" ? player : "2";
   const id = parseInt(matchId, 10);
 
   if (isNaN(id) && !streamId) {
@@ -64,8 +65,9 @@ export async function GET(
       channels.push(...await findPrimaryStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "1") {
       channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));
-      warmSecondaryPlayers(channels);
     } else if (playerMode === "2") {
+      channels.push(...await findSportplusStreams(match.homeTeam.name, match.awayTeam.name));
+    } else if (playerMode === "7") {
       channels.push(...await findPlayerTwoStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "4") {
       channels.push(...await findEventStreams(match.homeTeam.name, match.awayTeam.name));
@@ -113,7 +115,6 @@ export async function GET(
     const channels = playerMode === "6"
       ? await findPrimaryStreams(homeTeam, awayTeam)
       : await findSecondaryStreams(homeTeam, awayTeam);
-    if (playerMode === "1") warmSecondaryPlayers(channels);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,
@@ -137,8 +138,10 @@ export async function GET(
     return Response.json({ match: syntheticMatch });
   }
 
-  if (playerMode === "2" && home && away) {
-    const channels = await findPlayerTwoStreams(homeTeam, awayTeam);
+  if ((playerMode === "2" || playerMode === "7") && home && away) {
+    const channels = playerMode === "7"
+      ? await findPlayerTwoStreams(homeTeam, awayTeam)
+      : await findSportplusStreams(homeTeam, awayTeam);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,

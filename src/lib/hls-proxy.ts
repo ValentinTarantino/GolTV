@@ -9,14 +9,22 @@
 /** Only these hosts (and their subdomains) may be relayed — not an open proxy. */
 const ALLOWED_HOST_SUFFIXES = [".ftlly.com"];
 
+/**
+ * RBTV+ stream CDNs rotate across throwaway domains but always keep the
+ * `fhlsport` label (fhlsportNNN.<random>.{xyz,ru,cfd,...}).
+ */
+const ALLOWED_HOST_PREFIXES = ["fhlsport"];
+
 const URI_ATTR_RE = /URI="([^"]+)"/g;
 
 /** True when the URL points at a host we are willing to relay. */
 export function isAllowedStreamUrl(url: URL): boolean {
   if (url.protocol !== "https:") return false;
   const host = url.hostname.toLowerCase();
-  return ALLOWED_HOST_SUFFIXES.some(
-    (suffix) => host === suffix.slice(1) || host.endsWith(suffix)
+  return (
+    ALLOWED_HOST_SUFFIXES.some(
+      (suffix) => host === suffix.slice(1) || host.endsWith(suffix)
+    ) || ALLOWED_HOST_PREFIXES.some((prefix) => host.startsWith(prefix))
   );
 }
 

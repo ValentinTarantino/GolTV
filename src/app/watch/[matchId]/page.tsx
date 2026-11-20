@@ -13,6 +13,7 @@ import LiveBadge from "@/components/matches/LiveBadge";
 import ViewerBadge from "@/components/matches/ViewerBadge";
 import { PlayerSkeleton } from "@/components/ui/Skeleton";
 import NetworkNotice from "@/components/ui/NetworkNotice";
+import KickoffCountdown from "@/components/ui/KickoffCountdown";
 import { isLive, isUpcoming, isViewable, isFinished } from "@/lib/utils";
 import type { Match, Channel } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -33,8 +34,8 @@ function WatchPageInner({
   // Honor ?player=N in the URL (shared links / reloads) — anything else falls
   // back to the default player.
   const playerParam = searchParams.get("player");
-  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4" | "5" | "6">(
-    playerParam === "1" || playerParam === "2" || playerParam === "3" || playerParam === "4" || playerParam === "5" || playerParam === "6" ? playerParam : "1"
+  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4" | "5" | "6" | "7">(
+    playerParam === "1" || playerParam === "2" || playerParam === "3" || playerParam === "4" || playerParam === "5" || playerParam === "6" || playerParam === "7" ? playerParam : "2"
   );
 
   useEffect(() => {
@@ -169,12 +170,14 @@ function WatchPageInner({
             <div data-theater-hide className="mb-3 flex flex-wrap gap-2" id="player-mode-selector">
               {/* Display numbers are independent of the existing provider IDs. */}
               {([
+                { mode: "2", label: t.player.playerTwoB },
                 { mode: "1", label: t.player.playerOne },
                 { mode: "6", label: t.player.playerTwo },
-                { mode: "2", label: t.player.playerTwoB },
                 { mode: "3", label: t.player.playerThree },
                 { mode: "4", label: t.player.playerFour },
                 { mode: "5", label: t.player.playerFive },
+                // RBTV (mode "7") stays reachable via ?player=7 but is hidden
+                // from the selector: its CDN/P2P delivery is unreliable.
               ] as const).map(({ mode, label }) => (
                 <button
                   key={mode}
@@ -205,12 +208,7 @@ function WatchPageInner({
                 headers={activeChannel.headers}
                 kind={activeChannel.kind}
                 channel={activeChannel}
-                onChannels={(channels) => {
-                  if (playerMode !== "2") return;
-                  setMatch(current => current ? { ...current, channels } : current);
-                  setActiveChannel(current => channels.find(c => c.id === current?.id) ?? channels[0] ?? current);
-                }}
-                borderlessFullscreen={playerMode === "2"}
+                borderlessFullscreen={false}
               />
             ) : (
               <div className="relative w-full aspect-video bg-black overflow-hidden border-3 sm:border-4 border-white shadow-brutal flex flex-col items-center justify-center gap-2 sm:gap-3 p-4 sm:p-6 text-center">
@@ -222,6 +220,11 @@ function WatchPageInner({
                       Este partido terminó ({match.score.home ?? 0} - {match.score.away ?? 0}).
                       Las señales en directo se desactivan una vez finalizado el encuentro.
                     </p>
+                  </>
+                ) : (playerMode === "2" || playerMode === "7") && upcoming ? (
+                  <>
+                    <Tv size={24} strokeWidth={3} className="text-text-muted" />
+                    <KickoffCountdown timestamp={match.timestamp} />
                   </>
                 ) : upcoming && viewable ? (
                   <>

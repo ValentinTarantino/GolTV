@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X, Search, Trophy, Tv } from "lucide-react";
+import { Menu, X, Search, Trophy, Tv, Play } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import type { Match } from "@/lib/types";
 import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
+import BoxingGloveMark from "@/components/boxeo/BoxingGloveMark";
 
 function formatDateISO(date: Date): string {
   return date.toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 10);
@@ -15,6 +16,8 @@ function formatDateISO(date: Date): string {
 export default function MobileMenu() {
   const { language, setLanguage, t } = useLanguage();
   const router = useRouter();
+  const pathname = usePathname();
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`) === true;
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<Match[]>([]);
@@ -76,7 +79,7 @@ export default function MobileMenu() {
     <div className="xl:hidden">
       <button
         onClick={() => setIsOpen(true)}
-        className="flex h-8 w-8 items-center justify-center text-white border-2 border-white bg-black shadow-brutal-sm hover:bg-white hover:text-black transition-colors"
+        className="flex h-8 w-8 items-center justify-center text-white border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] hover:bg-white hover:text-black hover:shadow-[4px_4px_0px_0px_#000] transition-colors"
       >
         <Menu size={14} strokeWidth={3} />
       </button>
@@ -87,7 +90,7 @@ export default function MobileMenu() {
             <span className="text-white font-black text-sm uppercase">Menu</span>
             <button
               onClick={() => { setIsOpen(false); setQuery(""); }}
-              className="flex h-8 w-8 items-center justify-center text-white border-2 border-white bg-black hover:bg-white hover:text-black transition-colors"
+              className="flex h-8 w-8 items-center justify-center text-white border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] hover:bg-white hover:text-black hover:shadow-[4px_4px_0px_0px_#000] transition-colors"
             >
               <X size={14} strokeWidth={3} />
             </button>
@@ -102,13 +105,13 @@ export default function MobileMenu() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t.search.placeholder}
-                className="w-full pl-9 pr-3 py-2.5 bg-black text-white text-sm font-bold border-2 border-white focus:border-accent-primary focus:outline-none"
+                className="w-full pl-9 pr-3 py-2.5 bg-black text-white text-sm font-bold border-2 border-[#f97316] shadow-[4px_4px_0px_0px_#f97316] focus:border-[#fb923c] focus:outline-none"
               />
             </div>
           </div>
 
           <div className="px-4 py-3 border-b-2 border-white">
-            <div className="flex items-center border-2 border-white bg-black font-black text-sm">
+            <div className="flex items-center border-2 border-[#a3e635] bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm">
               <button
                 onClick={() => setLanguage("es")}
                 className={`flex-1 py-2 transition-colors ${
@@ -136,7 +139,9 @@ export default function MobileMenu() {
             <Link
               href="/leagues"
               onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#ff6b35] text-black border-2 border-black shadow-[4px_4px_0px_0px_#fff] font-black text-sm uppercase"
+              className={isActive("/leagues")
+                ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#3b82f6] bg-black text-[#3b82f6] shadow-[4px_4px_0px_0px_#3b82f6] font-black text-sm uppercase"
+                : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#3b82f6] hover:border-[#3b82f6] hover:shadow-[4px_4px_0px_0px_#3b82f6] transition-colors"}
             >
               <Trophy size={16} strokeWidth={3} />
               <span>{t.leagues?.title || "LIGAS"}</span>
@@ -147,7 +152,9 @@ export default function MobileMenu() {
             <Link
               href="/canales"
               onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#a3e635] text-black border-2 border-black shadow-[4px_4px_0px_0px_#fff] font-black text-sm uppercase"
+              className={isActive("/canales")
+                ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#ff6b35] bg-black text-[#ff6b35] shadow-[4px_4px_0px_0px_#ff6b35] font-black text-sm uppercase"
+                : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#ff6b35] hover:border-[#ff6b35] hover:shadow-[4px_4px_0px_0px_#ff6b35] transition-colors"}
               id="mobile-canales"
             >
               <Tv size={16} strokeWidth={3} />
@@ -159,11 +166,27 @@ export default function MobileMenu() {
             <Link
               href="/lpf"
               onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#a855f7] text-black border-2 border-black shadow-[4px_4px_0px_0px_#fff] font-black text-sm uppercase"
+              className={isActive("/lpf")
+                ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#38bdf8] bg-black text-[#38bdf8] shadow-[4px_4px_0px_0px_#38bdf8] font-black text-sm uppercase"
+                : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#38bdf8] hover:border-[#38bdf8] hover:shadow-[4px_4px_0px_0px_#38bdf8] transition-colors"}
               id="mobile-lpf"
             >
-              <Tv size={16} strokeWidth={3} />
+              <Play size={16} strokeWidth={3} fill="currentColor" />
               <span>{t.lpf?.nav || "LPF PLAY"}</span>
+            </Link>
+          </div>
+
+          <div className="px-4 py-3 border-b-2 border-white">
+            <Link
+              href="/boxeo"
+              onClick={() => setIsOpen(false)}
+              className={isActive("/boxeo")
+                ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#ef4444] bg-black text-[#ef4444] shadow-[4px_4px_0px_0px_#ef4444] font-black text-sm uppercase"
+                : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#ef4444] hover:border-[#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-colors"}
+              id="mobile-boxeo"
+            >
+              <BoxingGloveMark className="h-4 w-4" />
+              <span>{t.combat?.nav || "BOXEO/MMA"}</span>
             </Link>
           </div>
 

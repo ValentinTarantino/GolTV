@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Channel } from "./types";
 import { getCache, setCache } from "./cache";
 import { matchTeamsPair } from "./team-matching";
+import { toHlsProxyUrl } from "./hls-proxy";
 
 // PlayerTwo's API uses protobuf wire messages. This small reader keeps only the
 // wire types used by its match and stream endpoints.
@@ -123,6 +124,8 @@ interface ProviderMatch {
   away: string;
   matchSlug: string;
   leagueSlug: string;
+  leagueId: number;
+  seasonId: number;
 }
 
 function parseMatches(data: Buffer): ProviderMatch[] {
@@ -139,8 +142,10 @@ function parseMatches(data: Buffer): ProviderMatch[] {
       const id = match[1]?.[0];
       const matchSlug = firstText(page, 20);
       const leagueSlug = firstText(page, 21);
+      const leagueId = (nested(match[10]?.[0])[1]?.[0] as number | undefined) ?? 0;
+      const seasonId = (nested(match[11]?.[0])[1]?.[0] as number | undefined) ?? 0;
       if (typeof id !== "number" || teams.length < 2 || !matchSlug || !leagueSlug) return [];
-      return [{ id, home: teams[0], away: teams[1], matchSlug, leagueSlug }];
+      return [{ id, home: teams[0], away: teams[1], matchSlug, leagueSlug, leagueId, seasonId }];
     } catch {
       return [];
     }
@@ -193,6 +198,82 @@ function rot47(s: string): string {
     }
   }
   return out;
+}
+
+interface RbtvStreamSource {
+  id: number;
+  name: string;
+  siteType: number;
+}
+
+/**
+ * `/api/match/detail` (signed, bs code 102) carries the broadcast list in
+ * repeated field-2 entries of the payload: f1 streamId, f3 display name,
+ * f9 siteType — the same values the official player forwards to
+ * `/api/stream/detail`.
+ */
+async function fetchStreamSources(match: ProviderMatch): Promise<RbtvStreamSource[]> {
+  const base = apiBase();
+  if (!base) return [];
+  try {
+    const params = {
+      matchId: match.id,
+      leagueId: match.leagueId,
+      seasonId: match.seasonId,
+      sportType: 1,
+      language: 4,
+      stream: true,
+    };
+    const codes = await signatureCodes({ code: [102], stream: true, sportType: 1 });
+    const token = codes.get(102);
+    if (!token) return [];
+    const data = await signedBytes("/api/match/detail", params, token);
+    const outer = nested(parseProto(data)[10]?.[0]);
+    return (outer[2] ?? []).flatMap((entry) => {
+      try {
+        const stream = parseProto(entry as Buffer);
+        const id = stream[1]?.[0];
+        const siteType = stream[9]?.[0];
+        const name = firstText(stream, 3) || "Fuente";
+        if (typeof id !== "number" || typeof siteType !== "number") return [];
+        return [{ id, name, siteType }];
+      } catch {
+        return [];
+      }
+    });
+  } catch (error) {
+    console.warn("[player-two] Stream-source lookup failed:", error);
+    return [];
+  }
+}
+
+/**
+ * `/api/stream/detail` is unsigned. The response embeds the playlist URL
+ * ROT47-encoded with an 8-char prefix (the provider's own `Decipher` is a
+ * ROT47 module); stripping the prefix yields the playable m3u8.
+ */
+async function resolveStreamUrl(source: RbtvStreamSource, match: ProviderMatch): Promise<string> {
+  const base = apiBase();
+  if (!base) return "";
+  const params = {
+    streamId: source.id,
+    matchId: match.id,
+    leagueId: match.leagueId,
+    seasonId: match.seasonId,
+    sportType: 1,
+    language: 4,
+    continent: "SA",
+    country: "AR",
+    digit: "seth",
+    siteType: source.siteType,
+  };
+  const { data } = await fetchBytes(`${base}/api/stream/detail?${query(params)}`);
+  const outer = nested(parseProto(data)[10]?.[0]);
+  const streamMsg = nested(outer[2]?.[0]);
+  const blob = firstText(streamMsg, 4);
+  if (!blob) return "";
+  const decoded = rot47(blob).slice(8);
+  return /^https?:\/\//.test(decoded) ? decoded : "";
 }
 
 const PLAYER_DOMAIN_CACHE = "player-two:player-domain:v1";
@@ -256,33 +337,74 @@ export async function findPlayerTwoStreams(home: string, away: string): Promise<
   const match = await findProviderMatch(home, away);
   if (!match) return [];
 
+  // Direct HLS sources first: match/detail lists every broadcast and
+  // stream/detail resolves each playlist — same data the official player uses.
+  const sources = await fetchStreamSources(match);
+  const channels: Channel[] = [];
+  const seen = new Set<string>();
+  for (const source of sources.slice(0, 6)) {
+    // stream/detail is rate-limited (HTTP 429 on bursts) — pace the lookups.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    try {
+      const url = await resolveStreamUrl(source, match);
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      channels.push({
+        id: `rbtv-${match.id}-${source.id}`,
+        name: source.name,
+        provider: "primary-feed",
+        // The CDN 302-chains segments across rotating domains and its CORS
+        // headers are unreliable — relay everything same-origin via /api/hls.
+        url: toHlsProxyUrl(url),
+        kind: "hls",
+      });
+    } catch (error) {
+      console.warn(`[player-two] Stream ${source.id} resolution failed:`, error);
+    }
+  }
+  // The provider's own iframe player ships a P2P engine (SwarmCloud) — the
+  // CDN's plain-HTTP segment path 302-loops, so this is the reliable signal.
+  const iframeChannel = await iframeChannelFor(match);
+  if (iframeChannel) channels.unshift(iframeChannel);
+  if (channels.length > 0) return channels;
+  return [];
+}
+
+async function iframeChannelFor(match: ProviderMatch): Promise<Channel | null> {
   try {
-    const player = new URL(
-      `/football/${match.leagueSlug}-${match.id}/${match.matchSlug}.html`,
-      referer()
-    );
-    player.searchParams.set("icg", Buffer.from("AR", "utf8").toString("base64"));
     const base = await playerBase();
     if (!base) {
       console.warn("[player-two] No player domain available");
-      return [];
+      return null;
     }
     // mdata = base64(matchId + "_" + sportType).  sportType 1 = football.
     const mdata = Buffer.from(`${match.id}_1`, "utf8").toString("base64");
     // Emit the proxied path: the raw provider URL fails the provider's own
     // embedding checks (judgeValid + frame trap), which /p4 bypasses server-side.
     const url = `${PLAYER4_PREFIX}/es/player.html?mdata=${mdata}&ilang=es`;
-    return [{
+    return {
       id: `player-two-${match.id}`,
       name: "Señal principal",
       provider: "iframe-bridge",
       url,
       kind: "iframe",
-    }];
+    };
   } catch (error) {
     console.warn("[player-two] Player URL unavailable:", error);
-    return [];
+    return null;
   }
+}
+
+/** @internal — exposed only for unit tests / debugging */
+export async function __listLiveMatchesForTest(): Promise<ProviderMatch[]> {
+  const base = apiBase();
+  if (!base) return [];
+  const params = { code: [100], stream: true, sportType: 1 };
+  const codes = await signatureCodes(params);
+  const token = codes.get(100);
+  if (!token) return [];
+  const data = await signedBytes("/api/match/live", params, token);
+  return parseMatches(data);
 }
 
 // ---------------------------------------------------------------------------

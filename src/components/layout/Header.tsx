@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Trophy, Tv } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Trophy, Tv, Play } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LpfPlayMark from "@/components/lpf/LpfPlayMark";
+import BoxingGloveMark from "@/components/boxeo/BoxingGloveMark";
 import SearchBar from "@/components/search/SearchBar";
 import MobileMenu from "@/components/search/MobileMenu";
 import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
@@ -11,6 +13,8 @@ import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
 export default function Header() {
   const { language, setLanguage, t } = useLanguage();
   const tickerItems = t.header.ticker;
+  const pathname = usePathname();
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(`${href}/`) === true;
 
   return (
     <>
@@ -58,14 +62,18 @@ export default function Header() {
             <SearchBar />
             <Link
               href="/leagues"
-              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#38bdf8] bg-black shadow-[4px_4px_0px_0px_#38bdf8] font-black text-xs sm:text-sm text-white hover:text-[#38bdf8] hover:border-[#38bdf8] transition-colors uppercase"
+              className={isActive("/leagues")
+                ? "flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#3b82f6] bg-black shadow-[4px_4px_0px_0px_#3b82f6] font-black text-xs sm:text-sm text-[#3b82f6] uppercase"
+                : "flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm text-white hover:text-[#3b82f6] hover:border-[#3b82f6] hover:shadow-[4px_4px_0px_0px_#3b82f6] transition-colors uppercase"}
             >
               <Trophy size={14} strokeWidth={3} />
               <span>{t.leagues?.title || "LIGAS"}</span>
             </Link>
             <Link
               href="/canales"
-              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#ff6b35] bg-black shadow-[4px_4px_0px_0px_#ff6b35] font-black text-xs sm:text-sm text-white hover:text-[#ff6b35] hover:border-[#ff6b35] transition-colors uppercase"
+              className={isActive("/canales")
+                ? "flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#ff6b35] bg-black shadow-[4px_4px_0px_0px_#ff6b35] font-black text-xs sm:text-sm text-[#ff6b35] uppercase"
+                : "flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm text-white hover:text-[#ff6b35] hover:border-[#ff6b35] hover:shadow-[4px_4px_0px_0px_#ff6b35] transition-colors uppercase"}
               id="header-canales"
             >
               <Tv size={14} strokeWidth={3} />
@@ -73,11 +81,23 @@ export default function Header() {
             </Link>
             <Link
               href="/lpf"
-              className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#a855f7] bg-black shadow-[4px_4px_0px_0px_#a855f7] font-black text-xs sm:text-sm text-white hover:text-[#a855f7] hover:border-[#a855f7] transition-colors uppercase"
+              className={isActive("/lpf")
+                ? "flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#38bdf8] bg-black shadow-[4px_4px_0px_0px_#38bdf8] font-black text-xs sm:text-sm text-[#38bdf8] uppercase"
+                : "flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm text-white hover:text-[#38bdf8] hover:border-[#38bdf8] hover:shadow-[4px_4px_0px_0px_#38bdf8] transition-colors uppercase"}
               id="header-lpf"
             >
-              <Tv size={14} strokeWidth={3} />
+              <Play size={14} strokeWidth={3} fill="currentColor" />
               <span>{t.lpf?.nav || "LPF PLAY"}</span>
+            </Link>
+            <Link
+              href="/boxeo"
+              className={isActive("/boxeo")
+                ? "flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#ef4444] bg-black shadow-[4px_4px_0px_0px_#ef4444] font-black text-xs sm:text-sm text-[#ef4444] uppercase"
+                : "flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm text-white hover:text-[#ef4444] hover:border-[#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-colors uppercase"}
+              id="header-boxeo"
+            >
+              <BoxingGloveMark className="h-3.5 w-3.5" />
+              <span>{t.combat?.nav || "BOXEO/MMA"}</span>
             </Link>
             <TimeZoneSelect />
             <div className="flex items-center border-2 border-[#a3e635] bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm">

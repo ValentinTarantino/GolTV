@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveDeepPlayer, resolveSecondaryPlayer, secondaryHosts } from "@/lib/secondary-source";
+import { resolveSecondaryPlayer, secondaryHosts } from "@/lib/secondary-source";
 
 // Bare frame for Player 1 signals.
 //
@@ -86,78 +86,6 @@ function htmlResponse(body: string, language: "es" | "en"): NextResponse {
   });
 }
 
-/**
- * Tries to start playback inside the provider's own player: plays every
- * <video> it finds and clicks the usual big-play overlays. Retries for ~40s
- * because Clapcr/hls.js take a while to build the element. Synthetic clicks
- * cannot grant unmuted autoplay, so when the browser refuses, the provider's
- * own play button stays as the fallback — same as before.
- */
-const AUTOPLAY_SCRIPT = `<script>(function(){var n=0;function go(){n++;try{var vs=document.getElementsByTagName('video');for(var i=0;i<vs.length;i++){var v=vs[i];if(v.paused){try{var p=v.play();if(p&&p.catch)p.catch(function(){});}catch(e){}}}}catch(e){}var sels=['.clappr-big-play-button','.clappr-play-button','.jw-icon-playback','.vjs-big-play-button','.plyr__control--overlaid','[class*="big-play"]','[class*="play-btn"]','button[class*="play"]','#play-btn','.play-btn'];for(var s=0;s<sels.length;s++){try{var els=document.querySelectorAll(sels[s]);for(var j=0;j<els.length;j++){els[j].dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));}}catch(e){}}if(n<40)setTimeout(go,1000);}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){setTimeout(go,700)});}else{setTimeout(go,700);}})();</script>`;
-
-const PLAYER_MARKER = /<video\b|clappr|jwplayer|video\.js|hls\.js|flowplayer|player\.js|\.m3u8/i;
-const MAX_PLAYER_DOC_BYTES = 1024 * 1024;
-
-/** Fetches the resolved player document and returns it with autoplay injected. */
-async function playerDocument(url: string, referer: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
-        Referer: referer,
-        "Sec-Fetch-Dest": "iframe",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "cross-site",
-      },
-      redirect: "follow",
-      signal: AbortSignal.timeout(15000),
-      cache: "no-store",
-    });
-    const contentType = res.headers.get("content-type") ?? "";
-    if (!res.ok || !contentType.includes("text/html")) return null;
-    const declared = Number(res.headers.get("content-length") ?? "0");
-    if (declared > MAX_PLAYER_DOC_BYTES) return null;
-    const html = await res.text();
-    if (html.length > MAX_PLAYER_DOC_BYTES || !PLAYER_MARKER.test(html)) return null;
-
-    let out = html
-      // Anti-devtools externals would fight the visitor's own devtools.
-      .replace(/<script\b[^>]*src=["'][^"']*(?:console-ban|disable-devtool)[^"']*["'][^>]*>\s*<\/script>/gi, "")
-      .replace(/<script\b[^>]*src=["'][^"']*(?:console-ban|disable-devtool)[^"']*["'][^>]*>/gi, "");
-    // <base> makes the provider's relative assets resolve against its origin.
-    const base = `<base href="${escapeHtml(url)}">`;
-    if (/<head[^>]*>/i.test(out)) {
-      out = out.replace(/<head[^>]*>/i, (m) => `${m}${base}`);
-    } else {
-      out = base + out;
-    }
-    if (/<\/body>/i.test(out)) {
-      out = out.replace(/<\/body>/i, `${AUTOPLAY_SCRIPT}</body>`);
-    } else {
-      out += AUTOPLAY_SCRIPT;
-    }
-    return out;
-  } catch {
-    return null;
-  }
-}
-
-// The injected document is deterministic per player URL; caching it briefly
-// makes switching between a match's sources feel instant.
-const PLAYER_DOC_TTL = 60_000;
-const playerDocCache = new Map<string, { html: string; expiresAt: number }>();
-
-async function cachedPlayerDocument(url: string, referer: string): Promise<string | null> {
-  const hit = playerDocCache.get(url);
-  if (hit && Date.now() < hit.expiresAt) return hit.html;
-  const html = await playerDocument(url, referer);
-  if (html) playerDocCache.set(url, { html, expiresAt: Date.now() + PLAYER_DOC_TTL });
-  return html;
-}
-
 /** Public https only: no loopback, private IPs or bare intranet names. */
 function isPublicHttps(url: URL): boolean {
   if (url.protocol !== "https:") return false;
@@ -197,27 +125,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return htmlResponse(waitingPanel(language), language);
     }
     resolvedUrl = player;
-  }
-
-  // Deep chain: follow every iframe hop to the real player document and serve
-  // it same-origin, so the injected autoplay script can reach the <video>.
-  // Falls back to the plain frame whenever any step fails.
-  try {
-    const deep = await resolveDeepPlayer(resolvedUrl);
-    if (deep) {
-      const doc = await cachedPlayerDocument(deep.url, deep.referer);
-      if (doc) {
-        return new NextResponse(doc, {
-          status: 200,
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-          },
-        });
-      }
-    }
-  } catch {
-    /* fall through to the framed player */
   }
 
   return htmlResponse(playerFrame(resolvedUrl), language);

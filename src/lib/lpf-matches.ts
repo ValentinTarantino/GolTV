@@ -901,3 +901,63 @@ export async function resolveLpfMatchStream(id: string): Promise<LpfMatchStream 
 
   return resolveRefStream(ref, id);
 }
+
+/* ------------------------------------------------------------------ *
+ * Sportplus as a watch-page player (main fixture, any competition)
+ * ------------------------------------------------------------------ */
+
+export interface SportplusLiveMatch {
+  /** Provider match id (the `id` query param of `matches/view`). */
+  id: string;
+  /** Provider competition id (the `tournament_id` query param). */
+  tournamentId: string;
+  home: string;
+  away: string;
+  start: string;
+  status: string;
+}
+
+/**
+ * Every football match the provider is listing right now, across ALL
+ * competitions — the global `matches/index` (no `tournament_id`) answers
+ * with the live board of the whole site. Cached briefly: the watch page
+ * calls this on every player switch.
+ */
+export async function listSportplusMatches(): Promise<SportplusLiveMatch[]> {
+  return cached("lpf:sp-index:v1", LIST_TTL, async () => {
+    const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
+    const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
+    if (!text) return [];
+    try {
+      const parsed = JSON.parse(text) as { items?: SportplusItem[] };
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
+      const out: SportplusLiveMatch[] = [];
+      for (const item of items) {
+        const id = item.id ? String(item.id) : "";
+        const tournamentId = item.tournament_id !== undefined ? String(item.tournament_id) : "";
+        const home = item.home?.name?.trim() ?? "";
+        const away = item.away?.name?.trim() ?? "";
+        if (!id || !tournamentId || !home || !away) continue;
+        out.push({ id, tournamentId, home, away, start: item.start ?? "", status: item.status ?? "" });
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  });
+}
+
+/**
+ * The playback sources of one sportplus match addressed directly by its
+ * provider coordinates — used by the watch page, where the fixture comes
+ * from the main agenda and not from an `lpm_` id.
+ */
+export async function resolveSportplusMatchStream(
+  competitionId: string,
+  matchIdValue: string
+): Promise<{ primary: string | null; sources: Array<{ src: string; quality?: string }> } | null> {
+  if (!competitionId || !matchIdValue) return null;
+  return cached(`lpf:spview:${competitionId}:${matchIdValue}`, STREAM_TTL, () =>
+    sportplusPlaylist(competitionId, matchIdValue)
+  );
+}

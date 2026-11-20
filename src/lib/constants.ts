@@ -249,6 +249,12 @@ export function getBroadcastChannels(leagueId: number): string[] {
 const PL_LEAGUE_MAP: Record<string, number> = {
   "liga profesional": 128,
   "liga profesional argentina": 128,
+  // LPF Play feeds second/third-tier Argentine competitions that have no
+  // dedicated league card; they all live under Primera Nacional.
+  "primera nacional": 129,
+  "primera b nacional": 129,
+  "primera b metropolitana": 129,
+  "liga de reserva": 129,
   "copa de la liga": 1032,
   "copa de la liga profesional": 1032,
   "copa argentina": 130,

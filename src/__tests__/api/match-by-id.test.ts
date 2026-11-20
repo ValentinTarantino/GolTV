@@ -20,7 +20,10 @@ jest.mock("@/lib/event-source", () => ({
 
 jest.mock("@/lib/secondary-source", () => ({
   findSecondaryStreams: jest.fn().mockResolvedValue([]),
-  warmSecondaryPlayers: jest.fn(),
+}));
+
+jest.mock("@/lib/sportplus-source", () => ({
+  findSportplusStreams: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/player-two-source", () => ({
@@ -37,6 +40,7 @@ import { getStreamsForMatch } from "@/lib/streaming";
 import { findAgendaStreams } from "@/lib/agenda-source";
 import { findEventStreams } from "@/lib/event-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
+import { findSportplusStreams } from "@/lib/sportplus-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
 import { findPrimaryStreams } from "@/lib/primary-player-source";
 import type { Match } from "@/lib/types";
@@ -230,10 +234,10 @@ describe("/api/matches/[matchId]", () => {
     expect(data.match.channels.length).toBeGreaterThan(0);
   });
 
-  it("uses the player-two source when player=2", async () => {
+  it("uses the sportplus source when player=2", async () => {
     (getMatchById as jest.Mock).mockResolvedValue(null);
-    (findPlayerTwoStreams as jest.Mock).mockResolvedValue([
-      { id: "player-two-12345", name: "PlayerTwo", url: "https://player.test/es/player.html?mdata=MTIzNDVfMQ==&ilang=es", kind: "iframe" },
+    (findSportplusStreams as jest.Mock).mockResolvedValue([
+      { id: "sportplus-lpm_abc-0", name: "Fuente 1", url: "/api/lpf/stream?t=token", kind: "hls" },
     ]);
 
     const req = makeRequest(
@@ -245,8 +249,28 @@ describe("/api/matches/[matchId]", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
+    expect(findSportplusStreams).toHaveBeenCalledWith("Boca", "River");
+    expect(data.match.channels[0].kind).toBe("hls");
+    expect(data.match.channels[0].url).toContain("/api/lpf/stream");
+  });
+
+  it("uses the rbtv player when player=7", async () => {
+    (getMatchById as jest.Mock).mockResolvedValue(null);
+    (findPlayerTwoStreams as jest.Mock).mockResolvedValue([
+      { id: "player-two-12345", name: "Señal principal", url: "/p4/es/player.html?mdata=MTIzXzE=", kind: "iframe", provider: "iframe-bridge" },
+    ]);
+
+    const req = makeRequest(
+      "http://localhost/api/matches/99999?player=7&home=Boca&away=River&league=Liga"
+    );
+    const res = await GET(req, {
+      params: Promise.resolve({ matchId: "99999" }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
     expect(findPlayerTwoStreams).toHaveBeenCalledWith("Boca", "River");
     expect(data.match.channels[0].kind).toBe("iframe");
-    expect(data.match.channels[0].url).toContain("player.html?mdata=");
+    expect(data.match.channels[0].url).toContain("/p4/");
   });
 });

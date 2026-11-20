@@ -116,7 +116,9 @@ function classify(contentType: string, path: string): ResponseKind {
 export async function proxyPlayer4(
   rawSegments: string[],
   search: string,
-  clientHeaders: Headers
+  clientHeaders: Headers,
+  method: string = "GET",
+  body: ArrayBuffer | null = null
 ): Promise<Response> {
   const segments = rawSegments.filter(Boolean);
   if (segments.length === 0) return new Response("Not found", { status: 404 });
@@ -133,11 +135,15 @@ export async function proxyPlayer4(
   };
   const range = clientHeaders.get("range");
   if (range) headers.Range = range;
+  const contentTypeReq = clientHeaders.get("content-type");
+  if (contentTypeReq && method !== "GET" && method !== "HEAD") headers["Content-Type"] = contentTypeReq;
 
   let upstream: Response;
   try {
     upstream = await fetch(url, {
+      method,
       headers,
+      body: method === "GET" || method === "HEAD" ? undefined : body,
       redirect: "follow",
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       cache: "no-store",
@@ -161,6 +167,10 @@ export async function proxyPlayer4(
   if (contentRange) outHeaders["Content-Range"] = contentRange;
   const acceptRanges = upstream.headers.get("accept-ranges");
   if (acceptRanges) outHeaders["Accept-Ranges"] = acceptRanges;
+  // stream/detail returns the playback session token in this header; the
+  // player needs it to sign the final stream URL (/token-<session>).
+  const rbSession = upstream.headers.get("rb-session");
+  if (rbSession) outHeaders["rb-session"] = rbSession;
 
   if (!upstream.ok) return new Response(null, { status: upstream.status, headers: outHeaders });
   if (kind === "raw") return new Response(upstream.body, { status: upstream.status, headers: outHeaders });

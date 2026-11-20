@@ -77,13 +77,13 @@ export default function TimeZoneSelect({ mobile = false }: TimeZoneSelectProps) 
         onClick={() => setIsOpen((open) => !open)}
         className={mobile
           ? "flex min-h-11 w-full items-center justify-between gap-3 border-2 border-black bg-accent-primary px-3 py-2 text-left text-sm font-black uppercase text-black shadow-brutal-sm transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-          : "flex h-9 max-w-[190px] items-center gap-2 border-2 border-[#14b8a6] bg-black px-2 text-left text-xs font-black uppercase text-white shadow-[4px_4px_0px_0px_#14b8a6] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"}
+          : "group flex h-9 max-w-[190px] items-center gap-2 border-2 border-white bg-black px-2 text-left text-xs font-black uppercase text-white shadow-[4px_4px_0px_0px_#a3e635] transition-all hover:-translate-y-0.5 hover:border-[#14b8a6] hover:text-[#14b8a6] hover:shadow-[4px_4px_0px_0px_#14b8a6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"}
       >
-        <Clock3 size={mobile ? 17 : 15} aria-hidden="true" className={`shrink-0 ${mobile ? "text-black" : "text-[#14b8a6]"}`} />
+        <Clock3 size={mobile ? 17 : 15} aria-hidden="true" className={`shrink-0 ${mobile ? "text-black" : "text-white group-hover:text-[#14b8a6]"}`} />
         <span className="min-w-0 flex-1 truncate">
           {mobile
             ? selectedOption && (language === "es" ? selectedOption.labelEs : selectedOption.labelEn)
-            : `${formatUtcOffset(getTimeZoneOffsetMinutes(timeZone))} · ${timeZone.split("/").at(-1)?.replaceAll("_", " ")}`}
+            : "UTC"}
         </span>
         <ChevronDown size={15} aria-hidden="true" className={`shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
