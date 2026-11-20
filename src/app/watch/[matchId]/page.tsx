@@ -171,8 +171,8 @@ function WatchPageInner({
               {/* Display numbers are independent of the existing provider IDs. */}
               {([
                 { mode: "2", label: t.player.playerTwoB },
-                { mode: "1", label: t.player.playerOne },
                 { mode: "6", label: t.player.playerTwo },
+                { mode: "1", label: t.player.playerOne },
                 { mode: "3", label: t.player.playerThree },
                 { mode: "4", label: t.player.playerFour },
                 { mode: "5", label: t.player.playerFive },

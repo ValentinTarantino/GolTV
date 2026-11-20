@@ -7,7 +7,7 @@
  */
 
 /** Only these hosts (and their subdomains) may be relayed — not an open proxy. */
-const ALLOWED_HOST_SUFFIXES = [".ftlly.com"];
+const ALLOWED_HOST_SUFFIXES = [".ftlly.com", ".futlivehd.com"];
 
 /**
  * RBTV+ stream CDNs rotate across throwaway domains but always keep the

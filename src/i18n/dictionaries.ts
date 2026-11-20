@@ -259,8 +259,8 @@ export const dictionaries = {
       viewers: "viendo",
     },
     player: {
-      playerOne: "REPRODUCTOR 2",
-      playerTwo: "REPRODUCTOR 3",
+      playerOne: "REPRODUCTOR 3",
+      playerTwo: "REPRODUCTOR 2",
       playerThree: "REPRODUCTOR 4",
       playerFour: "REPRODUCTOR 5",
       playerFourPc: "REPRODUCTOR 5 (PC)",
@@ -607,8 +607,8 @@ export const dictionaries = {
       viewers: "watching",
     },
     player: {
-      playerOne: "PLAYER 2",
-      playerTwo: "PLAYER 3",
+      playerOne: "PLAYER 3",
+      playerTwo: "PLAYER 2",
       playerThree: "PLAYER 4",
       playerFour: "PLAYER 5",
       playerFourPc: "PLAYER 5 (PC)",

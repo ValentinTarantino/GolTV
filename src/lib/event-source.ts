@@ -5,6 +5,7 @@ import { isMenFootballMatch } from "./constants";
 import { matchTeamsPair } from "./team-matching";
 import { canonicalTeamForDedup } from "./fixture-identity";
 import { fetchTextWithDnsServer } from "./dns-fetch";
+import { toHlsProxyUrl, isAllowedStreamUrl } from "./hls-proxy";
 
 const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
 
@@ -19,6 +20,45 @@ const PL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
 
 const PL_COOLDOWN_KEY = "pl:cooldown:until";
 const PL_AGENDA_CACHE_KEY = "pl:agenda:v2";
+
+/**
+ * streamxhd-style wrappers hide the media URL in an obfuscated `bc` array:
+ * `bc=[[order,"base64"],…]` sorted by order, each chunk decoded as
+ * `parseInt(digitsOnly(atob(chunk))) - k` where `k` is the sum of two
+ * `function f(){return N}` constants referenced next to `bc.sort`.
+ */
+function decodeObfuscatedMediaUrl(html: string): string | null {
+  const sortIdx = html.indexOf("bc.sort");
+  if (sortIdx < 0) return null;
+  const bcMatch = html.slice(0, sortIdx).match(/bc=(\[\[[\s\S]*?\]\])/);
+  if (!bcMatch) return null;
+  let pairs: [number, string][];
+  try {
+    pairs = JSON.parse(bcMatch[1]) as [number, string][];
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(pairs) || pairs.length === 0) return null;
+
+  const kExpr = html.match(/var k=(\w+)\(\)\s*\+\s*(\w+)\(\)/);
+  if (!kExpr) return null;
+  let k = 0;
+  for (const name of [kExpr[1], kExpr[2]]) {
+    const fn = html.match(new RegExp(`function ${name}\\(\\)\\s*\\{return (\\d+);?\\}`));
+    if (!fn) return null;
+    k += Number(fn[1]);
+  }
+
+  pairs.sort((a, b) => a[0] - b[0]);
+  let out = "";
+  for (const [, chunk] of pairs) {
+    const decoded = Buffer.from(chunk, "base64").toString("latin1");
+    const digits = decoded.replace(/\D/g, "");
+    if (!digits) return null;
+    out += String.fromCharCode(Number.parseInt(digits, 10) - k);
+  }
+  return /^https?:\/\//i.test(out) ? out : null;
+}
 
 /** Resolve provider wrapper pages to the actual media URL when exposed. */
 async function resolvePlaybackUrl(url: string): Promise<{ url: string; kind: "hls" | "iframe" }> {
@@ -35,6 +75,12 @@ async function resolvePlaybackUrl(url: string): Promise<{ url: string; kind: "hl
     const html = await response.text();
     const media = html.match(/https?:[^"'\\s<>]+\.m3u8(?:\?[^"'\\s<>]*)?/i)?.[0];
     if (media) return { url: media.replace(/\\u0026/g, "&"), kind: "hls" };
+    const obfuscated = decodeObfuscatedMediaUrl(html);
+    if (obfuscated && /\.m3u8(?:\?|$)/i.test(obfuscated)) {
+      // The stream token embeds the server IP — segments must be fetched
+      // server-side through the HLS relay or the CDN rejects them.
+      return { url: toHlsProxyUrl(obfuscated), kind: "hls" };
+    }
     const nested = html.match(/<iframe[^>]+src=["']([^"']+)["']/i)?.[1];
     if (nested) {
       const nestedUrl = new URL(nested, url).toString();
@@ -258,7 +304,18 @@ export async function getEventStream(
       // wrapper and retain it as an iframe fallback when direct media is not
       // exposed.
       const resolved = data.kind === "hls" && /\.m3u8(?:\?|$)/i.test(data.url)
-        ? { url: data.url as string, kind: "hls" as const }
+        ? (() => {
+            try {
+              const u = new URL(data.url as string);
+              // IP-bound stream tokens only work when the app server fetches
+              // the media — relay allowed hosts instead of exposing the URL.
+              return isAllowedStreamUrl(u)
+                ? { url: toHlsProxyUrl(u.toString()), kind: "hls" as const }
+                : { url: data.url as string, kind: "hls" as const };
+            } catch {
+              return { url: data.url as string, kind: "hls" as const };
+            }
+          })()
         : await resolvePlaybackUrl(data.url as string);
       const channel: Channel = {
         id: `pl-${sourceId}`,
