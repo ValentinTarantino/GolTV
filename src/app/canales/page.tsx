@@ -154,6 +154,10 @@ export default function CanalesPage() {
           if (!cancelled) await resolve(attempt + 1);
           return;
         }
+        // Clear the stale source: the error panel only renders when there is
+        // no src, and its retry button is the one that actually refetches.
+        setStreamSrc(null);
+        setClearKey(null);
         setStreamState("error");
       }
     };
