@@ -39,6 +39,11 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
     if (channel?.provider === "secondary-feed") {
       return `/api/secondary?u=${encodeURIComponent(originalUrl)}&lang=${language}`;
     }
+    // Already same-origin through the combat frame proxy — wrapping it again
+    // in /api/proxy would fetch a relative path as a URL and break the frame.
+    if (originalUrl.startsWith("/api/combat/frame/")) {
+      return originalUrl;
+    }
     if (originalUrl.includes("futbolvivo.tv") || originalUrl.includes("kora-plus.mov")) {
       return `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     }

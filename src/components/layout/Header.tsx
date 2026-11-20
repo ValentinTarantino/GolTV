@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { Trophy, Tv, Play } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LpfPlayMark from "@/components/lpf/LpfPlayMark";
-import BoxingGloveMark from "@/components/boxeo/BoxingGloveMark";
 import SearchBar from "@/components/search/SearchBar";
 import MobileMenu from "@/components/search/MobileMenu";
 import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
@@ -88,16 +87,6 @@ export default function Header() {
             >
               <Play size={14} strokeWidth={3} fill="currentColor" />
               <span>{t.lpf?.nav || "LPF PLAY"}</span>
-            </Link>
-            <Link
-              href="/boxeo"
-              className={isActive("/boxeo")
-                ? "flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#ef4444] bg-black shadow-[4px_4px_0px_0px_#ef4444] font-black text-xs sm:text-sm text-[#ef4444] uppercase"
-                : "flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm text-white hover:text-[#ef4444] hover:border-[#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-colors uppercase"}
-              id="header-boxeo"
-            >
-              <BoxingGloveMark className="h-3.5 w-3.5" />
-              <span>{t.combat?.nav || "BOXEO/MMA"}</span>
             </Link>
             <TimeZoneSelect />
             <div className="flex items-center border-2 border-[#a3e635] bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm">

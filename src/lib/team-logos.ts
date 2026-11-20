@@ -644,13 +644,21 @@ export function peekTeamLogo(teamName: string, country?: string): string | null 
     return "https://flagcdn.com/w160/ie.png";
   }
 
+  // "Recoleta" is two clubs: Deportes Recoleta (Chile, Primera B) and
+  // Recoleta FC (Paraguay). Both fixtures can be on the same day, and giving
+  // the Chilean card the asunceno badge made it read as the Paraguayan match.
+  // The country of the competition decides.
+  if (key === "recoleta" || key === "deportivorecoleta" || key === "deportesrecoleta") {
+    return country === "Chile"
+      ? "https://r2.thesportsdb.com/images/media/team/badge/q0tu3t1697646634.png"
+      : "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png";
+  }
+
   const CLUB_OVERRIDES: Record<string, string> = {
     "antofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
     "deportesantofagasta": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png",
     "roma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
     "asroma": "https://r2.thesportsdb.com/images/media/team/badge/jwro2s1760820674.png",
-    "deportivorecoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
-    "recoleta": "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
   };
   if (CLUB_OVERRIDES[key]) return CLUB_OVERRIDES[key];
 

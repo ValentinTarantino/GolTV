@@ -485,6 +485,30 @@ describe("matchPlLeague", () => {
     expect(SUPPORTED_LEAGUES.some((league) => league.id === 9901)).toBe(false);
   });
 
+  it("routes Paraguayan fixtures away from Argentine domestic leagues", () => {
+    for (const label of ["Primera B", "Primera B Metropolitana", "Primera Nacional", "Liga Paraguay", "Paraguay - Primera B"]) {
+      expect(matchPlLeague(label, "Deportivo Recoleta", "Deportivo Guaraní")?.id).toBe(255);
+    }
+    expect(matchPlLeague("Copa Paraguay", "Olimpia", "Cerro Porteño")?.id).toBe(501);
+    expect(matchPlLeague("Copa Libertadores", "Deportivo Recoleta", "Deportivo Guaraní")?.id).toBe(13);
+    expect(matchPlLeague("Primera B", "Almirante Brown", "Deportivo Morón")?.id).toBe(129);
+  });
+
+  it("keeps Chilean second-tier fixtures out of Primera Nacional", () => {
+    // "Recoleta" is a Paraguayan club and a Chilean club; the opponent tells
+    // them apart. Both used to land on the Argentine Primera Nacional card.
+    for (const label of ["Primera B", "Primera Nacional", "Primera B de Chile"]) {
+      expect(matchPlLeague(label, "Recoleta", "Santiago Wanderers")?.id).toBe(265);
+      expect(matchPlLeague(label, "Deportes Recoleta", "Santiago Wanderers")?.id).toBe(265);
+    }
+    expect(matchPlLeague("Primera Nacional", "Santiago Wanderers", "Cobresal")?.id).toBe(265);
+    // The Paraguayan side of the same club name stays in Paraguay.
+    expect(matchPlLeague("Primera Nacional", "Recoleta", "Guaraní")?.id).toBe(255);
+    // Argentine second-tier fixtures keep their league.
+    expect(matchPlLeague("Primera Nacional", "Almirante Brown", "San Telmo")?.id).toBe(129);
+    expect(matchPlLeague("Primera B Metropolitana", "Deportivo Morón", "Talleres (RE)")?.id).toBe(129);
+  });
+
   it("maps MLS naming variants to Major League Soccer", () => {
     expect(matchPlLeague("MLS", "Inter Miami", "Atlanta United")?.id).toBe(332);
     expect(matchPlLeague("Major League Soccer", "Inter Miami", "Atlanta United")?.id).toBe(332);

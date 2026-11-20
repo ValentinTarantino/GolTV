@@ -14,6 +14,17 @@ const PL_AGENDA_URL = process.env.EVENT_AGENDA_URL!;
 const PL_PLAYBACK_URL = process.env.EVENT_PLAYBACK_URL!;
 const PL_DNS_SERVER = process.env.EVENT_SOURCE_DNS_SERVER?.trim();
 
+/**
+ * Resolvers tried when the system DNS cannot resolve the agenda host.
+ *
+ * Some networks poison or drop this domain: the direct fetch throws
+ * ENOTFOUND and every fixture of the agenda disappeared silently (the
+ * Paraguayan Recoleta–Guaraní match was missing while the same club's Chilean
+ * fixture still showed up from another source). `EVENT_SOURCE_DNS_SERVER`
+ * overrides the list; public resolvers cover the poisoned-DNS case.
+ */
+const PL_DNS_FALLBACKS = PL_DNS_SERVER ? [PL_DNS_SERVER] : ["1.1.1.1", "8.8.8.8"];
+
 const PL_COOLDOWN_MS = 5 * 60 * 1000;
 const PL_STREAM_CACHE_TTL = 30 * 60 * 1000;
 const PL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
@@ -231,8 +242,19 @@ export async function fetchEventAgenda(): Promise<EventMatch[]> {
       status = res.status;
       html = await res.text();
     } catch (error) {
-      if (!PL_DNS_SERVER) throw error;
-      const fallback = await fetchTextWithDnsServer(PL_AGENDA_URL, PL_DNS_SERVER, headers);
+      // The system resolver failed (ENOTFOUND / EAI_AGAIN). Retry through the
+      // configured resolver, or through the public ones when the environment
+      // does not name one.
+      let fallback: Awaited<ReturnType<typeof fetchTextWithDnsServer>> | null = null;
+      for (const server of PL_DNS_FALLBACKS) {
+        try {
+          fallback = await fetchTextWithDnsServer(PL_AGENDA_URL, server, headers);
+          break;
+        } catch (resolverError) {
+          console.warn(`Pelota Libre agenda: DNS fallback ${server} failed`, resolverError);
+        }
+      }
+      if (!fallback) throw error;
       status = fallback.status;
       html = fallback.text;
     }

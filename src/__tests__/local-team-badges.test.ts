@@ -14,6 +14,23 @@ describe("local club crests", () => {
     expect(peekTeamLogo("Everton", "Inglaterra")).toBe("/badges/espn-368.png");
     expect(getLocalTeamBadge("Everton")).toBeNull();
   });
+  it("keeps the two Recoleta clubs apart", () => {
+    // Recoleta FC (Paraguay) and Deportes Recoleta (Chile, Primera B) can play
+    // on the same day. Sharing one badge made the Chilean fixture read as the
+    // Paraguayan one.
+    expect(peekTeamLogo("Recoleta", "Chile")).toBe(
+      "https://r2.thesportsdb.com/images/media/team/badge/q0tu3t1697646634.png",
+    );
+    expect(peekTeamLogo("Deportes Recoleta", "Chile")).toBe(
+      "https://r2.thesportsdb.com/images/media/team/badge/q0tu3t1697646634.png",
+    );
+    expect(peekTeamLogo("Deportivo Recoleta", "Paraguay")).toBe(
+      "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
+    );
+    expect(peekTeamLogo("Recoleta", "Paraguay")).toBe(
+      "https://r2.thesportsdb.com/images/media/team/badge/v68cg01735661603.png",
+    );
+  });
   it("every registered alias resolves to a real local PNG without any network requests", async () => {
     const originalFetch = globalThis.fetch;
     const fetchMock = jest.fn().mockRejectedValue(new Error("offline"));

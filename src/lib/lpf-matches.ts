@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getCache, setCache } from "./cache";
 import { getHomeRelayUrl } from "./lpf-home-relay";
+import { hasParaguayanClub } from "./constants";
 
 /**
  * Matches of the "LPF Play" section.
@@ -699,6 +700,9 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
       if (!matchIdValue || !home || !away) continue;
       const start = item.start ? toArgentina(item.start) : "";
       if (isDuplicateFixture(home, away, start)) continue;
+      // Sportplus competitions are all Argentine — a Paraguayan fixture filed
+      // under them is provider noise, not a local match.
+      if (hasParaguayanClub(home, away)) continue;
       const ref: MatchRef = { source: "sportplus", competitionId: competition.id, matchId: matchIdValue };
       const id = matchId(ref);
       refs.set(id, ref);
@@ -724,6 +728,9 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
     const [home, away] = splitTeams(title);
     const start = eventDate(event);
     if (isDuplicateFixture(home, away, start)) continue;
+    // The aggregator sometimes files Paraguayan fixtures under Primera
+    // Nacional — they are not Argentine second-division matches.
+    if (hasParaguayanClub(home, away)) continue;
     // `start` is wall-clock Argentina time for display; the status needs the
     // real instant, three hours ahead.
     const instant = parseEventDate(event).date?.toISOString() ?? "";
@@ -761,6 +768,7 @@ async function buildMatches(): Promise<{ matches: LpfMatch[]; refs: Map<string, 
   for (const [id, entry] of Object.entries(stored)) {
     if (freshIds.has(id)) continue;
     if (!sectionCompetitions.has(entry.match.competition)) continue;
+    if (hasParaguayanClub(entry.match.home, entry.match.away)) continue;
     const age = now - entry.seenAt;
     if (age > RECENT_TTL) continue;
     const status =

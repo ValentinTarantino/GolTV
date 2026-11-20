@@ -16,12 +16,15 @@ import vm from "node:vm";
   sandbox.window = sandbox; sandbox.self = sandbox;
   vm.createContext(sandbox);
   try { vm.runInContext(scripts.join("\n;\n"), sandbox, { timeout: 15000 }); } catch {}
+  type LxMatch = Record<string, unknown>;
+  type LxData = { matches?: LxMatch[] };
+  const lx = sandbox.__lx as (index: number) => Promise<LxData> | LxData;
   for (const idx of [0,2,3]) {
-    const data: any = await (sandbox.__lx as any).call(sandbox, idx);
+    const data = await lx.call(sandbox, idx);
     const list = data?.matches ?? [];
-    const combat = list.filter((x:any)=>["boxing","mma"].includes(x.sport));
+    const combat = list.filter((x) => ["boxing","mma"].includes(String(x.sport)));
     console.log(`--- __lx(${idx}): ${list.length} matches, ${combat.length} combat`);
-    for (const x of combat) console.log(" ", x.id, x.sport, "|", x.title?.slice(0,50), "|", x.starts_at, "| ts:", x.timestamp);
+    for (const x of combat) console.log(" ", x.id, x.sport, "|", String(x.title ?? "").slice(0,50), "|", x.starts_at, "| ts:", x.timestamp);
   }
   process.exit(0);
 })();

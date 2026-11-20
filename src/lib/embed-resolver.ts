@@ -22,7 +22,12 @@ export const EMBED_USER_AGENT =
 const DEFAULT_PLAYER_DOMAINS = ["kora-plus.mov", "kora-plus.li", "kora-plus.app"];
 
 const WRAPPER_PATH_RE = /\/streamlat\.html$/i;
-const PLAYER_PAGE_PATH_RE = /\/framelatin\.php$/i;
+/**
+ * Player pages of the same family: `framelatin.php?ch=` (football feeds) and
+ * `framestream.php?id=` (the boxing/MMA wrapper). Both answer `?_json=1` with a
+ * signed playlist and gate the answer the same way.
+ */
+const PLAYER_PAGE_PATH_RE = /\/(?:framelatin|framestream)\.php$/i;
 const CHANNEL_PARAM_RE = /^[A-Za-z0-9._~-]{2,120}$/;
 const DOMAIN_RE = /^[a-z0-9][a-z0-9.-]{3,62}$/i;
 const EDGE_RE = /^[a-z0-9-]{2,24}$/i;

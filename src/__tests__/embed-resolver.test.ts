@@ -71,6 +71,8 @@ describe("wrapper parsing", () => {
     expect(isPlayerWrapperPage(new URL("https://wrapper.example/other.html"))).toBe(false);
 
     expect(isEmbedPlayerPage(new URL("https://a11.kora-plus.mov/framelatin.php?ch=1"))).toBe(true);
+    // The boxing/MMA wrapper frames the same player family under another name.
+    expect(isEmbedPlayerPage(new URL("https://a15.kora-plus.mov/framestream.php?id=60521"))).toBe(true);
     expect(isEmbedPlayerPage(new URL("https://a11.kora-plus.mov/other.php?ch=1"))).toBe(false);
     expect(isEmbedPlayerPage(new URL("https://kora-plus.mov.attacker.example/framelatin.php"))).toBe(false);
   });

@@ -5,7 +5,7 @@ import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
 import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
-import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam, isMenFootballMatch, SUPPORTED_LEAGUES } from "@/lib/constants";
+import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { isIPBanned } from "@/lib/chat";
 import type { Match } from "@/lib/types";
@@ -198,9 +198,14 @@ export async function GET(request: NextRequest) {
     };
     if (!isMenFootballMatch(entry.league, entry.homeTeam, entry.awayTeam)) continue;
     if (!(toArgentinaDate(entry.dateISO) === date || isNearNow(entry.dateISO))) continue;
-    const league = "preferredPlayer" in entry
+    let league = "preferredPlayer" in entry
       ? SUPPORTED_LEAGUES.find(league => league.id === 129)
       : classifyAgendaLeague(entry.league, entry.homeTeam, entry.awayTeam);
+    // Sources sometimes label Paraguayan fixtures as Primera Nacional — they
+    // belong to the Paraguayan league (255), never the Argentine second tier.
+    if (league?.id === 129 && hasParaguayanClub(entry.homeTeam, entry.awayTeam)) {
+      league = SUPPORTED_LEAGUES.find((l) => l.id === 255) ?? league;
+    }
     if (!league) continue;
     const status = entry.fixtureStatus ?? inferStatus(entry.dateISO);
     // Keep explicitly confirmed finals on their Argentine calendar day. An

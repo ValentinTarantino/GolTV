@@ -474,6 +474,19 @@ const PARAGUAY_TEAMS = [
   "12 de octubre", "resistencia", "san lorenzo"
 ];
 
+/** True when either side is a known Paraguayan club. */
+export function hasParaguayanClub(homeTeam?: string, awayTeam?: string): boolean {
+  const normalizeText = (value: string) => value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const combined = normalizeText(`${homeTeam ?? ""} ${awayTeam ?? ""}`);
+  return PARAGUAY_TEAMS.some((team) => combined.includes(normalizeText(team)));
+}
+
 // Saudi Pro League teams — used to prevent Saudi matches being categorized as Argentine Liga Profesional
 const SAUDI_PRO_LEAGUE_TEAMS = [
   "al hilal", "al nassr", "al ittihad", "al ahli", "al shabab", "al ettifaq",
@@ -731,16 +744,45 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
     return SUPPORTED_LEAGUES.find((l) => l.id === 135) ?? null;
   }
 
+  // A label that names Chile together with a Chilean club is a Chilean
+  // fixture whatever tier it mentions ("Primera B de Chile"): the site only
+  // carries the Primera División card, so that is where it belongs. Cups keep
+  // their own ids.
+  if (hasChileanClub && normalized.includes("chile") && !normalized.includes("copa")) {
+    return SUPPORTED_LEAGUES.find((l) => l.id === 265) ?? null;
+  }
+
+  // Paraguayan domestic league labels ("Liga Paraguay", "Division
+  // Profesional Paraguay", "Primera B Paraguay"…) all belong to the
+  // Paraguayan umbrella league; Copa Paraguay keeps its own id via the map.
+  if (normalized.includes("paraguay") && !normalized.includes("copa paraguay")) {
+    return SUPPORTED_LEAGUES.find((l) => l.id === 255) ?? null;
+  }
+
+  // Primera Nacional (129) is Argentine. The sources label Paraguayan and
+  // Chilean second-tier fixtures exactly the same way ("Primera B", "Primera
+  // Nacional"), so without this guard those matches show up under the
+  // Argentine card. The club decides the country: "Recoleta" is the name of a
+  // Paraguayan and a Chilean club, so the opponent breaks the tie — Recoleta
+  // vs Guaraní is Paraguayan, Recoleta vs Santiago Wanderers is Chilean.
+  const hasParaguayClub = PARAGUAY_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
+  const relocateFromArgentina = (league: LeagueConfig | null): LeagueConfig | null => {
+    if (league?.id !== 129) return league;
+    if (hasChileanClub) return SUPPORTED_LEAGUES.find((l) => l.id === 265) ?? league;
+    if (hasParaguayClub) return SUPPORTED_LEAGUES.find((l) => l.id === 255) ?? league;
+    return league;
+  };
+
   const leagueId = PL_LEAGUE_MAP[normalized];
   if (leagueId) {
-    return SUPPORTED_LEAGUES.find((l) => l.id === leagueId) ?? null;
+    return relocateFromArgentina(SUPPORTED_LEAGUES.find((l) => l.id === leagueId) ?? null);
   }
 
   // Sort keys by length descending to match longer, more specific names first (e.g. "supercopa argentina" before "copa argentina")
   const sortedMapEntries = Object.entries(PL_LEAGUE_MAP).sort((a, b) => b[0].length - a[0].length);
   for (const [key, id] of sortedMapEntries) {
     if (key.length > 3 && (normalized.includes(key) || key.includes(normalized))) {
-      return SUPPORTED_LEAGUES.find((l) => l.id === id) ?? null;
+      return relocateFromArgentina(SUPPORTED_LEAGUES.find((l) => l.id === id) ?? null);
     }
   }
   return null;
