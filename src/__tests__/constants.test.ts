@@ -502,6 +502,13 @@ describe("matchPlLeague", () => {
       expect(matchPlLeague(label, "Deportes Recoleta", "Santiago Wanderers")?.id).toBe(265);
     }
     expect(matchPlLeague("Primera Nacional", "Santiago Wanderers", "Cobresal")?.id).toBe(265);
+    // Cobreloa (Primera B de Chile) vs San Luis was labelled "Primera
+    // Nacional" by the provider and showed up as an Argentine fixture.
+    expect(matchPlLeague("Primera Nacional", "Cobreloa", "San Luis")?.id).toBe(265);
+    expect(matchPlLeague("Primera Nacional", "San Luis", "Cobreloa")?.id).toBe(265);
+    // Same for the rest of the Chilean Primera B, e.g. Copiapó vs Antofagasta.
+    expect(matchPlLeague("Primera Nacional", "Copiapó", "Antofagasta")?.id).toBe(265);
+    expect(matchPlLeague("Primera Nacional", "Deportes Copiapó", "Deportes Antofagasta")?.id).toBe(265);
     // The Paraguayan side of the same club name stays in Paraguay.
     expect(matchPlLeague("Primera Nacional", "Recoleta", "Guaraní")?.id).toBe(255);
     // Argentine second-tier fixtures keep their league.

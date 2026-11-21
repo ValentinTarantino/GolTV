@@ -78,6 +78,13 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   ublebrijana: "lebrijana",
   cusco: "cusco",
   cuscofc: "cusco",
+  // Bundesliga feeds alternate the short and the full club name, which used to
+  // render the same fixture twice: "Greuther Fürth" / "SpVgg Greuther Fürth"
+  // and "Bochum" / "VfL Bochum".
+  greutherfurth: "greutherfurth",
+  spvgggreutherfurth: "greutherfurth",
+  bochum: "bochum",
+  vflbochum: "bochum",
   // National-team feeds alternate the local and Spanish names for Türkiye.
   // Treat them as one side so Turkey v Belgium cannot render twice.
   turkiye: "turkey",
@@ -111,6 +118,40 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   unitedstates: "unitedstates",
   unitedstatesofamerica: "unitedstates",
   usa: "unitedstates",
+};
+
+const CHILEAN_CLUB_DEDUP_ALIASES: Record<string, string> = {
+  // Chilean feeds alternate official names, short names and abbreviations.
+  // "Everton" is safe here because these aliases only apply to Chilean
+  // competitions (the English Everton never plays in them).
+  everton: "everton",
+  evertondevina: "everton",
+  evertonvinadelmar: "everton",
+  evertondevinadelmar: "everton",
+  evertondvina: "everton",
+  audax: "audaxitaliano",
+  audaxitaliano: "audaxitaliano",
+  coquimbo: "coquimbounido",
+  coquimbounido: "coquimbounido",
+  laserena: "deporteslaserena",
+  deporteslaserena: "deporteslaserena",
+  iquique: "deportesiquique",
+  deportesiquique: "deportesiquique",
+  limache: "deporteslimache",
+  deporteslimache: "deporteslimache",
+  calera: "unionlacalera",
+  unioncalera: "unionlacalera",
+  unionlacalera: "unionlacalera",
+  ucatolica: "universidadcatolica",
+  catolica: "universidadcatolica",
+  universidadcatolica: "universidadcatolica",
+  universidadchile: "universidaddechile",
+  udechile: "universidaddechile",
+  universidaddechile: "universidaddechile",
+  univconcepcion: "universidaddeconcepcion",
+  uconcepcion: "universidaddeconcepcion",
+  udeconcepcion: "universidaddeconcepcion",
+  universidaddeconcepcion: "universidaddeconcepcion",
 };
 
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
@@ -173,6 +214,9 @@ const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
     racingdemontevideo: "racingmontevideo", racingclubmontevideo: "racingmontevideo",
     wanderers: "montevideowanderers",
   },
+  // Campeonato Nacional and Copa Chile share the same club naming variants.
+  265: CHILEAN_CLUB_DEDUP_ALIASES,
+  267: CHILEAN_CLUB_DEDUP_ALIASES,
   239: {
     alianza: "alianzavalledupar", alianzafc: "alianzavalledupar",
     // Liga BetPlay feeds sometimes omit "Deportivo" from CÃºcuta's name.

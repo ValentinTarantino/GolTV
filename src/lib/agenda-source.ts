@@ -2,7 +2,7 @@ import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 import { isMenFootballMatch } from "./constants";
 import { matchTeamsPair } from "./team-matching";
-import { cleanAgendaText } from "./agenda-text";
+import { cleanAgendaText, stripMatchStageSuffix } from "./agenda-text";
 
 const NON_FOOTBALL_TEXT = /(nhl|nba|nfl|mlb|basketball|baseball|ice hockey|tennis|rugby|cricket|volleyball|handball|csgo|valorant|lol|league of legends|ufc|sports)/i;
 
@@ -97,22 +97,28 @@ function parseStrapiEmbeds(raw: StrapiDiary["embeds"]): AgendaEmbed[] {
 function parseDescription(desc: string): { league: string; homeTeam: string; awayTeam: string } {
   const cleaned = cleanAgendaText(desc);
   const colonIdx = cleaned.indexOf(":");
-  if (colonIdx === -1) {
-    const vsMatch = cleaned.match(/^(.+?)\s+vs\s+(.+)$/i);
-    if (vsMatch) {
-      return { league: "Internacional", homeTeam: vsMatch[1].trim(), awayTeam: vsMatch[2].trim() };
-    }
-    return { league: "Internacional", homeTeam: cleaned, awayTeam: "" };
-  }
-
-  const league = cleaned.slice(0, colonIdx).trim();
-  const teams = cleaned.slice(colonIdx + 1).trim();
-  const vsMatch = teams.match(/^(.+?)\s+vs\s+(.+)$/i);
-  if (!vsMatch) {
-    return { league, homeTeam: teams, awayTeam: "" };
-  }
-
-  return { league, homeTeam: vsMatch[1].trim(), awayTeam: vsMatch[2].trim() };
+  const parsed = colonIdx === -1
+    ? (() => {
+        const vsMatch = cleaned.match(/^(.+?)\s+vs\s+(.+)$/i);
+        if (vsMatch) {
+          return { league: "Internacional", homeTeam: vsMatch[1].trim(), awayTeam: vsMatch[2].trim() };
+        }
+        return { league: "Internacional", homeTeam: cleaned, awayTeam: "" };
+      })()
+    : (() => {
+        const league = cleaned.slice(0, colonIdx).trim();
+        const teams = cleaned.slice(colonIdx + 1).trim();
+        const vsMatch = teams.match(/^(.+?)\s+vs\s+(.+)$/i);
+        if (!vsMatch) {
+          return { league, homeTeam: teams, awayTeam: "" };
+        }
+        return { league, homeTeam: vsMatch[1].trim(), awayTeam: vsMatch[2].trim() };
+      })();
+  return {
+    league: parsed.league,
+    homeTeam: stripMatchStageSuffix(parsed.homeTeam),
+    awayTeam: stripMatchStageSuffix(parsed.awayTeam),
+  };
 }
 
 export function parseStrapiAgenda(data: StrapiDiary[]): AgendaMatch[] {

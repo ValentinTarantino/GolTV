@@ -140,7 +140,7 @@ describe("/api/matches", () => {
     (fetchPlayerFiveAgenda as jest.Mock).mockResolvedValueOnce([fixture, fixture]);
     const { matches } = await (await GET(makeRequest())).json();
     expect(matches).toHaveLength(1);
-    expect(matches[0]).toMatchObject({ league: { id: 129 }, _preferredPlayer: "5", homeTeam: { name: "Quilmes" } });
+    expect(matches[0]).toMatchObject({ league: { id: 129 }, _preferredPlayer: "6", homeTeam: { name: "Quilmes" } });
   });
   it.each([true, false])("merges production provider variants even when primary availability is %s", async (primaryAvailable) => {
     const pairs = [

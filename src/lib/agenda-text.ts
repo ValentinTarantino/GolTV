@@ -24,3 +24,14 @@ export function cleanAgendaTeamName(value: string, league: string): string {
   }
   return name;
 }
+
+/**
+ * Providers append the competition stage to the last team name ("Boca Juniors
+ * - Final"). It is not part of the club and it breaks fixture identity, so the
+ * same game showed up twice.
+ */
+const MATCH_STAGE_SUFFIX = /\s+[-–—]\s+(?:final|semifinal(?:es)?|cuartos?(?:\s+de\s+final)?|octavos?(?:\s+de\s+final)?|dieciseisavos?(?:\s+de\s+final)?|fase(?:\s+de\s+grupos)?|grupo\s+[a-z]|play-?offs?|repechaje|ida|vuelta)\b.*$/i;
+
+export function stripMatchStageSuffix(value: string): string {
+  return value.replace(MATCH_STAGE_SUFFIX, "").trim();
+}

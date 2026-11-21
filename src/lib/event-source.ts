@@ -1,4 +1,4 @@
-import { cleanAgendaText } from "./agenda-text";
+import { cleanAgendaText, stripMatchStageSuffix } from "./agenda-text";
 import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 import { isMenFootballMatch } from "./constants";
@@ -148,8 +148,8 @@ export function parseAgendaHTML(html: string): EventMatch[] {
     const vsSplit = teamsText.split(/\s+vs\s+/i);
     if (vsSplit.length < 2) continue;
 
-    const homeTeam = vsSplit[0].trim().replace(/^\d{1,2}:\d{2}\s+/, "");
-    const awayTeam = vsSplit.slice(1).join(" vs ").trim();
+    const homeTeam = stripMatchStageSuffix(vsSplit[0].trim().replace(/^\d{1,2}:\d{2}\s+/, ""));
+    const awayTeam = stripMatchStageSuffix(vsSplit.slice(1).join(" vs ").trim());
 
     // Filter out "Kazajstán" (without I) in favor of "Kazajistán" (with I)
     if ((homeTeam === "Kazajstán" || awayTeam === "Kazajstán") && 

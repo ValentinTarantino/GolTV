@@ -66,6 +66,7 @@ describe("local club crests", () => {
     ["Austin", "Estados Unidos", 20906], ["SJ Earthquakes", "Estados Unidos", 191],
     ["Real Salt Lake", "Estados Unidos", 4771], ["Colorado Rapids", "Estados Unidos", 184],
     ["Chicago Fire", "Estados Unidos", 182],
+    ["Atlanta", "Argentina", 10146],
   ])("resolves screenshot team %s (%s)", async (team, country, id) => {
     const expected = `/badges/espn-${id}.png`;
     expect(peekTeamLogo(team, country)).toBe(expected);
@@ -83,5 +84,10 @@ describe("local club crests", () => {
     expect(getLocalTeamBadge("Milan", "Italy")).toBe("/badges/espn-103.png");
     expect(getLocalTeamBadge("Milan", "Europa")).toBe("/badges/espn-103.png");
     expect(getLocalTeamBadge("Barcelona", "Internacional")).toBeNull();
+    // Atlanta (Argentina, Primera Nacional) and Atlanta United (MLS) shared
+    // the US badge; the Argentine club now has its own crest.
+    expect(getLocalTeamBadge("Atlanta", "Argentina")).toBe("/badges/espn-10146.png");
+    expect(getLocalTeamBadge("Atlanta", "Estados Unidos")).toBe("/badges/espn-18418.png");
+    expect(getLocalTeamBadge("Atlanta")).toBeNull();
   });
 });

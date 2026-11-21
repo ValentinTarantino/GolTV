@@ -134,6 +134,8 @@ const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "racingsantander": "Racing de Santander",
   "gimnasialaplata": "Gimnasia y Esgrima de La Plata",
   "gimnasiamendoza": "Gimnasia y Esgrima de Mendoza",
+  "gimnasiadejujuy": "Gimnasia y Esgrima de Jujuy",
+  "gimnasiajujuy": "Gimnasia y Esgrima de Jujuy",
   "brightonhovealbion": "Brighton and Hove Albion",
   "mainz05": "1. FSV Mainz 05",
   "realsociedadii": "Real Sociedad B",

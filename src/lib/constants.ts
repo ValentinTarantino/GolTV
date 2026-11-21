@@ -438,10 +438,16 @@ const URUGUAY_TEAMS = [
 ];
 
 const CHILE_TEAMS = [
-  "audax italiano", "cobresal", "colo colo", "coquimbo unido", "deportes concepcion",
+  "audax italiano", "cobreloa", "cobresal", "colo colo", "coquimbo unido", "deportes concepcion",
   "deportes iquique", "deportes la serena", "deportes limache", "everton", "huachipato",
   "nublense", "o'higgins", "ohiggins", "palestino", "union la calera", "union espanola",
   "universidad catolica", "universidad de chile", "universidad de concepcion", "santiago wanderers",
+  // Primera B de Chile: the provider labels this tier "Primera Nacional" too,
+  // so these clubs must be recognised before the Argentine 129 card.
+  "deportes copiapo", "copiapo", "deportes antofagasta", "antofagasta",
+  "deportes temuco", "curico unido", "magallanes", "barnechea", "santiago morning",
+  "deportes santa cruz", "union san felipe", "san marcos de arica", "deportes melipilla",
+  "san luis de quillota", "rangers de talca",
 ];
 
 const BOLIVIA_TEAMS = [

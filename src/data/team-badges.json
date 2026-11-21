@@ -38,6 +38,17 @@
     "file": "/badges/espn-18418.png"
   },
   {
+    "id": "espn-10146",
+    "country": "Argentina",
+    "names": [
+      "Club Atlético Atlanta",
+      "Club Atletico Atlanta",
+      "Atlanta"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/10146.png",
+    "file": "/badges/espn-10146.png"
+  },
+  {
     "id": "espn-20906",
     "country": "Estados Unidos",
     "names": [

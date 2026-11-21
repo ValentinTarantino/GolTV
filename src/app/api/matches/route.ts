@@ -7,6 +7,7 @@ import { fetchEventAgenda } from "@/lib/event-source";
 import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
+import { leagueRanks, loadLeagueOrder } from "@/lib/league-order";
 import { isIPBanned } from "@/lib/chat";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
@@ -207,6 +208,10 @@ export async function GET(request: NextRequest) {
       league = SUPPORTED_LEAGUES.find((l) => l.id === 255) ?? league;
     }
     if (!league) continue;
+    // Primera Nacional (Argentina) always opens on the primary player; the
+    // selector stays available for anyone who wants another source.
+    const preferredPlayer =
+      league.id === 129 ? ("6" as const) : "preferredPlayer" in entry ? entry.preferredPlayer : undefined;
     const status = entry.fixtureStatus ?? inferStatus(entry.dateISO);
     // Keep explicitly confirmed finals on their Argentine calendar day. An
     // expired undated/inferred listing still cannot claim a rescheduled game.
@@ -265,12 +270,16 @@ export async function GET(request: NextRequest) {
       channels: [],
       broadcastChannels: getBroadcastChannels(league.id),
       _eventSlug: entry.slug,
-      ...("preferredPlayer" in entry ? { _preferredPlayer: entry.preferredPlayer } : {}),
+      ...(preferredPlayer ? { _preferredPlayer: preferredPlayer } : {}),
       ...(entry.embeds ? { _eventSources: [...entry.embeds] } : {}),
     });
   }
 
-  matches.sort((a, b) => a.timestamp - b.timestamp);
+  // The admin's category order wins; inside a category, kickoff time. The
+  // client groups by first appearance, so this is the section order everyone
+  // sees. Unranked competitions keep their natural kickoff order.
+  const rankOf = leagueRanks(await loadLeagueOrder());
+  matches.sort((a, b) => rankOf(a.league.id) - rankOf(b.league.id) || a.timestamp - b.timestamp);
 
   const badgeKey = (name: string, country: string) => JSON.stringify([country, name]);
   const teams = new Map<string, { name: string; country: string }>();

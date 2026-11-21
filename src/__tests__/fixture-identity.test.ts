@@ -1,7 +1,7 @@
 /** @jest-environment node */
 import { canonicalTeamForDedup, fixtureTeamPair } from "@/lib/fixture-identity";
 import { TEAM_DISPLAY_NAMES } from "@/lib/constants";
-import { cleanAgendaText, cleanAgendaTeamName } from "@/lib/agenda-text";
+import { cleanAgendaText, cleanAgendaTeamName, stripMatchStageSuffix } from "@/lib/agenda-text";
 import { parseStrapiAgenda } from "@/lib/agenda-source";
 import { parseAgendaHTML } from "@/lib/event-source";
 
@@ -30,6 +30,13 @@ describe("fixture identity", () => {
     [0, "United States", "USA"],
     [0, "RB Bragantino", "Red Bull Bragantino"],
     [0, "Bragantino", "Red Bull Bragantino"],
+    [78, "Greuther Fürth", "SpVgg Greuther Fürth"],
+    [78, "Bochum", "VfL Bochum"],
+    [265, "Everton", "Everton de Viña del Mar"],
+    [265, "Universidad Chile", "Universidad de Chile"],
+    [265, "Univ. Concepción", "Universidad de Concepción"],
+    [265, "U. Católica", "Universidad Católica"],
+    [265, "La Serena", "Deportes La Serena"],
     [39, "Vitória", "Vitoria"],
   ])("canonicalizes provider names in league %s: %s / %s", (league, first, second) => {
     expect(canonicalTeamForDedup(first, league)).toBe(canonicalTeamForDedup(second, league));
@@ -53,6 +60,20 @@ describe("fixture identity", () => {
 });
 
 describe("agenda text ingestion", () => {
+  it("strips the competition stage that providers append to a team name", () => {
+    expect(stripMatchStageSuffix("Boca Juniors - Final")).toBe("Boca Juniors");
+    expect(stripMatchStageSuffix("Real Madrid - Semifinales")).toBe("Real Madrid");
+    expect(stripMatchStageSuffix("River Plate - Cuartos de final")).toBe("River Plate");
+    expect(stripMatchStageSuffix("Boca Juniors")).toBe("Boca Juniors");
+  });
+  it("keeps a stage suffix out of the parsed team identity", () => {
+    const parsed = parseStrapiAgenda([{
+      id: 1, diary_description: "Copa Sudamericana: Atlético Mineiro vs Boca Juniors - Final",
+      date_diary: "2026-11-21", diary_hour: "19:30:00",
+    }]);
+    expect(parsed[0].awayTeam).toBe("Boca Juniors");
+    expect(parsed[0].homeTeam).toBe("Atlético Mineiro");
+  });
   it("removes only repeated labels of the actual competition", () => {
     expect(cleanAgendaTeamName("Copa do Brasil: Copa do Brasil: Palmeiras", "Copa do Brasil")).toBe("Palmeiras");
     expect(cleanAgendaTeamName("Other: Palmeiras", "Copa do Brasil")).toBe("Other: Palmeiras");
