@@ -29,9 +29,9 @@ export const chatPostSchema = z.object({
   nickColor: z.string().regex(CHAT_COLOR_PATTERN).refine(isChatPaletteColor).optional(),
   textColor: z.string().regex(CHAT_COLOR_PATTERN).refine(isChatPaletteColor).optional(),
   replyTo: z.object({
-    id: z.string(),
-    nick: z.string(),
-    text: z.string(),
+    id: z.string().min(1).max(100),
+    nick: z.string().max(20),
+    text: z.string().max(500),
   }).optional(),
 });
 

@@ -473,6 +473,8 @@ interface EmbedBlob {
   data?: string;
   k?: string;
   sha256?: string;
+  salt?: string;
+  hash?: string;
 }
 
 interface EmbedCanal {
@@ -539,6 +541,134 @@ export function decryptEmbedPayload(blob: EmbedBlob): string | null {
   } catch {
     return null;
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Protected embed keys (v6 blobs)
+ *
+ * The catalog no longer ships the AES key inside each blob. Instead the
+ * key lives in a per-channel binary module (`embeds/<hash>.bin`) whose
+ * 60-byte records are AES-GCM sealed with a key derived from the caller
+ * origin, and the plaintext is passed through a deterministic WebGL
+ * scramble. Both layers are replicated here so the server can resolve
+ * the same streams the embed app would.
+ * ------------------------------------------------------------------ */
+
+/** Origins the provider accepts as callers of its embed app. */
+const EMBED_ALLOWED_ORIGINS = [
+  "https://el20chinitdt.github.io",
+  "https://encrypthtmlaes256.edgeone.app",
+  "https://isdntek.com",
+  "https://canalesenvivodeargentina.blogspot.com",
+];
+
+/** Mirrors `getRepoFileSources` of the embed app, minus the relative one. */
+function embedFileUrls(repo: string, filePath: string): string[] {
+  const [owner, name] = repo.split("/");
+  if (!owner || !name) return [];
+  const host = `${owner.toLowerCase()}.github.io`;
+  const pagesBase = name.toLowerCase() === host ? `https://${host}` : `https://${host}/${name}`;
+  const stamp = `?t=${Date.now()}`;
+  return [
+    `${pagesBase}/${filePath}${stamp}`,
+    `https://raw.githubusercontent.com/${owner}/${name}/refs/heads/main/${filePath}${stamp}`,
+    `https://raw.githubusercontent.com/${owner}/${name}/master/${filePath}${stamp}`,
+  ];
+}
+
+async function fetchBytes(url: string): Promise<Buffer | null> {
+  try {
+    const res = await fetch(url, {
+      headers: BROWSER_HEADERS,
+      redirect: "follow",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The WebGL "scramble" is a fixed per-pass byte rotation, not real GPU
+ * work: for pass `i`, pixel `x` and channel `ch` the shader subtracts
+ * `mod(i*37 + x*11 + ch*53 + 17, 251) + 1`. `unscramble` applies the
+ * inverse eight times, exactly like `unscrambleBytes16`.
+ */
+function webglUnscramble16(input: Buffer): Buffer {
+  const out = Buffer.from(input);
+  for (let pass = 1; pass <= 8; pass++) {
+    for (let x = 0; x < 4; x++) {
+      for (let ch = 0; ch < 4; ch++) {
+        const index = x * 4 + ch;
+        const k = ((pass * 37 + x * 11 + ch * 53 + 17) % 251) + 1;
+        out[index] = (out[index] - k + 256) % 256;
+      }
+    }
+  }
+  return out;
+}
+
+function unscrambleHex32(input: Buffer): string {
+  if (input.length !== 32) return "";
+  return Buffer.concat([webglUnscramble16(input.subarray(0, 16)), webglUnscramble16(input.subarray(16, 32))]).toString("hex");
+}
+
+/**
+ * Recovers the per-channel AES key of a v6 blob from its protected binary
+ * module. The module records are sealed with a key derived from an allowed
+ * caller origin; trying each one mirrors what the browser does with
+ * `ancestorOrigins`.
+ */
+async function embedKeyFromBin(repo: string, sid: string, saltB64: string): Promise<string | null> {
+  const binHash = createHash("sha256").update(`elchini-bin-v7:${sid}:${saltB64}`).digest("hex").slice(0, 24);
+  const rel = `embeds/${binHash}.bin`;
+
+  let bytes: Buffer | null = null;
+  for (const url of embedFileUrls(repo, rel)) {
+    const candidate = await fetchBytes(url);
+    if (candidate && candidate.length >= 60 && candidate.length % 60 === 0) {
+      bytes = candidate;
+      break;
+    }
+  }
+  if (!bytes) return null;
+
+  const aad = Buffer.from(`elchini-kslot-v7:${sid}:${saltB64}`);
+  for (const origin of EMBED_ALLOWED_ORIGINS) {
+    const originKey = createHash("sha256").update(`elchini-origin-v7:${origin}:${saltB64}`).digest();
+    for (let offset = 0; offset < bytes.length; offset += 60) {
+      try {
+        const iv = bytes.subarray(offset, offset + 12);
+        const sealed = bytes.subarray(offset + 12, offset + 60);
+        const decipher = createDecipheriv("aes-256-gcm", originKey, iv) as GcmDecipher;
+        decipher.setAAD(aad);
+        decipher.setAuthTag(sealed.subarray(32));
+        const plain = Buffer.concat([decipher.update(sealed.subarray(0, 32)), decipher.final()]);
+        if (plain.length === 32) {
+          const key = unscrambleHex32(plain);
+          if (/^[0-9a-f]{64}$/i.test(key)) return key;
+        }
+      } catch {
+        /* wrong origin or slot; try the next record */
+      }
+    }
+  }
+  return null;
+}
+
+/** Integrity tag the embed app checks before decrypting a blob. */
+function embedIntegrityOk(blob: EmbedBlob, keyHex: string): boolean {
+  if (!blob.salt || !blob.hash) return true;
+  for (const version of [6, 5, 4]) {
+    const expected = createHash("sha256")
+      .update(`elchini-embed-integrity-v${version}:${blob.salt}:${keyHex}`)
+      .digest("hex");
+    if (expected === blob.hash) return true;
+  }
+  return false;
 }
 
 /** `<owner>/<repo>` of the catalog, read from the URL of the embed app. */
@@ -652,13 +782,23 @@ async function sourceFromEmbed(playerHtml: string): Promise<CanalSource | null> 
   const canalId = (frame.searchParams.get("embed_ch") ?? "").trim().toLowerCase();
   if (!canalId) return null;
 
-  const catalog = await embedCatalog(embedRepoFrom(frame));
+  const repo = embedRepoFrom(frame);
+  const catalog = await embedCatalog(repo);
   if (!catalog) return null;
 
   const blob = catalog[canalId];
   if (!blob || typeof blob !== "object") return null;
 
-  const plain = decryptEmbedPayload(blob);
+  // v6 blobs no longer carry the key: it is recovered from the protected
+  // binary module of the catalog repository.
+  let keyed = blob;
+  if (!blob.k && blob.salt) {
+    const keyHex = await embedKeyFromBin(repo, canalId, blob.salt);
+    if (!keyHex || !embedIntegrityOk(blob, keyHex)) return null;
+    keyed = { ...blob, k: keyHex };
+  }
+
+  const plain = decryptEmbedPayload(keyed);
   if (!plain) return null;
 
   try {

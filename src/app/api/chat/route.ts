@@ -2,15 +2,7 @@ import { z } from "zod";
 import { getChatMessages, addChatMessage, isIPBanned, getDeletedChatMessageIds } from "@/lib/chat";
 import { isMongoConfigured } from "@/lib/mongo";
 import { validateQuery, validateBody, createErrorResponse, chatPostSchema } from "@/lib/validators";
-
-const ADMIN_SESSION_COOKIE = "goltv_admin_session";
-
-function getAdminFromRequest(request: Request): boolean {
-  const cookieHeader = request.headers.get("cookie");
-  if (!cookieHeader) return false;
-  const cookies = cookieHeader.split(";").map(c => c.trim());
-  return cookies.some(c => c === `${ADMIN_SESSION_COOKIE}=authenticated`);
-}
+import { isValidAdminSession } from "@/lib/admin-session";
 
 function getClientIP(request: Request): string {
   // Try common headers for client IP
@@ -68,8 +60,17 @@ export async function POST(request: Request) {
 
   const { matchId, nick, text, nickColor, textColor, replyTo } = validation.data;
 
-  // Check if the requester is admin via session cookie
-  const isAdmin = getAdminFromRequest(request);
+  // Check if the requester is admin via the signed session cookie. The old
+  // literal `authenticated` check let anybody forge the admin badge.
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const sessionValue = cookieHeader
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith("goltv_admin_session="))
+    ?.split("=")
+    .slice(1)
+    .join("=");
+  const isAdmin = isValidAdminSession(sessionValue);
 
   const result = await addChatMessage(matchId, nick, text, { nickColor, textColor, replyTo, isAdmin, ip: clientIP });
 

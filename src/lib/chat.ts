@@ -30,11 +30,11 @@ const BANNED_IPS_KEY = "chat:banned_ips";
 let msgCounter = 0;
 
 function sanitizeText(input: string): string {
+  // Messages are rendered as React text nodes (auto-escaped), so stripping
+  // markup is enough; entity-escaping here would double-escape on screen.
   return input
     .replace(/<[^>]*>/g, "")
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
     .trim();
 }
 
@@ -246,6 +246,35 @@ export async function getChatMessages(matchId: string, offset: number): Promise<
   return messages.filter((m) => m.ts >= offset);
 }
 
+/**
+ * Finds a stored message so a reply quotes the real nick/text instead of
+ * whatever the client claims. Returns null when the id is unknown.
+ */
+async function findChatMessage(matchId: string, id: string): Promise<ChatMessage | null> {
+  if (!id || id.length > 100) return null;
+
+  const collection = await getChatCollection();
+  if (collection) {
+    try {
+      const doc = await collection.findOne({ id, matchId });
+      if (doc) {
+        return {
+          id: doc.id,
+          matchId: doc.matchId,
+          nick: doc.nick,
+          text: doc.text,
+          ts: doc.ts,
+        };
+      }
+    } catch (error) {
+      console.warn("[chat] MongoDB reply lookup error:", error);
+    }
+  }
+
+  const messages = await getMessagesFromCache(matchId);
+  return messages.find((message) => message.id === id) ?? null;
+}
+
 export async function addChatMessage(
   matchId: string,
   nick: string,
@@ -270,6 +299,20 @@ export async function addChatMessage(
     return { ok: false, error: "Rate limited" };
   }
 
+  // A reply quotes a stored message: resolve it server-side so the client
+  // cannot forge the quoted nick/text or smuggle unsanitized content.
+  let replyTo: ChatMessage["replyTo"];
+  if (colors.replyTo?.id) {
+    const quoted = await findChatMessage(validId, colors.replyTo.id);
+    if (quoted) {
+      replyTo = {
+        id: quoted.id,
+        nick: quoted.nick.slice(0, 20),
+        text: quoted.text.slice(0, 140),
+      };
+    }
+  }
+
   const msg: ChatMessage = {
     // Include randomness: ids must stay unique across serverless instances
     id: `${validId}-${++msgCounter}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -281,7 +324,7 @@ export async function addChatMessage(
     ...(colors.nickColor ? { nickColor: colors.nickColor } : {}),
     ...(colors.textColor ? { textColor: colors.textColor } : {}),
     ...(colors.isAdmin ? { isAdmin: true } : {}),
-    ...(colors.replyTo ? { replyTo: colors.replyTo } : {}),
+    ...(replyTo ? { replyTo } : {}),
   };
 
   const collection = await getChatCollection();

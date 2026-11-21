@@ -134,5 +134,54 @@ describe("/api/chat", () => {
       const res = await POST(req);
       expect(res.status).toBe(400);
     });
+
+    it("rejects an oversized replyTo payload", async () => {
+      const req = makePostRequest({
+        matchId: "66666", nick: "User", text: "Hi",
+        replyTo: { id: "x", nick: "n", text: "y".repeat(501) },
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+    });
+
+    it("quotes the stored message, not the client-supplied replyTo", async () => {
+      await POST(makePostRequest({ matchId: "77777", nick: "Original", text: "Mensaje real" }));
+      const list = await (await GET(makeGetRequest("http://localhost/api/chat?matchId=77777"))).json();
+      const originalId = list.messages[0].id;
+
+      await POST(makePostRequest({
+        matchId: "77777", nick: "Replier", text: "Respuesta",
+        replyTo: { id: originalId, nick: "Impostor", text: "cita falsa" },
+      }));
+
+      const after = await (await GET(makeGetRequest("http://localhost/api/chat?matchId=77777"))).json();
+      const reply = after.messages.find((m: { nick: string }) => m.nick === "Replier");
+      expect(reply.replyTo.nick).toBe("Original");
+      expect(reply.replyTo.text).toBe("Mensaje real");
+    });
+
+    it("drops replyTo when the quoted id does not exist", async () => {
+      await POST(makePostRequest({
+        matchId: "88888", nick: "User", text: "Hola",
+        replyTo: { id: "no-existe", nick: "Fantasma", text: "nada" },
+      }));
+      const list = await (await GET(makeGetRequest("http://localhost/api/chat?matchId=88888"))).json();
+      expect(list.messages[0].replyTo).toBeUndefined();
+    });
+
+    it("does not trust a forged admin session cookie", async () => {
+      const req = new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: "goltv_admin_session=authenticated",
+        },
+        body: JSON.stringify({ matchId: "99999", nick: "ForgedAdmin", text: "Hi" }),
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      const list = await (await GET(makeGetRequest("http://localhost/api/chat?matchId=99999"))).json();
+      expect(list.messages[0].isAdmin).toBeFalsy();
+    });
   });
 });
