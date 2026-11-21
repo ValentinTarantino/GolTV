@@ -13,6 +13,22 @@ const POLL_MS = 10_000;
 export default function OnlineCounter() {
   const { t } = useLanguage();
   const [count, setCount] = useState<number | null>(null);
+  // Site-wide presence is only shown to the admin; regular visitors still
+  // heartbeat via SitePresence so the count stays accurate.
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { isAdmin?: boolean } | null) => {
+        if (!cancelled && data?.isAdmin) setIsAdmin(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +52,7 @@ export default function OnlineCounter() {
     };
   }, []);
 
-  if (count === null) return null;
+  if (!isAdmin || count === null) return null;
 
   return (
     <div
