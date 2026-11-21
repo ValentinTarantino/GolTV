@@ -208,10 +208,11 @@ export async function GET(request: NextRequest) {
       league = SUPPORTED_LEAGUES.find((l) => l.id === 255) ?? league;
     }
     if (!league) continue;
-    // Primera Nacional (Argentina) always opens on the primary player; the
-    // selector stays available for anyone who wants another source.
+    // Primera Nacional (Argentina) always opens on Reproductor 6 (mode "5",
+    // the label visitors see); the selector stays available for anyone who
+    // wants another source.
     const preferredPlayer =
-      league.id === 129 ? ("6" as const) : "preferredPlayer" in entry ? entry.preferredPlayer : undefined;
+      league.id === 129 ? ("5" as const) : "preferredPlayer" in entry ? entry.preferredPlayer : undefined;
     const status = entry.fixtureStatus ?? inferStatus(entry.dateISO);
     // Keep explicitly confirmed finals on their Argentine calendar day. An
     // expired undated/inferred listing still cannot claim a rescheduled game.

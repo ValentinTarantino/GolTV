@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const order = await saveLeagueOrder(payload.order);
-    return NextResponse.json({ success: true, order });
+    const { order, persisted } = await saveLeagueOrder(payload.order);
+    return NextResponse.json({ success: true, order, persisted });
   } catch {
     return NextResponse.json({ error: "Could not save" }, { status: 500 });
   }

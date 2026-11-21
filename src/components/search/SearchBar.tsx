@@ -65,6 +65,7 @@ export default function SearchBar() {
       params.set("home", match.homeTeam.name);
       params.set("away", match.awayTeam.name);
       params.set("league", match.league.name);
+      if (match._preferredPlayer) params.set("player", match._preferredPlayer);
       if (match._streamId) params.set("streamId", match._streamId);
       const qs = params.toString();
       router.push(`/watch/${match.id}${qs ? `?${qs}` : ""}`);

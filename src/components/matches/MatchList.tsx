@@ -27,6 +27,7 @@ export default function MatchList({ matches }: MatchListProps) {
   const [groupOrder, setGroupOrder] = useState<string[] | null>(null);
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ key: string; before: boolean } | null>(null);
+  const [orderNotPersisted, setOrderNotPersisted] = useState(false);
   const pendingDrop = useRef<{ key: string; before: boolean } | null>(null);
   const dropHandler = useRef<(key: string, before: boolean) => void>(() => {});
 
@@ -109,13 +110,15 @@ export default function MatchList({ matches }: MatchListProps) {
         .catch(() => null);
       const saved: number[] = Array.isArray(current?.order) ? current.order : [];
       const merged = [...ids, ...saved.filter((id) => !ids.includes(id))];
-      await fetch("/api/admin/league-order", {
+      const res = await fetch("/api/admin/league-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order: merged }),
       });
+      const data: { persisted?: boolean } | null = res.ok ? await res.json().catch(() => null) : null;
+      setOrderNotPersisted(data?.persisted === false);
     } catch {
-      /* the local order still applies until the next save */
+      setOrderNotPersisted(true);
     }
   };
 
@@ -205,6 +208,11 @@ export default function MatchList({ matches }: MatchListProps) {
 
   return (
     <div className="space-y-6 sm:space-y-10">
+      {isAdmin && orderNotPersisted && (
+        <p className="border-2 border-accent-red bg-black px-3 py-2 text-[11px] font-black uppercase text-accent-red">
+          El orden no se guardó en la base de datos — se perderá al reiniciar. Revisá MONGODB_URI.
+        </p>
+      )}
       {orderedGroups.map((group, groupIndex) => (
         <section
           key={group.key}

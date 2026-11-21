@@ -78,20 +78,30 @@ export async function loadLeagueOrder(force = false): Promise<number[]> {
   return store?.order ?? [];
 }
 
+export interface LeagueOrderSave {
+  order: number[];
+  /** False when Mongo was unavailable — the order is memory-only and will be
+   * lost on the next deploy/restart. */
+  persisted: boolean;
+}
+
 /** Saves a new category order. An empty list restores the natural order. */
-export async function saveLeagueOrder(value: unknown): Promise<number[]> {
+export async function saveLeagueOrder(value: unknown): Promise<LeagueOrderSave> {
   const order = sanitizeLeagueOrder(value);
   globalRef.__goltvLeagueOrder = { order, at: Date.now() };
+  let persisted = false;
   try {
     const db = await getDb();
-    if (!db) return order;
-    await db.collection(COLLECTION).updateOne(
-      { key: DOC_KEY },
-      { $set: { key: DOC_KEY, order, at: Date.now() } },
-      { upsert: true }
-    );
+    if (db) {
+      await db.collection(COLLECTION).updateOne(
+        { key: DOC_KEY },
+        { $set: { key: DOC_KEY, order, at: Date.now() } },
+        { upsert: true }
+      );
+      persisted = true;
+    }
   } catch {
     /* the in-memory order is already updated */
   }
-  return order;
+  return { order, persisted };
 }

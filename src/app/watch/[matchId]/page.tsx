@@ -34,16 +34,16 @@ function WatchPageInner({
   // Honor ?player=N in the URL (shared links / reloads) — anything else falls
   // back to the default player.
   const playerParam = searchParams.get("player");
-  // Primera Nacional (Argentina) defaults to the primary player even when the
-  // link does not carry ?player= — the fixture cards set it via
-  // _preferredPlayer, this covers shared/direct URLs.
+  // Primera Nacional (Argentina) defaults to Reproductor 6 (mode "5", the
+  // label visitors see) even when the link does not carry ?player= — the
+  // fixture cards set it via _preferredPlayer, this covers shared/direct URLs.
   const leagueParam = (searchParams.get("league") ?? "").trim().toLowerCase();
   const isPrimeraNacional = /^(primera (b )?nacional|liga de reserva)$/.test(leagueParam);
   const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4" | "5" | "6" | "7">(
     playerParam === "1" || playerParam === "2" || playerParam === "3" || playerParam === "4" || playerParam === "5" || playerParam === "6" || playerParam === "7"
       ? playerParam
       : isPrimeraNacional
-        ? "6"
+        ? "5"
         : "2"
   );
 
