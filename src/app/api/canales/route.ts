@@ -11,6 +11,15 @@ export const dynamic = "force-dynamic";
 export async function GET(): Promise<Response> {
   const channels = await listCanales();
 
+  // The source being unreachable is not the same as an empty lineup: a 503
+  // lets the page show its error state instead of a blank section.
+  if (channels === null) {
+    return Response.json(
+      { error: "Channels unavailable" },
+      { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "30" } }
+    );
+  }
+
   return Response.json(
     { channels },
     {

@@ -205,18 +205,22 @@ function sortEntries(entries: CanalIndexEntry[]): CanalIndexEntry[] {
   });
 }
 
-async function loadIndex(): Promise<CanalIndexEntry[]> {
+async function loadIndex(): Promise<CanalIndexEntry[] | null> {
   const base = sourceBase();
   if (!base) return [];
 
-  return cached(`canales:index:v7:${base.origin}`, LIST_TTL, async () => {
+  // A failed fetch returns null so `cached` does not store it: an empty list
+  // cached for LIST_TTL used to leave production without channels until the
+  // TTL expired, even after the upstream recovered.
+  return cached<CanalIndexEntry[] | null>(`canales:index:v7:${base.origin}`, LIST_TTL, async () => {
     const map = await fetchText(new URL("/sitemap.xml", base).toString());
-    if (!map) return [] as CanalIndexEntry[];
+    if (!map) return null;
 
     const children = sitemapLocations(map).filter((loc) => /sitemap\.xml\?page=/i.test(loc));
     const documents = children.length > 0 ? children.slice(0, MAX_SITEMAP_PAGES) : [new URL("/sitemap.xml", base).toString()];
 
     const pages = await Promise.all(documents.map((doc) => fetchText(doc)));
+    if (pages.every((page) => page === null)) return null;
     const seen = new Set<string>();
     const slugs = new Set<string>();
     const entries: CanalIndexEntry[] = [];
@@ -245,9 +249,10 @@ async function loadIndex(): Promise<CanalIndexEntry[]> {
   });
 }
 
-/** Every channel of the section, with opaque ids. */
-export async function listCanales(): Promise<CanalChannel[]> {
+/** Every channel of the section, with opaque ids. Null when the source is down. */
+export async function listCanales(): Promise<CanalChannel[] | null> {
   const entries = await loadIndex();
+  if (entries === null) return null;
   // Filter out LPF channels - they're already in the LPF section
   return entries
     .filter(({ group }) => group !== "lpf")
@@ -881,7 +886,7 @@ export async function resolveCanalById(id: string): Promise<CanalSource | null> 
   if (!/^can_[a-f0-9]{16}$/.test(id)) return null;
 
   const entries = await loadIndex();
-  const entry = entries.find((candidate) => candidate.id === id);
+  const entry = entries?.find((candidate) => candidate.id === id);
   if (!entry) return null;
 
   return cached<CanalSource | null>(`canales:stream:v3:${id}`, STREAM_TTL, async () => {
