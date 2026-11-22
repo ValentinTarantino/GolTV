@@ -62,7 +62,7 @@ export function getCountdown(timestamp: number, lang: Language = "es"): string {
   return `${seconds}s`;
 }
 
-export function getStatusLabel(status: MatchStatusShort, elapsed: number | null, lang: Language = "es"): string {
+export function getStatusLabel(status: MatchStatusShort, elapsed: number | string | null, lang: Language = "es"): string {
   if (isLive(status)) {
     if (status === "HT") return lang === "es" ? "ET" : "HT";
     if (status === "1H" || status === "2H") return elapsed ? `${elapsed}'` : lang === "es" ? "EN VIVO" : "LIVE";

@@ -622,7 +622,9 @@ function containsNonFootballSignal(value?: string): boolean {
     "ufc",
   ];
 
-  return blocked.some((token) => text.includes(token));
+  // Word-boundary match: "sporting"/"esport" must not trip the "sport"
+  // exclusion — that would silently drop every Sporting-named club.
+  return blocked.some((token) => new RegExp(`\\b${token}\\b`).test(text));
 }
 
 export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?: string): LeagueConfig | null {
@@ -786,8 +788,14 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
 
   // Sort keys by length descending to match longer, more specific names first (e.g. "supercopa argentina" before "copa argentina")
   const sortedMapEntries = Object.entries(PL_LEAGUE_MAP).sort((a, b) => b[0].length - a[0].length);
+  // Ambiguous tier names ("primera division", "liga de primera"…) must never
+  // match *inside* a longer key — "primera division" is a substring of
+  // "primera division profesional de uruguay" and would hijack every
+  // uncovered country's top flight into Liga AUF. Exact-map hits above are
+  // unaffected; here only the "query contains key" direction is allowed.
+  const blocksReverseMatch = AMBIGUOUS_PRIMERA_LEAGUES.some((l) => normalized.includes(l));
   for (const [key, id] of sortedMapEntries) {
-    if (key.length > 3 && (normalized.includes(key) || key.includes(normalized))) {
+    if (key.length > 3 && (normalized.includes(key) || (!blocksReverseMatch && key.includes(normalized)))) {
       return relocateFromArgentina(SUPPORTED_LEAGUES.find((l) => l.id === id) ?? null);
     }
   }

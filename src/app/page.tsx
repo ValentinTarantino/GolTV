@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { Zap, Filter, RefreshCw } from "lucide-react";
 import MatchList from "@/components/matches/MatchList";
 import { MatchSkeleton } from "@/components/ui/Skeleton";
@@ -20,6 +20,10 @@ export default function HomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showLiveOnly, setShowLiveOnly] = useState(false);
+  const matchesRef = useRef<Match[]>([]);
+  useEffect(() => {
+    matchesRef.current = matches;
+  }, [matches]);
   const currentDate = useSyncExternalStore(
     subscribeToHydration,
     () => {
@@ -70,20 +74,7 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        fetch("/api/matches", { cache: "no-store" })
-          .then((r) => r.json())
-          .then((data) => {
-            setMatches(data.matches);
-            setLastUpdated(new Date());
-          })
-          .catch(() => {});
-      }
-    }, 30000);
-
-    const onVisibility = () => {
-      if (document.hidden) return;
+    const poll = () => {
       fetch("/api/matches", { cache: "no-store" })
         .then((r) => r.json())
         .then((data) => {
@@ -92,10 +83,27 @@ export default function HomePage() {
         })
         .catch(() => {});
     };
+
+    // Adaptive cadence: live matches refresh every 15s so score/minute move;
+    // a quiet fixture only needs a check a minute. Hidden tabs don't poll.
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const hasLive = matchesRef.current.some((m) => LIVE_STATUSES.includes(m.status.short));
+      timer = setTimeout(() => {
+        if (!document.hidden) poll();
+        schedule();
+      }, hasLive ? 15_000 : 60_000);
+    };
+    schedule();
+
+    const onVisibility = () => {
+      if (document.hidden) return;
+      poll();
+    };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      clearInterval(interval);
+      clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);

@@ -49,7 +49,7 @@ export interface Match {
   status: {
     short: MatchStatusShort;
     long: string;
-    elapsed: number | null;
+    elapsed: number | string | null;
   };
   score: MatchScore;
   channels: Channel[];

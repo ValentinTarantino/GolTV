@@ -1184,7 +1184,7 @@ describe("/api/matches", () => {
     ]);
   });
 
-  it("deduplicates Bogotá and Costa Rica club abbreviations across agenda sources", async () => {
+  it("deduplicates Bogotá clubs and drops uncovered Primera División labels", async () => {
     const date = todayISO();
     (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({
@@ -1218,9 +1218,12 @@ describe("/api/matches", () => {
     const res = await GET(makeRequest(date));
     const data = await res.json();
 
-    expect(data.matches).toHaveLength(2);
+    // Only the explicit Liga BetPlay fixture survives: bare "Primera
+    // División" labels from uncovered countries (Costa Rica here) must not
+    // fall through the fuzzy league map into a neighbouring competition.
+    expect(data.matches).toHaveLength(1);
     expect(data.matches[0].homeTeam.name).toBe("Alianza");
-    expect(data.matches[1].homeTeam.name).toBe("Alajuelense");
+    expect(data.matches[0].league.id).toBe(239);
   });
 
   it("keeps similarly named Alianza clubs distinct", async () => {

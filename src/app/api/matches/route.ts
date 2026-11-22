@@ -8,6 +8,7 @@ import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
 import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { leagueRanks, loadLeagueOrder } from "@/lib/league-order";
+import { espnSlugsForLeague, espnSlugsForLeagues, findEspnEvent, loadEspnScoreboards } from "@/lib/espn-scores";
 import { isIPBanned } from "@/lib/chat";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
@@ -281,6 +282,27 @@ export async function GET(request: NextRequest) {
   // sees. Unranked competitions keep their natural kickoff order.
   const rankOf = leagueRanks(await loadLeagueOrder());
   matches.sort((a, b) => rankOf(a.league.id) - rankOf(b.league.id) || a.timestamp - b.timestamp);
+
+  // Live score enrichment from ESPN's public scoreboard (no API key). One
+  // request per league slug per ~45s; a miss or failure keeps agenda data.
+  const espnSlugs = espnSlugsForLeagues(new Set(matches.map((m) => m.league.id)));
+  if (espnSlugs.length > 0) {
+    const boards = await loadEspnScoreboards(espnSlugs);
+    for (const m of matches) {
+      const events = espnSlugsForLeague(m.league.id).flatMap((slug) => boards.get(slug) ?? []);
+      const event = findEspnEvent(events, m.homeTeam.name, m.awayTeam.name, m.date);
+      if (!event) continue;
+      m.score = { home: event.homeScore, away: event.awayScore };
+      if (event.statusShort === "FT") {
+        m.status = { short: "FT", long: "Finalizado", elapsed: null };
+      } else if (["1H", "HT", "2H", "ET"].includes(event.statusShort)) {
+        m.status = { short: event.statusShort as Match["status"]["short"], long: "En Juego", elapsed: event.elapsed };
+      } else if (event.statusShort === "NS" && m.status.short !== "FT") {
+        // Kickoff info from ESPN is authoritative for "not started" too.
+        m.status = { ...m.status, elapsed: null };
+      }
+    }
+  }
 
   const badgeKey = (name: string, country: string) => JSON.stringify([country, name]);
   const teams = new Map<string, { name: string; country: string }>();
