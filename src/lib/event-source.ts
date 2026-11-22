@@ -1,6 +1,6 @@
 import { cleanAgendaText, stripMatchStageSuffix } from "./agenda-text";
 import type { Channel } from "./types";
-import { getCache, setCache, acquireLock, releaseLock } from "./cache";
+import { getCache, setCache, deleteCache, acquireLock, releaseLock } from "./cache";
 import { isMenFootballMatch } from "./constants";
 import { matchTeamsPair } from "./team-matching";
 import { canonicalTeamForDedup } from "./fixture-identity";
@@ -31,6 +31,11 @@ const PL_AGENDA_CACHE_TTL = 5 * 60 * 1000;
 
 const PL_COOLDOWN_KEY = "pl:cooldown:until";
 const PL_AGENDA_CACHE_KEY = "pl:agenda:v2";
+// A dead agenda host must not be retried on every fixture poll: each failed
+// attempt can burn the fetch timeout plus the DNS fallbacks. Mark the source
+// down briefly and serve the stale list (or nothing) until it recovers.
+const PL_AGENDA_DOWN_KEY = "pl:agenda:down:v1";
+const PL_AGENDA_DOWN_TTL = 2 * 60 * 1000;
 
 /**
  * streamxhd-style wrappers hide the media URL in an obfuscated `bc` array:
@@ -216,6 +221,8 @@ export async function fetchEventAgenda(): Promise<EventMatch[]> {
   const cached = await getCache<EventMatch[]>(PL_AGENDA_CACHE_KEY);
   if (cached) return cached;
 
+  if (await getCache<boolean>(PL_AGENDA_DOWN_KEY)) return [];
+
   const lockKey = `${PL_AGENDA_CACHE_KEY}:lock`;
   const lockAcquired = await acquireLock(lockKey, 10000);
   if (!lockAcquired) {
@@ -244,16 +251,20 @@ export async function fetchEventAgenda(): Promise<EventMatch[]> {
     } catch (error) {
       // The system resolver failed (ENOTFOUND / EAI_AGAIN). Retry through the
       // configured resolver, or through the public ones when the environment
-      // does not name one.
-      let fallback: Awaited<ReturnType<typeof fetchTextWithDnsServer>> | null = null;
-      for (const server of PL_DNS_FALLBACKS) {
-        try {
-          fallback = await fetchTextWithDnsServer(PL_AGENDA_URL, server, headers);
-          break;
-        } catch (resolverError) {
-          console.warn(`Pelota Libre agenda: DNS fallback ${server} failed`, resolverError);
+      // does not name one. Resolvers race in parallel — sequential attempts
+      // could stack three 15s timeouts and stall the whole fixture request.
+      const attempts = await Promise.allSettled(
+        PL_DNS_FALLBACKS.map((server) => fetchTextWithDnsServer(PL_AGENDA_URL, server, headers))
+      );
+      attempts.forEach((attempt, index) => {
+        if (attempt.status === "rejected") {
+          console.warn(`Pelota Libre agenda: DNS fallback ${PL_DNS_FALLBACKS[index]} failed`, attempt.reason);
         }
-      }
+      });
+      const fallback = attempts.find(
+        (attempt): attempt is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchTextWithDnsServer>>> =>
+          attempt.status === "fulfilled"
+      )?.value ?? null;
       if (!fallback) throw error;
       status = fallback.status;
       html = fallback.text;
@@ -265,6 +276,7 @@ export async function fetchEventAgenda(): Promise<EventMatch[]> {
         await markRateLimited();
       }
       await releaseLock(lockKey);
+      await setCache(PL_AGENDA_DOWN_KEY, true, PL_AGENDA_DOWN_TTL);
       const stale = await getCache<EventMatch[]>(PL_AGENDA_CACHE_KEY);
       return stale ?? [];
     }
@@ -272,11 +284,13 @@ export async function fetchEventAgenda(): Promise<EventMatch[]> {
     const matches = parseAgendaHTML(html);
 
     await setCache(PL_AGENDA_CACHE_KEY, matches, PL_AGENDA_CACHE_TTL);
+    await deleteCache(PL_AGENDA_DOWN_KEY);
     await releaseLock(lockKey);
     return matches;
   } catch (error) {
     console.warn("Failed to fetch Pelota Libre agenda:", error);
     await releaseLock(lockKey);
+    await setCache(PL_AGENDA_DOWN_KEY, true, PL_AGENDA_DOWN_TTL);
     const stale = await getCache<EventMatch[]>(PL_AGENDA_CACHE_KEY);
     return stale ?? [];
   }

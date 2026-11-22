@@ -9,7 +9,7 @@
 import { sealLpfUrl } from "./sealed-url";
 
 /** Only these hosts (and their subdomains) may be relayed — not an open proxy. */
-const ALLOWED_HOST_SUFFIXES = [".ftlly.com", ".futlivehd.com"];
+const ALLOWED_HOST_SUFFIXES = [".ftlly.com", ".futlivehd.com", ".ebaclofen.org"];
 
 /**
  * RBTV+ stream CDNs rotate across throwaway domains but always keep the

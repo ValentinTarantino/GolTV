@@ -3,6 +3,7 @@ import { getTeamLogo } from "./team-logos";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
 import { proxyImageUrl } from "./public-url";
 import { isAllowedStreamUrl, toHlsProxyUrl } from "./hls-proxy";
+import { sealLpfUrl } from "./sealed-url";
 
 const STREAM_API_BASE = "https://football-live-stream-api.p.rapidapi.com";
 const RAPID_API_KEY = process.env.RAPIDAPI_KEY || "";
@@ -25,18 +26,27 @@ interface StreamMatch {
   date?: string;
 }
 
-function toClientStreamUrl(streamUrl: string): string {
-  // Seal upstream playlists behind the HLS relay when the host is already
-  // allowlisted — anything else keeps the raw URL so playback never breaks.
+function toClientStreamUrl(streamUrl: string): { url: string; kind: "hls" | "iframe" } {
+  // Providers wrap the real playlist in a page URL (e.g. ?url=<m3u8>).
+  // Unwrap it: an m3u8 on an allowlisted host plays through our own HLS
+  // player — full controls and fullscreen — instead of a cropped iframe.
+  const unwrapped = unwrapNestedStreamUrl(streamUrl);
+  const candidate = unwrapped.includes(".m3u8") ? unwrapped : streamUrl;
   try {
-    const parsed = new URL(streamUrl);
+    const parsed = new URL(candidate);
     if (parsed.protocol === "https:" && isAllowedStreamUrl(parsed)) {
-      return toHlsProxyUrl(streamUrl);
+      return { url: toHlsProxyUrl(candidate), kind: "hls" };
     }
   } catch {
-    // not an absolute URL — leave untouched
+    // not an absolute URL — treat as iframe
   }
-  return streamUrl;
+  // Non-HLS or unallowed host: HTML proxy (ad removal, URL rewriting).
+  try {
+    return { url: `/api/proxy?t=${sealLpfUrl(streamUrl)}`, kind: "iframe" };
+  } catch {
+    // Fallback without LPF_PROXY_SECRET.
+    return { url: `/api/proxy?url=${encodeURIComponent(streamUrl)}`, kind: "iframe" };
+  }
 }
 
 export function unwrapNestedStreamUrl(raw: string): string {
@@ -495,7 +505,8 @@ export async function getStreamsForMatch(
     if (matchId) {
       const url = await fetchStreamUrl(matchId);
       if (url) {
-        return [{ id: "stream-0", name: `${homeTeam} vs ${awayTeam}`, url: toClientStreamUrl(url) }];
+        const stream = toClientStreamUrl(url);
+        return [{ id: "stream-0", name: `${homeTeam} vs ${awayTeam}`, url: stream.url, kind: stream.kind }];
       }
       return [];
     }
@@ -508,7 +519,8 @@ export async function getStreamsForMatch(
     if (match) {
       const url = await fetchStreamUrl(match.id);
       if (url) {
-        return [{ id: "stream-0", name: `${homeTeam} vs ${awayTeam}`, url: toClientStreamUrl(url) }];
+        const stream = toClientStreamUrl(url);
+        return [{ id: "stream-0", name: `${homeTeam} vs ${awayTeam}`, url: stream.url, kind: stream.kind }];
       }
     }
   } catch (error) {

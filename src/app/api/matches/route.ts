@@ -44,6 +44,68 @@ function isNearNow(dateISO: string): boolean {
   return difference <= 6 * 60 * 60 * 1000;
 }
 
+/**
+ * Hard ceiling per agenda source. Internal timeouts can stack (primary fetch
+ * plus sequential DNS fallbacks), so the route bounds each source itself:
+ * past the cap the source contributes nothing to this response, while the
+ * underlying fetch keeps running and still fills its cache.
+ */
+function withAgendaTimeout<T extends unknown[]>(promise: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      timer = setTimeout(() => resolve([] as unknown as T), 15_000);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+const badgeKey = (name: string, country: string) => JSON.stringify([country, name]);
+
+/**
+ * Resolves every fixture crest. Started early so the wait overlaps score
+ * enrichment; the 3s cap counts from call time. Known clubs resolve
+ * synchronously (local catalog + static maps). Uncatalogued clubs keep
+ * resolving after the cap, land in the in-memory cache, and crests backfill
+ * on the home page's poll (peekTeamLogo reads that cache).
+ */
+function resolveTeamLogos(matches: Match[]): Promise<Map<string, string>> {
+  const teams = new Map<string, { name: string; country: string }>();
+  for (const match of matches) {
+    for (const team of [match.homeTeam, match.awayTeam]) {
+      teams.set(badgeKey(team.name, match.league.country), { name: team.name, country: match.league.country });
+    }
+  }
+
+  const logoMap = new Map<string, string>();
+  const lookupPromises: Promise<void>[] = [];
+
+  for (const [key, { name, country }] of teams) {
+    const peeked = peekTeamLogo(name, country);
+    if (peeked !== null) {
+      logoMap.set(key, peeked);
+    } else {
+      logoMap.set(key, "");
+      lookupPromises.push(
+        getTeamLogo(name, country)
+          .then((logo) => {
+            logoMap.set(key, logo);
+          })
+          .catch(() => {})
+      );
+    }
+  }
+
+  if (lookupPromises.length === 0) return Promise.resolve(logoMap);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    Promise.allSettled(lookupPromises).then(() => logoMap),
+    new Promise<Map<string, string>>((resolve) => {
+      timeout = setTimeout(() => resolve(logoMap), 3000);
+    }),
+  ]).finally(() => clearTimeout(timeout));
+}
+
 function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
@@ -236,11 +298,16 @@ export async function GET(request: NextRequest) {
   if ("error" in validation) return validation.error;
 
   const requestedDate = validation.data.date;
+  // Every upstream call starts together: a slow or dead provider must not
+  // serialize the whole fixture behind it. Agenda sources keep their own
+  // caches, so a timed-out fetch still warms them for the next poll.
+  const sportplusScoresPromise = listSportplusScores().catch(() => [] as SportplusScoreEvent[]);
+  const leagueOrderPromise = loadLeagueOrder().catch(() => [] as number[]);
   const [flAgenda, secondaryAgenda, eventAgenda, playerFiveAgenda] = await Promise.all([
-    fetchAgenda(),
-    fetchSecondaryAgenda(),
-    fetchEventAgenda(),
-    fetchPlayerFiveAgenda(),
+    withAgendaTimeout(fetchAgenda()),
+    withAgendaTimeout(fetchSecondaryAgenda()),
+    withAgendaTimeout(fetchEventAgenda()),
+    withAgendaTimeout(fetchPlayerFiveAgenda()),
   ]);
 
   const date = requestedDate || getArgentinaToday();
@@ -358,10 +425,16 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // Crest lookups start now so they overlap the ESPN/Sportplus enrichment
+  // below instead of adding their own serial wait at the end. The 3s cap
+  // counts from this point: anything slower still lands in the logo cache
+  // for the next poll.
+  const logoWork = resolveTeamLogos(matches);
+
   // The admin's category order wins; inside a category, kickoff time. The
   // client groups by first appearance, so this is the section order everyone
   // sees. Unranked competitions keep their natural kickoff order.
-  const rankOf = leagueRanks(await loadLeagueOrder());
+  const rankOf = leagueRanks(await leagueOrderPromise);
   matches.sort((a, b) => rankOf(a.league.id) - rankOf(b.league.id) || a.timestamp - b.timestamp);
 
   // Live score enrichment from ESPN's public scoreboard (no API key). One
@@ -444,7 +517,7 @@ export async function GET(request: NextRequest) {
   // match once its broadcast ends, so the last score seen is remembered per
   // fixture: a vanished live match past its ~140min window reads as FT.
   if (matches.some((m) => m.score.home == null && m.score.away == null)) {
-    const sportplusEvents = await listSportplusScores();
+    const sportplusEvents = await sportplusScoresPromise;
     const memoryWrites: Promise<void>[] = [];
     for (const m of matches) {
       if (m.score.home != null || m.score.away != null) continue;
@@ -473,50 +546,7 @@ export async function GET(request: NextRequest) {
     await Promise.allSettled(memoryWrites);
   }
 
-  const badgeKey = (name: string, country: string) => JSON.stringify([country, name]);
-  const teams = new Map<string, { name: string; country: string }>();
-  for (const match of matches) {
-    for (const team of [match.homeTeam, match.awayTeam]) {
-      teams.set(badgeKey(team.name, match.league.country), { name: team.name, country: match.league.country });
-    }
-  }
-
-  const logoMap = new Map<string, string>();
-  const lookupPromises: Promise<void>[] = [];
-
-  for (const [key, { name, country }] of teams) {
-    const peeked = peekTeamLogo(name, country);
-    if (peeked !== null) {
-      logoMap.set(key, peeked);
-    } else {
-      logoMap.set(key, "");
-      lookupPromises.push(
-        getTeamLogo(name, country)
-          .then((logo) => {
-            logoMap.set(key, logo);
-          })
-          .catch(() => {})
-      );
-    }
-  }
-
-  if (lookupPromises.length > 0) {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await Promise.race([
-        Promise.allSettled(lookupPromises),
-        // Known clubs resolve synchronously (local catalog + static maps).
-        // Bound waits for uncatalogued clubs so a slow SportsDB search never
-        // delays the fixture list: the lookups keep running after the
-        // response, land in the in-memory cache, and crests backfill on the
-        // home page's 30s poll (peekTeamLogo reads that cache).
-        new Promise((resolve) => { timeout = setTimeout(resolve, 3000); }),
-      ]);
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
+  const logoMap = await logoWork;
   for (const m of matches) {
     m.homeTeam.logo = proxyImageUrl(logoMap.get(badgeKey(m.homeTeam.name, m.league.country)) ?? "");
     m.awayTeam.logo = proxyImageUrl(logoMap.get(badgeKey(m.awayTeam.name, m.league.country)) ?? "");
