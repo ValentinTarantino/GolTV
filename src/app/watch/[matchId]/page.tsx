@@ -137,7 +137,7 @@ function WatchPageInner({
         {t.watch.backMatches}
       </Link>
 
-      <WatchTheater fullscreenEnabled={playerMode !== "6"} title={`${match.homeTeam.name} vs ${match.awayTeam.name}`} chat={<ChatBox matchId={matchId} />}
+      <WatchTheater title={`${match.homeTeam.name} vs ${match.awayTeam.name}`} chat={<ChatBox matchId={matchId} />}
         header={
           <div
             data-theater-hide
