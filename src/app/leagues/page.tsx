@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { Trophy, ChevronRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { SUPPORTED_LEAGUES, LEAGUE_LOGOS } from "@/lib/constants";
+import { SUPPORTED_LEAGUES } from "@/lib/constants";
 import type { StandingsTable, StandingsTab, BracketRound } from "@/lib/types";
 
 const COUNTRY_ORDER = [
@@ -271,9 +271,24 @@ export default function LeaguesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [leagueLogos, setLeagueLogos] = useState<Record<string, string>>({});
   const fetchIdRef = useRef(0);
 
   const selectedLeague = SUPPORTED_LEAGUES.find((l) => l.id === selectedId);
+
+  // Badge URLs come sealed from the server so provider CDNs stay hidden.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/league-logos")
+      .then((res) => res.json())
+      .then((d: { logos?: Record<string, string> }) => {
+        if (!cancelled && d.logos) setLeagueLogos(d.logos);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const currentFetchId = ++fetchIdRef.current;
@@ -402,7 +417,7 @@ export default function LeaguesPage() {
                             : "text-black hover:bg-black/10 border-transparent"
                         }`}
                       >
-                        <Image src={LEAGUE_LOGOS[league.id] || ""} alt={league.name} width={28} height={28} className="object-contain shrink-0 max-w-7 max-h-7" unoptimized />
+                        <Image src={leagueLogos[String(league.id)] || ""} alt={league.name} width={28} height={28} className="object-contain shrink-0 max-w-7 max-h-7" unoptimized />
                         <span className="truncate">{league.name}</span>
                       </button>
                     ))}
@@ -458,8 +473,8 @@ export default function LeaguesPage() {
                               : "text-black hover:bg-black/10 border-transparent"
                           }`}
                         >
-                          {LEAGUE_LOGOS[league.id] ? (
-                            <Image src={LEAGUE_LOGOS[league.id]} alt={league.name} width={28} height={28} className="object-contain shrink-0 max-w-7 max-h-7" unoptimized />
+                          {leagueLogos[String(league.id)] ? (
+                            <Image src={leagueLogos[String(league.id)]} alt={league.name} width={28} height={28} className="object-contain shrink-0 max-w-7 max-h-7" unoptimized />
                           ) : (
                             <span className="text-lg shrink-0">⚽</span>
                           )}
@@ -475,7 +490,7 @@ export default function LeaguesPage() {
             <main className="flex-1 min-w-0">
             {selectedLeague && (
               <div className="bg-accent-primary border-4 border-black shadow-brutal p-4 sm:p-5 mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4">
-                <Image src={LEAGUE_LOGOS[selectedLeague.id] || ""} alt={selectedLeague.name} width={48} height={48} className="object-contain shrink-0 max-w-12 max-h-12" unoptimized priority />
+                <Image src={leagueLogos[String(selectedLeague.id)] || ""} alt={selectedLeague.name} width={48} height={48} className="object-contain shrink-0 max-w-12 max-h-12" unoptimized priority />
                 <div>
                   <h1 className="font-black text-black uppercase text-lg sm:text-xl tracking-tight">{selectedLeague.name}</h1>
                 </div>

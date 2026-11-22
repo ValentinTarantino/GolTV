@@ -41,6 +41,9 @@ export function teamsMatch(a: string, b: string): boolean {
   const shorter = na.length <= nb.length ? na : nb;
   const longer = na.length <= nb.length ? nb : na;
   if (shorter.length >= 5 && longer.includes(shorter)) return true;
+  // Truncated single-word names ("Eiba" for "Eibar"): a 4+ char prefix still
+  // identifies the club when the full token is unique enough.
+  if (shorter.length >= 4 && longer.startsWith(shorter)) return true;
 
   const tokensA = significantTokens(a);
   const tokensB = significantTokens(b);

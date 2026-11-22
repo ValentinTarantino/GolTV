@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
+import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
 import type { Match } from "@/lib/types";
 import { translateLeague } from "@/i18n/dictionaries";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -9,10 +10,12 @@ import MatchCard from "./MatchCard";
 
 interface MatchListProps {
   matches: Match[];
+  isAdmin?: boolean;
+  /** Saves the category order. Resolves false when the server rejected it. */
+  onReorder?: (order: number[]) => Promise<boolean>;
 }
 
 interface LeagueGroup {
-  key: string;
   leagueId: number;
   leagueName: string;
   leagueLogo: string;
@@ -21,29 +24,30 @@ interface LeagueGroup {
   matches: Match[];
 }
 
-export default function MatchList({ matches }: MatchListProps) {
+export default function MatchList({ matches, isAdmin = false, onReorder }: MatchListProps) {
   const { t, language } = useLanguage();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [groupOrder, setGroupOrder] = useState<string[] | null>(null);
-  const [dragKey, setDragKey] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ key: string; before: boolean } | null>(null);
-  const [orderNotPersisted, setOrderNotPersisted] = useState(false);
-  const pendingDrop = useRef<{ key: string; before: boolean } | null>(null);
-  const dropHandler = useRef<(key: string, before: boolean) => void>(() => {});
+  // Admin-only category order. It starts null so the server order (the one
+  // every visitor gets) is used until the admin moves something.
+  const [order, setOrder] = useState<number[] | null>(null);
+  const [dragId, setDragId] = useState<number | null>(null);
+  // The drop handler must not depend on a state re-render having happened
+  // between dragstart and drop, so the source id also lives in a ref.
+  const dragSourceRef = useRef<number | null>(null);
+  const [overId, setOverId] = useState<number | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [orderError, setOrderError] = useState(false);
 
-  // The admin session cookie is httpOnly, so the client asks the server.
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/admin/session")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { isAdmin?: boolean } | null) => {
-        if (!cancelled && data?.isAdmin) setIsAdmin(true);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  if (matches.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 sm:py-20 text-center animate-fade-in border-3 sm:border-4 border-dashed border-white/20">
+        <div className="mb-3 sm:mb-4 text-4xl sm:text-6xl">⚽</div>
+        <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-widest">{t.home.noMatches}</h3>
+        <p className="mt-2 text-sm sm:text-base font-bold text-white/50 uppercase">
+          {t.home.noMatchesForDate}
+        </p>
+      </div>
+    );
+  }
 
   // Final UI guard for provider duplicates. Sources can occasionally return
   // the same fixture with different ids or ISO offsets; the visible fixture
@@ -73,7 +77,6 @@ export default function MatchList({ matches }: MatchListProps) {
     let group = groupMap.get(key);
     if (!group) {
       group = {
-        key,
         leagueId: match.league.id,
         leagueName: match.league.name,
         leagueLogo: match.league.logo,
@@ -87,145 +90,117 @@ export default function MatchList({ matches }: MatchListProps) {
     group.matches.push(match);
   }
 
-  const leagueIdByKey = new Map(groups.map((group) => [group.key, group.leagueId]));
-
-  // Admin drag order wins over the server-provided sequence; groups the
-  // admin has not touched yet keep their relative position at the end.
-  const orderedGroups = groupOrder
-    ? [...groups].sort((a, b) => {
-        const ai = groupOrder.indexOf(a.key);
-        const bi = groupOrder.indexOf(b.key);
-        return (ai === -1 ? Number.MAX_SAFE_INTEGER : ai) - (bi === -1 ? Number.MAX_SAFE_INTEGER : bi);
+  const orderedGroups = order
+    ? [...groups].sort((left, right) => {
+        const leftIndex = order.indexOf(left.leagueId);
+        const rightIndex = order.indexOf(right.leagueId);
+        if (leftIndex === -1 && rightIndex === -1) return 0;
+        if (leftIndex === -1) return 1;
+        if (rightIndex === -1) return -1;
+        return leftIndex - rightIndex;
       })
     : groups;
 
-  /** Persists the visible order; leagues outside today's fixture keep theirs. */
-  const persistOrder = async (keys: string[]) => {
-    const ids = keys
-      .map((key) => leagueIdByKey.get(key))
-      .filter((id): id is number => typeof id === "number");
-    try {
-      const current = await fetch("/api/admin/league-order")
-        .then((res) => (res.ok ? res.json() : null))
-        .catch(() => null);
-      const saved: number[] = Array.isArray(current?.order) ? current.order : [];
-      const merged = [...ids, ...saved.filter((id) => !ids.includes(id))];
-      const res = await fetch("/api/admin/league-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order: merged }),
-      });
-      const data: { persisted?: boolean } | null = res.ok ? await res.json().catch(() => null) : null;
-      setOrderNotPersisted(data?.persisted === false);
-    } catch {
-      setOrderNotPersisted(true);
+  const saveOrder = async (next: number[]) => {
+    setOrder(next);
+    setOrderError(false);
+    if (!onReorder) return;
+    setSavingOrder(true);
+    const saved = await onReorder(next);
+    setSavingOrder(false);
+    if (!saved) {
+      setOrderError(true);
+      // Fall back to the server order on the next poll.
+      setOrder(null);
     }
   };
 
-  function handleDrop(targetKey: string, before: boolean) {
-    setDropTarget(null);
-    if (!isAdmin || !dragKey || dragKey === targetKey) return;
-    const keys = orderedGroups.map((group) => group.key);
-    const from = keys.indexOf(dragKey);
-    const to = keys.indexOf(targetKey) + (before ? 0 : 1);
-    if (from === -1 || to === -1 || to === from || to === from + 1) return;
-    const next = keys.filter((key) => key !== dragKey);
-    next.splice(to > from ? to - 1 : to, 0, dragKey);
-    setGroupOrder(next);
-    void persistOrder(next);
-  }
+  const moveGroup = (leagueId: number, delta: number) => {
+    const ids = orderedGroups.map((group) => group.leagueId);
+    const from = ids.indexOf(leagueId);
+    const to = from + delta;
+    if (from === -1 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    void saveOrder(ids);
+  };
 
-  // Pointer-based drag (not HTML5 drag & drop): the mouse wheel keeps
-  // scrolling the page mid-drag, which native DnD suppresses.
-  useEffect(() => {
-    dropHandler.current = handleDrop;
-  });
+  const dropOn = (targetId: number) => {
+    const source = dragSourceRef.current;
+    dragSourceRef.current = null;
+    setDragId(null);
+    setOverId(null);
+    if (source === null || source === targetId) return;
+    const ids = orderedGroups.map((group) => group.leagueId);
+    const from = ids.indexOf(source);
+    const to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    const [moved] = ids.splice(from, 1);
+    // Dropping onto a category takes that category's slot: it lands before it.
+    ids.splice(to > from ? to - 1 : to, 0, moved);
+    void saveOrder(ids);
+  };
 
-  useEffect(() => {
-    if (!isAdmin || !dragKey) return;
-
-    const previousCursor = document.body.style.cursor;
-    const previousSelect = document.body.style.userSelect;
-    document.body.style.cursor = "grabbing";
-    document.body.style.userSelect = "none";
-
-    const onMove = (event: PointerEvent) => {
-      const hit = document
-        .elementFromPoint(event.clientX, event.clientY)
-        ?.closest<HTMLElement>("[data-league-key]");
-      const key = hit?.dataset.leagueKey;
-      if (key) {
-        const rect = hit.getBoundingClientRect();
-        const before = event.clientY < rect.top + rect.height / 2;
-        pendingDrop.current = { key, before };
-        setDropTarget(pendingDrop.current);
-      } else {
-        pendingDrop.current = null;
-        setDropTarget(null);
-      }
-
-      // Auto-scroll near the viewport edges while the pointer is held.
-      const EDGE = 90;
-      const y = event.clientY;
-      if (y < EDGE) {
-        window.scrollBy(0, -Math.ceil((EDGE - y) / 6));
-      } else if (y > window.innerHeight - EDGE) {
-        window.scrollBy(0, Math.ceil((y - (window.innerHeight - EDGE)) / 6));
-      }
-    };
-
-    const finish = () => {
-      const target = pendingDrop.current;
-      pendingDrop.current = null;
-      setDragKey(null);
-      setDropTarget(null);
-      if (target) dropHandler.current(target.key, target.before);
-    };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", finish);
-    window.addEventListener("pointercancel", finish);
-    return () => {
-      document.body.style.cursor = previousCursor;
-      document.body.style.userSelect = previousSelect;
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", finish);
-      window.removeEventListener("pointercancel", finish);
-    };
-  }, [isAdmin, dragKey]);
-
-  if (uniqueMatches.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 sm:py-20 text-center animate-fade-in border-3 sm:border-4 border-dashed border-white/20">
-        <div className="mb-3 sm:mb-4 text-4xl sm:text-6xl">⚽</div>
-        <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-widest">{t.home.noMatches}</h3>
-        <p className="mt-2 text-sm sm:text-base font-bold text-white/50 uppercase">
-          {t.home.noMatchesForDate}
-        </p>
-      </div>
-    );
-  }
+  const canReorder = Boolean(isAdmin && onReorder);
 
   return (
     <div className="space-y-6 sm:space-y-10">
-      {isAdmin && orderNotPersisted && (
-        <p className="border-2 border-accent-red bg-black px-3 py-2 text-[11px] font-black uppercase text-accent-red">
-          El orden no se guardó en la base de datos — se perderá al reiniciar. Revisá MONGODB_URI.
-        </p>
+      {canReorder && orderError && (
+        <div className="border-4 border-red-500 bg-black px-3 py-2 text-xs font-black uppercase tracking-widest text-red-400">
+          {t.home.orderError}
+        </div>
       )}
       {orderedGroups.map((group, groupIndex) => (
         <section
-          key={group.key}
-          className={`border-4 bg-bg-card p-3 sm:p-4 md:p-6 shadow-[6px_6px_0px_0px_var(--color-accent-secondary)] animate-fade-in stagger-${Math.min(groupIndex + 1, 6)} ${isAdmin ? "transition-all" : ""} ${dragKey === group.key ? "opacity-40" : ""} ${isAdmin && dropTarget?.key === group.key ? (dropTarget.before ? "border-t-accent-primary" : "border-b-accent-primary") : "border-white"}`}
-          style={{ opacity: dragKey === group.key ? undefined : 0 }}
-          data-league-key={group.key}
+          key={`${group.leagueId}-${group.leagueName}`}
+          className={`border-4 border-white bg-bg-card p-3 sm:p-4 md:p-6 shadow-[6px_6px_0px_0px_var(--color-accent-secondary)] animate-fade-in stagger-${Math.min(groupIndex + 1, 6)} ${
+            dragId === group.leagueId ? "opacity-40" : ""
+          } ${overId === group.leagueId && dragId !== group.leagueId ? "ring-4 ring-accent-primary" : ""}`}
+          style={{ opacity: 0 }}
+          onDragOver={canReorder
+            ? (event) => {
+                event.preventDefault();
+                if (overId !== group.leagueId) setOverId(group.leagueId);
+              }
+            : undefined}
+          onDrop={canReorder
+            ? (event) => {
+                event.preventDefault();
+                dropOn(group.leagueId);
+              }
+            : undefined}
+          onDragEnd={canReorder
+            ? () => {
+                dragSourceRef.current = null;
+                setDragId(null);
+                setOverId(null);
+              }
+            : undefined}
         >
           {/* League Header */}
           <div
-            className={`mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-accent-primary border-4 border-black p-3 sm:p-4 shadow-brutal-white ${isAdmin ? "select-none" : ""}`}
+            className={`mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-accent-primary border-4 border-black p-3 sm:p-4 shadow-brutal-white ${
+              canReorder ? "cursor-grab active:cursor-grabbing" : ""
+            }`}
             id={`league-header-${group.leagueId}-${groupIndex}`}
+            draggable={canReorder}
+            onDragStart={canReorder
+              ? (event) => {
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", String(group.leagueId));
+                  dragSourceRef.current = group.leagueId;
+                  setDragId(group.leagueId);
+                }
+              : undefined}
           >
             <div className="flex items-center gap-3 sm:gap-4">
+              {canReorder && (
+                <GripVertical
+                  size={18}
+                  strokeWidth={3}
+                  className="hidden shrink-0 text-black/60 sm:block"
+                  aria-hidden
+                />
+              )}
               <div className={`relative isolate h-10 w-10 flex-shrink-0 border-2 border-black shadow-brutal-sm sm:h-12 sm:w-12 ${group.leagueId === 9901 || group.leagueId === 268 || group.leagueId === 57 || group.leagueId === 1034 ? "bg-black" : "bg-white"}`}>
               {group.leagueLogo ? (
                 <div className="absolute inset-1">
@@ -236,6 +211,7 @@ export default function MatchList({ matches }: MatchListProps) {
                     className="object-contain"
                     sizes="32px"
                     unoptimized
+                    draggable={false}
                   />
                 </div>
               ) : (
@@ -250,24 +226,33 @@ export default function MatchList({ matches }: MatchListProps) {
                 </h2>
               </div>
             </div>
-            {isAdmin && (
-              <span
-                className="flex cursor-grab items-center justify-center self-center text-black/60 active:cursor-grabbing"
-                aria-hidden
-                onPointerDown={(event) => {
-                  if (event.button !== 0) return;
-                  event.preventDefault();
-                  pendingDrop.current = null;
-                  setDropTarget(null);
-                  setDragKey(group.key);
-                }}
-              >
-                <svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor">
-                  <circle cx="4" cy="3" r="1.6" /><circle cx="10" cy="3" r="1.6" />
-                  <circle cx="4" cy="9" r="1.6" /><circle cx="10" cy="9" r="1.6" />
-                  <circle cx="4" cy="15" r="1.6" /><circle cx="10" cy="15" r="1.6" />
-                </svg>
-              </span>
+
+            {canReorder && (
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="hidden text-[10px] font-black uppercase tracking-widest text-black/60 md:inline">
+                  {savingOrder ? t.home.orderSaving : t.home.dragLeague}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => moveGroup(group.leagueId, -1)}
+                  disabled={groupIndex === 0 || savingOrder}
+                  title={t.home.moveLeagueUp}
+                  aria-label={t.home.moveLeagueUp}
+                  className="border-2 border-black bg-white p-1 text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowUp size={14} strokeWidth={3} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveGroup(group.leagueId, 1)}
+                  disabled={groupIndex === orderedGroups.length - 1 || savingOrder}
+                  title={t.home.moveLeagueDown}
+                  aria-label={t.home.moveLeagueDown}
+                  className="border-2 border-black bg-white p-1 text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowDown size={14} strokeWidth={3} />
+                </button>
+              </div>
             )}
           </div>
 

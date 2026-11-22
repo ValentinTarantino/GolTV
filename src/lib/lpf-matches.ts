@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { getCache, setCache } from "./cache";
 import { getHomeRelayUrl } from "./lpf-home-relay";
 import { hasParaguayanClub } from "./constants";
+import { matchTeamsPair } from "./team-matching";
 
 /**
  * Matches of the "LPF Play" section.
@@ -313,6 +314,12 @@ interface SportplusItem {
   tournament_id?: number;
   home?: { name?: string; pk_id?: number };
   away?: { name?: string; pk_id?: number };
+  /** Period breakdown: `p: 0` is the running total, `p >= 1` per-period goals. */
+  score?: Array<Record<string, number | string | undefined> & { p?: number }>;
+  /** Elapsed seconds of the broadcast clock. */
+  time_sec?: number;
+  /** Provider period code: 1 = first half, 2 = second half, 3/6 = extras. */
+  match_status?: number;
 }
 
 async function sportplusMatches(competitionId: string): Promise<SportplusItem[]> {
@@ -894,6 +901,128 @@ export async function inspectLiveFallback(): Promise<{
   } catch (error) {
     return { indexStatus: 0, liveCount: 0, probes: [], error: String(error).slice(0, 120) };
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Sportplus live scoreboard
+ * ------------------------------------------------------------------ */
+
+/** A live/finished match with its score, for fixture enrichment. */
+export interface SportplusScoreEvent {
+  home: string;
+  away: string;
+  /** ISO start of the provider (`+0300` offset normalized to `+03:00`). */
+  date: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  statusShort: "1H" | "HT" | "2H" | "ET" | "P" | "FT";
+  /** Total elapsed minutes of the broadcast clock. */
+  elapsed: number | null;
+}
+
+/** Provider `start` uses "+0300"; Date needs the colon form. */
+function parseProviderDate(iso: string): Date {
+  return new Date(iso.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+}
+
+function sportplusScoreStatus(item: SportplusItem): SportplusScoreEvent["statusShort"] | null {
+  const status = (item.status ?? "").toLowerCase();
+  if (status === "finished" || status === "ended") return "FT";
+  if (status !== "live") return null;
+  const ms = item.match_status;
+  if (ms === 1) return "1H";
+  if (ms === 2) return "2H";
+  if (ms === 3) return "ET";
+  if (ms === 6) return "P";
+  const minutes = Math.floor((item.time_sec ?? 0) / 60);
+  return minutes < 45 ? "1H" : "2H";
+}
+
+function sportplusTotals(item: SportplusItem): { home: number | null; away: number | null } {
+  const homePk = item.home?.pk_id;
+  const awayPk = item.away?.pk_id;
+  if (homePk === undefined || awayPk === undefined) return { home: null, away: null };
+  const entries = Array.isArray(item.score) ? item.score : [];
+  const total = entries.find((entry) => entry.p === 0) ??
+    entries.filter((entry) => (entry.p ?? 0) > 0).reduce<Record<string, number> & { p?: number }>(
+      (acc, entry) => {
+        for (const [key, value] of Object.entries(entry)) {
+          if (key === "p" || key === "break") continue;
+          acc[key] = (acc[key] ?? 0) + (Number(value) || 0);
+        }
+        return acc;
+      },
+      { p: 0 }
+    );
+  const toScore = (pk: number) => {
+    const v = Number(total[String(pk)]);
+    return Number.isFinite(v) ? v : null;
+  };
+  return { home: toScore(homePk), away: toScore(awayPk) };
+}
+
+/**
+ * Every live/finished football match on the provider's global board, with
+ * score and clock — the global `matches/index` (no `tournament_id`) answers
+ * with the live board of the whole site. Cached briefly for fixture
+ * enrichment; the watch page keeps using `listSportplusMatches`.
+ */
+export async function listSportplusScores(): Promise<SportplusScoreEvent[]> {
+  return cached("lpf:sp-scores:v1", 20_000, async () => {
+    const url = `${SPORTPLUS_API}/matches/index?fw=3.1&lang=es&lcfg=es&offset=0&sport_id=football`;
+    const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
+    if (!text) return [];
+    try {
+      const parsed = JSON.parse(text) as { items?: SportplusItem[] };
+      const items = Array.isArray(parsed.items) ? parsed.items : [];
+      const out: SportplusScoreEvent[] = [];
+      for (const item of items) {
+        const statusShort = sportplusScoreStatus(item);
+        const home = item.home?.name?.trim() ?? "";
+        const away = item.away?.name?.trim() ?? "";
+        if (!statusShort || !home || !away || !item.start) continue;
+        const totals = sportplusTotals(item);
+        const elapsed = statusShort === "FT" ? null : Math.floor((item.time_sec ?? 0) / 60);
+        out.push({
+          home,
+          away,
+          date: item.start,
+          homeScore: totals.home,
+          awayScore: totals.away,
+          statusShort,
+          elapsed,
+        });
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  });
+}
+
+function argentinaDay(dateISO: string): string {
+  const d = parseProviderDate(dateISO);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+}
+
+/**
+ * Finds the provider event for a fixture: same Argentine calendar day + both
+ * team pairs matching (order-insensitive, via the shared fuzzy matcher).
+ */
+export function findSportplusScoreEvent(
+  events: SportplusScoreEvent[],
+  homeTeam: string,
+  awayTeam: string,
+  dateISO: string
+): SportplusScoreEvent | null {
+  const day = argentinaDay(dateISO);
+  if (!day) return null;
+  for (const event of events) {
+    if (argentinaDay(event.date) !== day) continue;
+    if (matchTeamsPair(homeTeam, awayTeam, event.home, event.away)) return event;
+  }
+  return null;
 }
 
 /** The player of a match. */

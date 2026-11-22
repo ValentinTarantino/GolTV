@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveSecondaryPlayer, secondaryHosts } from "@/lib/secondary-source";
+import { openLpfUrl } from "@/lib/sealed-url";
+import { publicFrameUrl } from "@/lib/public-url";
 
 // Bare frame for Player 1 signals.
 //
@@ -96,7 +98,18 @@ function isPublicHttps(url: URL): boolean {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const params = new URL(request.url).searchParams;
-  const raw = params.get("u") ?? "";
+  // `?t=` carries the channel page sealed; `?u=` stays for compatibility.
+  let raw = params.get("u") ?? "";
+  if (!raw) {
+    const token = params.get("t");
+    if (token) {
+      try {
+        raw = openLpfUrl(token) ?? "";
+      } catch {
+        raw = "";
+      }
+    }
+  }
   const language = params.get("lang") === "en" ? "en" : "es";
 
   let page: URL;
@@ -127,5 +140,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     resolvedUrl = player;
   }
 
-  return htmlResponse(playerFrame(resolvedUrl), language);
+  // The deepest player URL is sealed behind /api/frame (or /api/proxy for
+  // hosts that need HTML rewriting) so the provider host never appears in
+  // the served document either.
+  return htmlResponse(playerFrame(publicFrameUrl(resolvedUrl)), language);
 }

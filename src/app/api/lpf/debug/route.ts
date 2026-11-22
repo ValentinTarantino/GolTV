@@ -1,3 +1,6 @@
+import type { NextRequest } from "next/server";
+import { isAdminRequest } from "@/lib/admin-session";
+
 export const dynamic = "force-dynamic";
 
 const BROWSER_HEADERS: Record<string, string> = {
@@ -8,7 +11,11 @@ const BROWSER_HEADERS: Record<string, string> = {
   Referer: "https://es.sportplus.watch/football/",
 };
 
-export async function GET(): Promise<Response> {
+export async function GET(request: NextRequest): Promise<Response> {
+  // Diagnostics expose provider URLs and playlist links — admin only.
+  if (!isAdminRequest(request)) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const listRes = await fetch("https://goltv.vercel.app/api/lpf/matches", { cache: "no-store" });
   const { matches } = await listRes.json();
   const live = matches.find((m: { status: string }) => m.status === "live") ?? matches[0];

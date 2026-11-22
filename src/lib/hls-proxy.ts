@@ -6,6 +6,8 @@
  * rewrites playlist and URI references so segments also pass through it.
  */
 
+import { sealLpfUrl } from "./sealed-url";
+
 /** Only these hosts (and their subdomains) may be relayed — not an open proxy. */
 const ALLOWED_HOST_SUFFIXES = [".ftlly.com", ".futlivehd.com"];
 
@@ -28,9 +30,19 @@ export function isAllowedStreamUrl(url: URL): boolean {
   );
 }
 
-/** Builds the client-facing relay URL for an absolute upstream stream URL. */
+/**
+ * Builds the client-facing relay URL for an absolute upstream stream URL.
+ * The upstream is sealed into an opaque token so provider hosts never reach
+ * the browser — not even inside playlist segment URIs.
+ */
 export function toHlsProxyUrl(absoluteUrl: string): string {
-  return `/api/hls?u=${encodeURIComponent(absoluteUrl)}`;
+  try {
+    return `/api/hls?t=${sealLpfUrl(absoluteUrl)}`;
+  } catch {
+    // Without LPF_PROXY_SECRET we cannot seal; fall back to the plaintext
+    // form so playback keeps working in misconfigured environments.
+    return `/api/hls?u=${encodeURIComponent(absoluteUrl)}`;
+  }
 }
 
 /**
@@ -39,7 +51,11 @@ export function toHlsProxyUrl(absoluteUrl: string): string {
  * lived tokens never reach the browser.
  */
 export function toEmbedRelayUrl(pageUrl: string): string {
-  return `/api/hls?e=${encodeURIComponent(pageUrl)}`;
+  try {
+    return `/api/hls?t=${sealLpfUrl(pageUrl)}`;
+  } catch {
+    return `/api/hls?e=${encodeURIComponent(pageUrl)}`;
+  }
 }
 
 /**

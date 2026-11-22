@@ -33,6 +33,16 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
   // and some providers then reject. Only the two legacy exceptions need the
   // compatibility proxy.
   const getProxyUrl = (originalUrl: string) => {
+    // Already an internal route (/api/frame, /api/proxy, /api/secondary,
+    // /api/combat/frame, /p4): the provider URL was sealed server-side, so
+    // there is nothing left to wrap — and wrapping it again would break.
+    if (originalUrl.startsWith("/api/") || originalUrl.startsWith("/p4/")) {
+      // Sealed secondary channels still want the visitor's language.
+      if (originalUrl.startsWith("/api/secondary") && !originalUrl.includes("lang=")) {
+        return `${originalUrl}&lang=${language}`;
+      }
+      return originalUrl;
+    }
     // Player 1 publishes *scraped* channel pages. Serving those directly shows
     // the scraper's white shell around the stream, so they go through the
     // bare-frame route: black document + deepest player only.

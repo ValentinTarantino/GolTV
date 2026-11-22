@@ -7,11 +7,11 @@ import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 
 describe("local club crests", () => {
   it("uses a visible Juventus crest and separates the Chilean and English Everton", async () => {
-    expect(peekTeamLogo("Juventus", "Italia")).toBe("/badges/espn-111-dark.png");
-    await expect(getTeamLogo("Juventus", "Italia")).resolves.toBe("/badges/espn-111-dark.png");
-    expect(peekTeamLogo("La Serena", "Chile")).toBe("/badges/espn-4137.png");
-    expect(peekTeamLogo("Everton", "Chile")).toBe("/badges/espn-4129.png");
-    expect(peekTeamLogo("Everton", "Inglaterra")).toBe("/badges/espn-368.png");
+    expect(peekTeamLogo("Juventus", "Italia")).toBe("/badges/team-111-dark.png");
+    await expect(getTeamLogo("Juventus", "Italia")).resolves.toBe("/badges/team-111-dark.png");
+    expect(peekTeamLogo("La Serena", "Chile")).toBe("/badges/team-4137.png");
+    expect(peekTeamLogo("Everton", "Chile")).toBe("/badges/team-4129.png");
+    expect(peekTeamLogo("Everton", "Inglaterra")).toBe("/badges/team-368.png");
     expect(getLocalTeamBadge("Everton")).toBeNull();
   });
   it("keeps the two Recoleta clubs apart", () => {
@@ -68,26 +68,26 @@ describe("local club crests", () => {
     ["Chicago Fire", "Estados Unidos", 182],
     ["Atlanta", "Argentina", 10146],
   ])("resolves screenshot team %s (%s)", async (team, country, id) => {
-    const expected = `/badges/espn-${id}.png`;
+    const expected = `/badges/team-${id}.png`;
     expect(peekTeamLogo(team, country)).toBe(expected);
     await expect(getTeamLogo(team, country)).resolves.toBe(expected);
   });
 
   it("requires country context for names shared by clubs and accepts country translations", () => {
-    expect(getLocalTeamBadge("Barcelona", "España")).toBe("/badges/espn-83.png");
-    expect(getLocalTeamBadge("Barcelona", "Ecuador")).toBe("/badges/espn-2686.png");
+    expect(getLocalTeamBadge("Barcelona", "España")).toBe("/badges/team-83.png");
+    expect(getLocalTeamBadge("Barcelona", "Ecuador")).toBe("/badges/team-2686.png");
     expect(getLocalTeamBadge("Barcelona")).toBeNull();
     expect(getLocalTeamBadge("Barcelona", "Argentina")).toBeNull();
     expect(getLocalTeamBadge("Córdoba", "Argentina")).toBeNull();
-    expect(getLocalTeamBadge("Eibar", "Spain")).toBe("/badges/espn-3752.png");
-    expect(getLocalTeamBadge("Charlotte", "USA")).toBe("/badges/espn-21300.png");
-    expect(getLocalTeamBadge("Milan", "Italy")).toBe("/badges/espn-103.png");
-    expect(getLocalTeamBadge("Milan", "Europa")).toBe("/badges/espn-103.png");
+    expect(getLocalTeamBadge("Eibar", "Spain")).toBe("/badges/team-3752.png");
+    expect(getLocalTeamBadge("Charlotte", "USA")).toBe("/badges/team-21300.png");
+    expect(getLocalTeamBadge("Milan", "Italy")).toBe("/badges/team-103.png");
+    expect(getLocalTeamBadge("Milan", "Europa")).toBe("/badges/team-103.png");
     expect(getLocalTeamBadge("Barcelona", "Internacional")).toBeNull();
     // Atlanta (Argentina, Primera Nacional) and Atlanta United (MLS) shared
     // the US badge; the Argentine club now has its own crest.
-    expect(getLocalTeamBadge("Atlanta", "Argentina")).toBe("/badges/espn-10146.png");
-    expect(getLocalTeamBadge("Atlanta", "Estados Unidos")).toBe("/badges/espn-18418.png");
+    expect(getLocalTeamBadge("Atlanta", "Argentina")).toBe("/badges/team-10146.png");
+    expect(getLocalTeamBadge("Atlanta", "Estados Unidos")).toBe("/badges/team-18418.png");
     expect(getLocalTeamBadge("Atlanta")).toBeNull();
   });
 });

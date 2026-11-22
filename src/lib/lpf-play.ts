@@ -1,6 +1,9 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createDecipheriv, createHash } from "node:crypto";
 import { load } from "cheerio/slim";
 import { getCache, setCache } from "./cache";
+import { httpsUrl, openLpfUrl, sealLpfUrl } from "./sealed-url";
+
+export { openLpfUrl, sealLpfUrl };
 
 const LIST_TTL = 15 * 60 * 1000;
 const STREAM_TTL = 5 * 60 * 1000;
@@ -36,16 +39,6 @@ export interface LpfChannel {
 
 interface LpfIndexEntry extends LpfChannel {
   url: string;
-}
-
-function httpsUrl(value: string, base?: string): URL | null {
-  try {
-    const url = new URL(value, base);
-    if (url.protocol !== "https:" || url.username || url.password) return null;
-    return url;
-  } catch {
-    return null;
-  }
 }
 
 /** Source base comes from the environment only, like the other scrapers. */
@@ -290,68 +283,7 @@ export async function resolveLpfStream(id: string): Promise<string | null> {
   });
 }
 
-/* ------------------------------------------------------------------ *
- * Sealed relay tokens
- * ------------------------------------------------------------------ */
-
-const TOKEN_AAD = Buffer.from("goltv-lpf-relay");
-const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 const RELAY_PATH = "/api/lpf/stream";
-
-/** Per-process fallback used only when the environment does not set a key. */
-const DEV_RELAY_KEY = "goltv-development-only-lpf-key";
-let warnedAboutRelayKey = false;
-
-/**
- * Key of the sealed relay tokens. A missing secret is a hard error in a
- * deployed build: the old public fallback let anyone forge relay tokens.
- */
-function tokenKey(): Buffer {
-  const secret = process.env.LPF_PROXY_SECRET?.trim();
-  if (secret) return createHash("sha256").update(secret).digest();
-
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("LPF_PROXY_SECRET is not configured");
-  }
-  if (!warnedAboutRelayKey) {
-    warnedAboutRelayKey = true;
-    console.warn("[lpf] LPF_PROXY_SECRET missing: using the development relay key");
-  }
-  return createHash("sha256").update(DEV_RELAY_KEY).digest();
-}
-
-/** Encrypts an upstream URL so playlist and segment paths stay anonymous. */
-export function sealLpfUrl(url: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", tokenKey(), iv);
-  cipher.setAAD(TOKEN_AAD);
-  const payload = Buffer.from(JSON.stringify({ u: url, e: Date.now() + TOKEN_TTL_MS }), "utf8");
-  const cipherText = Buffer.concat([cipher.update(payload), cipher.final()]);
-  return Buffer.concat([iv, cipherText, cipher.getAuthTag()]).toString("base64url");
-}
-
-/** Opens a token minted by `sealLpfUrl`; null when tampered, expired or non-https. */
-export function openLpfUrl(token: string): string | null {
-  try {
-    const raw = Buffer.from(token, "base64url");
-    if (raw.length < 12 + 17) return null;
-    const iv = raw.subarray(0, 12);
-    const tag = raw.subarray(raw.length - 16);
-    const cipherText = raw.subarray(12, raw.length - 16);
-
-    const decipher = createDecipheriv("aes-256-gcm", tokenKey(), iv) as GcmDecipher;
-    decipher.setAAD(TOKEN_AAD);
-    decipher.setAuthTag(tag);
-    const plain = Buffer.concat([decipher.update(cipherText), decipher.final()]).toString("utf8");
-
-    const parsed = JSON.parse(plain) as { u?: unknown; e?: unknown };
-    if (typeof parsed.u !== "string" || typeof parsed.e !== "number") return null;
-    if (parsed.e < Date.now()) return null;
-    return httpsUrl(parsed.u)?.toString() ?? null;
-  } catch {
-    return null;
-  }
-}
 
 /** Hosts the relay will fetch. Configured per deployment via `LPF_STREAM_HOSTS`. */
 export function isLpfStreamHost(url: URL): boolean {

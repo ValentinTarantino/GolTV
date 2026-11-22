@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     timestamp: new Date().toISOString(),
     apis: {
       apiFootball: {
-        description: "API-Football (api-sports.io)",
+        description: "Fixture data provider",
         keys: getApiFootballUsage(),
       },
       agendaSource: {
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
         ...getAgendaUsage(),
       },
       rapidApi: {
-        description: "RapidAPI streaming (fallback)",
+        description: "Streaming provider (fallback)",
         ...getStreamUsage(),
       },
     },

@@ -51,8 +51,8 @@ describe("/api/health", () => {
     const res = await GET(req);
     const data = await res.json();
 
-    expect(data.apis.apiFootball.description).toContain("API-Football");
+    expect(data.apis.apiFootball.description).toContain("Fixture data");
     expect(data.apis.agendaSource.description).toContain("Agenda");
-    expect(data.apis.rapidApi.description).toContain("RapidAPI");
+    expect(data.apis.rapidApi.description).toContain("Streaming provider");
   });
 });

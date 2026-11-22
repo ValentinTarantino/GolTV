@@ -19,19 +19,32 @@ jest.mock("@/lib/player-five-source", () => ({
 
 jest.mock("@/lib/lpf-matches", () => ({
   listLpfMatches: jest.fn().mockResolvedValue([]),
+  listSportplusScores: jest.fn().mockResolvedValue([]),
+  findSportplusScoreEvent: jest.fn().mockReturnValue(null),
+}));
+// Keep the real ranking helper (pure) but control the stored order per test.
+jest.mock("@/lib/league-order", () => ({
+  ...jest.requireActual("@/lib/league-order"),
+  loadLeagueOrder: jest.fn().mockResolvedValue([]),
 }));
 jest.mock("@/lib/team-logos", () => ({
   getTeamLogo: jest.fn().mockResolvedValue(""),
   peekTeamLogo: jest.fn().mockReturnValue(null),
 }));
-
+jest.mock("@/lib/espn-scores", () => ({
+  ...jest.requireActual("@/lib/espn-scores"),
+  loadEspnScoreboards: jest.fn().mockResolvedValue(new Map()),
+}));
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/matches/route";
 import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
 import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
+import { loadLeagueOrder } from "@/lib/league-order";
+import { loadEspnScoreboards } from "@/lib/espn-scores";
 import { peekTeamLogo } from "@/lib/team-logos";
+import { setCache } from "@/lib/cache";
 
 function makeRequest(date?: string) {
   const url = date
@@ -195,7 +208,7 @@ describe("/api/matches", () => {
     const clock = jest.spyOn(Date, "now").mockReturnValue(now);
     const entries = [
       flMatch({ dateISO: "2026-10-29T20:00:00-03:00" }),
-      flMatch({ dateISO: "2026-10-30T17:00:00-03:00" }),
+      flMatch({ dateISO: "2026-10-30T13:00:00-03:00" }),
       flMatch({ dateISO: "invalid" }),
       flMatch({ homeTeam: "Racing", awayTeam: "Independiente", dateISO: "2026-10-30T19:00:00-03:00" }),
       flMatch({ homeTeam: "Talleres", awayTeam: "Belgrano", dateISO: "2026-10-30T21:00:00-03:00" }),
@@ -762,6 +775,43 @@ describe("/api/matches", () => {
     expect(data.matches[0].homeTeam.name).toBe("EE. UU.");
   });
 
+  it("dedupes a Segunda fixture that ESPN reclassifies out of La Liga", async () => {
+    jest.setSystemTime(new Date("2026-11-04T16:00:00-03:00"));
+    const day = "2026-11-04";
+    const mislabeled = flMatch({
+      homeTeam: "Girona", awayTeam: "Eiba", league: "La Liga",
+      dateISO: `${day}T21:00:00-03:00`, slug: "girona-vs-eiba-laliga",
+    });
+    const labeled = {
+      homeTeam: "Girona", awayTeam: "Eibar", league: "Segunda División",
+      slug: "girona-vs-eibar-segunda", dateISO: `${day}T21:00:00-03:00`,
+      dateInferred: false,
+      sources: [{ id: "secondary", name: "Signal" }],
+    };
+    (fetchAgenda as jest.Mock).mockResolvedValue([mislabeled]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([labeled]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
+    // Kickoff 21:00 ART = 2026-11-05T00:00Z -> same Argentine day.
+    (loadEspnScoreboards as jest.Mock).mockResolvedValue(new Map([
+      ["esp.1", []],
+      ["esp.2", [{
+        date: "2026-11-05T00:00:00Z",
+        home: "Girona", away: "Eibar",
+        homeScore: 1, awayScore: 2,
+        statusShort: "FT", elapsed: null,
+      }]],
+    ]));
+
+    const response = await GET(makeRequest(day));
+    const { matches } = await response.json();
+    const girona = matches.filter((m: { league: { id: number }; homeTeam: { name: string } }) =>
+      m.league.id === 141 && m.homeTeam.name.toLowerCase().includes("girona"));
+
+    expect(girona).toHaveLength(1);
+    expect(girona[0].score).toEqual({ home: 1, away: 2 });
+    expect(girona[0].status.short).toBe("FT");
+  });
+
   it("returns empty array when agenda is empty", async () => {
     (fetchAgenda as jest.Mock).mockResolvedValue([]);
 
@@ -783,6 +833,33 @@ describe("/api/matches", () => {
     const data = await res.json();
 
     expect(data.matches.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("puts the admin's category order ahead of kickoff time", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Arsenal", awayTeam: "Chelsea", league: "Premier League",
+        dateISO: "2026-11-01T10:00:00-03:00", slug: "arsenal-vs-chelsea",
+      }),
+      flMatch({
+        homeTeam: "Nashville SC", awayTeam: "Cincinnati", league: "MLS",
+        dateISO: "2026-11-01T20:00:00-03:00", slug: "nashville-sc-vs-cincinnati",
+      }),
+    ]);
+
+    // Natural order is kickoff: Premier League first.
+    let { matches } = await (await GET(makeRequest("2026-11-01"))).json();
+    expect(matches.map((match: { league: { id: number } }) => match.league.id)).toEqual([39, 332]);
+
+    // The admin dragged MLS above the Premier League; every visitor gets that.
+    (loadLeagueOrder as jest.Mock).mockResolvedValue([332, 39]);
+    ({ matches } = await (await GET(makeRequest("2026-11-01"))).json());
+    expect(matches.map((match: { league: { id: number } }) => match.league.id)).toEqual([332, 39]);
+
+    // Leagues the admin never touched keep kickoff order at the tail.
+    (loadLeagueOrder as jest.Mock).mockResolvedValue([332]);
+    ({ matches } = await (await GET(makeRequest("2026-11-01"))).json());
+    expect(matches.map((match: { league: { id: number } }) => match.league.id)).toEqual([332, 39]);
   });
 
   function secMatch(
@@ -1299,5 +1376,146 @@ describe("/api/matches", () => {
     const data = await res.json();
 
     expect(data.matches).toHaveLength(0);
+  });
+
+  it("merges a fixture published with its opponent and again as TBD", async () => {
+    const confirmed = flMatch({
+      homeTeam: "Nashville SC",
+      awayTeam: "Cincinnati",
+      league: "MLS",
+      dateISO: "2026-11-01T18:00:00-03:00",
+      slug: "nashville-sc-vs-cincinnati",
+      embeds: [{ id: "fox-deportes", name: "FOX Deportes", embedIframe: "/embed/eventos.html?r=deportes" }],
+    });
+    const pending = {
+      ...confirmed,
+      awayTeam: "TBD",
+      slug: "nashville-sc-vs-tbd",
+      embeds: [{ id: "fox-sports-1", name: "FOX Sports 1 USA", embedIframe: "/embed/eventos.html?r=fs1" }],
+    };
+    (fetchAgenda as jest.Mock).mockResolvedValue([confirmed, pending]);
+
+    const { matches } = await (await GET(makeRequest("2026-11-01"))).json();
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      league: { id: 332 },
+      homeTeam: { name: "Nashville SC" },
+      awayTeam: { name: "Cincinnati" },
+    });
+    expect(matches[0]._eventSources.map((source: { id: string }) => source.id))
+      .toEqual(["fox-deportes", "fox-sports-1"]);
+  });
+
+  it("merges a provider's cut-off club name with the full spelling", async () => {
+    const cut = flMatch({
+      homeTeam: "Girona", awayTeam: "Eiba", league: "La Liga",
+      dateISO: "2026-11-01T14:30:00-03:00", slug: "girona-vs-eiba",
+      embeds: [{ id: "canal-1", name: "Canal 1", embedIframe: "/embed/eventos.html?r=one" }],
+    });
+    const full = {
+      ...cut,
+      awayTeam: "Eibar",
+      slug: "girona-vs-eibar",
+      dateISO: "2026-11-01T17:30:00+00:00",
+      embeds: [{ id: "canal-2", name: "Canal 2", embedIframe: "/embed/eventos.html?r=two" }],
+    };
+    (fetchAgenda as jest.Mock).mockResolvedValue([cut, full]);
+
+    const { matches } = await (await GET(makeRequest("2026-11-01"))).json();
+
+    expect(matches).toHaveLength(1);
+    // The readable spelling wins over the cut one.
+    expect(matches[0].awayTeam.name).toBe("Eibar");
+    expect(matches[0]._eventSources.map((source: { id: string }) => source.id))
+      .toEqual(["canal-1", "canal-2"]);
+  });
+
+  it("does not merge two different clubs sharing a kickoff minute", async () => {
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "Girona", awayTeam: "Real Sociedad", league: "La Liga",
+        dateISO: "2026-11-01T14:30:00-03:00", slug: "girona-vs-real-sociedad",
+      }),
+      flMatch({
+        homeTeam: "Girona", awayTeam: "Real Madrid", league: "La Liga",
+        dateISO: "2026-11-01T14:30:00-03:00", slug: "girona-vs-real-madrid",
+      }),
+    ]);
+
+    const { matches } = await (await GET(makeRequest("2026-11-01"))).json();
+    expect(matches).toHaveLength(2);
+  });
+
+  it("keeps a TBD fixture apart when the kickoff is a different time", async () => {    const confirmed = flMatch({
+      homeTeam: "Nashville SC",
+      awayTeam: "Cincinnati",
+      league: "MLS",
+      dateISO: "2026-11-01T18:00:00-03:00",
+      slug: "nashville-sc-vs-cincinnati",
+    });
+    const later = {
+      ...confirmed,
+      awayTeam: "TBD",
+      slug: "nashville-sc-vs-tbd-later",
+      dateISO: "2026-11-01T21:00:00-03:00",
+      embeds: [{ id: "other", name: "Other", embedIframe: "/embed/eventos.html?r=other" }],
+    };
+    (fetchAgenda as jest.Mock).mockResolvedValue([confirmed, later]);
+
+    const { matches } = await (await GET(makeRequest("2026-11-01"))).json();
+
+    expect(matches).toHaveLength(2);
+  });
+
+  it("shows a recently finished fixture as final even without a score source", async () => {
+    jest.setSystemTime(new Date("2026-11-01T14:35:00-03:00"));
+    (fetchAgenda as jest.Mock).mockResolvedValue([
+      flMatch({
+        homeTeam: "San Marcos", awayTeam: "Magallanes", league: "Campeonato Nacional",
+        dateISO: "2026-11-01T12:00:00-03:00", slug: "san-marcos-vs-magallanes",
+      }),
+    ]);
+    const { matches } = await (await GET(makeRequest("2026-11-01"))).json();
+    expect(matches).toHaveLength(1);
+    expect(matches[0].status).toMatchObject({ short: "FT", long: "Finalizado" });
+    expect(matches[0].score).toEqual({ home: null, away: null });
+  });
+
+  it("reuses the last Sportplus score when the match leaves the live board", async () => {
+    jest.setSystemTime(new Date("2026-11-01T12:00:00-03:00"));
+    const finished = flMatch({
+      homeTeam: "San Marcos", awayTeam: "Magallanes", league: "Campeonato Nacional",
+      dateISO: "2026-11-01T10:00:00-03:00", slug: "san-marcos-vs-magallanes",
+    });
+    const live = flMatch({
+      homeTeam: "Deportes Limache", awayTeam: "La Serena", league: "Campeonato Nacional",
+      dateISO: "2026-11-01T11:30:00-03:00", slug: "limache-vs-serena",
+    });
+    (fetchAgenda as jest.Mock).mockResolvedValue([finished, live]);
+
+    // The provider dropped both from its live board; the remembered scores
+    // must still reach the fixture. The 10:00 kickoff is past the ~140min
+    // window so it reads FT; the 11:30 one is still inside it.
+    await setCache("sp:last:2026-11-01|sanmarcos|magallanes", {
+      home: "San Marcos de Arica", away: "Deportes Magallanes",
+      date: "2026-11-01T14:00:00+0300", homeScore: 1, awayScore: 0,
+      statusShort: "2H", elapsed: 78,
+    }, 3 * 60 * 60 * 1000);
+    await setCache("sp:last:2026-11-01|deporteslimache|laserena", {
+      home: "Deportes Limache", away: "La Serena",
+      date: "2026-11-01T17:30:00+0300", homeScore: 0, awayScore: 1,
+      statusShort: "1H", elapsed: 28,
+    }, 3 * 60 * 60 * 1000);
+
+    const { matches } = await (await GET(makeRequest("2026-11-01"))).json();
+    const ft = matches.find((m: { homeTeam: { name: string } }) => m.homeTeam.name === "San Marcos");
+    const ongoing = matches.find((m: { homeTeam: { name: string } }) => m.homeTeam.name === "Deportes Limache");
+
+    expect(ft.score).toEqual({ home: 1, away: 0 });
+    expect(ft.status.short).toBe("FT");
+    expect(ongoing.score).toEqual({ home: 0, away: 1 });
+    expect(ongoing.status.short).toBe("1H");
+    expect(ongoing.status.elapsed).toBe(28);
   });
 });

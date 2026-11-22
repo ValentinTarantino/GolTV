@@ -1,6 +1,8 @@
 import type { Channel, Match, MatchStatusShort } from "./types";
 import { getTeamLogo } from "./team-logos";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
+import { proxyImageUrl } from "./public-url";
+import { isAllowedStreamUrl, toHlsProxyUrl } from "./hls-proxy";
 
 const STREAM_API_BASE = "https://football-live-stream-api.p.rapidapi.com";
 const RAPID_API_KEY = process.env.RAPIDAPI_KEY || "";
@@ -24,6 +26,16 @@ interface StreamMatch {
 }
 
 function toClientStreamUrl(streamUrl: string): string {
+  // Seal upstream playlists behind the HLS relay when the host is already
+  // allowlisted — anything else keeps the raw URL so playback never breaks.
+  try {
+    const parsed = new URL(streamUrl);
+    if (parsed.protocol === "https:" && isAllowedStreamUrl(parsed)) {
+      return toHlsProxyUrl(streamUrl);
+    }
+  } catch {
+    // not an absolute URL — leave untouched
+  }
   return streamUrl;
 }
 
@@ -199,13 +211,14 @@ function resolveLeagueId(leagueName: string): number {
   return -1_000_000 - (Math.abs(hash) % 900_000);
 }
 
-export const PLACEHOLDER_TEAM_LOGO =
-  "https://media.api-sports.io/football/teams/40.png";
+export const PLACEHOLDER_TEAM_LOGO = proxyImageUrl(
+  "https://media.api-sports.io/football/teams/40.png"
+);
 
 export function getLeagueLogo(leagueName: string): string {
   const leagueId = resolveLeagueId(leagueName);
   if (leagueId > 0) {
-    return `https://media.api-sports.io/football/leagues/${leagueId}.png`;
+    return proxyImageUrl(`https://media.api-sports.io/football/leagues/${leagueId}.png`);
   }
   return "";
 }

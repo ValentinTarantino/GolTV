@@ -7,7 +7,11 @@ import { findEventStreams } from "@/lib/event-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findSportplusStreams } from "@/lib/sportplus-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
-import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo } from "@/lib/constants";
+import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo as rawLeagueLogo } from "@/lib/constants";
+import { proxyImageUrl, publicChannels } from "@/lib/public-url";
+
+/** League badge URLs go through the image proxy so CDN hosts stay hidden. */
+const getLeagueLogo = (leagueId: number): string => proxyImageUrl(rawLeagueLogo(leagueId));
 import { isIPBanned } from "@/lib/chat";
 import type { Match, Channel } from "@/lib/types";
 import { validateParams, validateQuery, createErrorResponse, matchIdParamsSchema, matchIdQuerySchema } from "@/lib/validators";
@@ -28,6 +32,11 @@ function getClientIP(request: Request): string {
 // match mapping. Reusing a response can keep the previous channel attached
 // after switching between providers.
 export const revalidate = 0;
+
+/** Serializes a match with iframe channel URLs sealed behind internal routes. */
+function respond(match: Match): Response {
+  return Response.json({ match: { ...match, channels: publicChannels(match.channels) } });
+}
 
 export async function GET(
   request: Request,
@@ -104,7 +113,7 @@ export async function GET(
   }
 
   if (match) {
-    return Response.json({ match });
+    return respond(match);
   }
 
   const homeTeam = home || "Home";
@@ -135,7 +144,7 @@ export async function GET(
       channels,
     };
 
-    return Response.json({ match: syntheticMatch });
+    return respond(syntheticMatch);
   }
 
   if ((playerMode === "2" || playerMode === "7") && home && away) {
@@ -162,7 +171,7 @@ export async function GET(
       channels,
     };
 
-    return Response.json({ match: syntheticMatch });
+    return respond(syntheticMatch);
   }
 
   if (playerMode === "4" && home && away) {
@@ -187,7 +196,7 @@ export async function GET(
       channels,
     };
 
-    return Response.json({ match: syntheticMatch });
+    return respond(syntheticMatch);
   }
 
   if (playerMode === "5" && home && away) {
@@ -212,7 +221,7 @@ export async function GET(
       channels,
     };
 
-    return Response.json({ match: syntheticMatch });
+    return respond(syntheticMatch);
   }
 
   if (playerMode === "3" && eventSlug && eventSources) {
@@ -249,7 +258,7 @@ export async function GET(
       channels,
     };
 
-    return Response.json({ match: syntheticMatch });
+    return respond(syntheticMatch);
   }
 
   if (playerMode === "3" && streamId) {
@@ -277,7 +286,7 @@ export async function GET(
       channels,
     };
 
-    return Response.json({ match: syntheticMatch });
+    return respond(syntheticMatch);
   }
 
   // Secondary-fixture matches: player 3 resolves the primary agenda by team
@@ -304,7 +313,7 @@ export async function GET(
       channels,
     };
 
-    return Response.json({ match: syntheticMatch });
+    return respond(syntheticMatch);
   }
 
   return createErrorResponse("Match not found", 404);

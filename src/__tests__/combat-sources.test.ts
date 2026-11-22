@@ -9,6 +9,7 @@ import {
   streamIdFromUrl,
 } from "@/lib/combat-sources";
 import { openCombatToken, rewriteCombatPlaylist, sealCombatUrl } from "@/lib/combat-relay";
+import { openLpfUrl } from "@/lib/sealed-url";
 import type { CombatMatch } from "@/lib/combat-source";
 
 // Shape of the wrapper the agenda publishes as `embed_url` (scripts trimmed to
@@ -197,8 +198,9 @@ describe("combat source resolution", () => {
     );
 
     expect(sources).toHaveLength(1);
-    expect(sources[0].src).toMatch(
-      /^\/api\/hls\?e=https%3A%2F%2Fa1[1-6]\.kora-plus\.mov%2Fframestream\.php%3Fid%3D60521$/
+    expect(sources[0].src).toMatch(/^\/api\/hls\?t=[A-Za-z0-9_-]+$/);
+    expect(openLpfUrl(sources[0].src.split("?t=")[1])).toMatch(
+      /^https:\/\/a1[1-6]\.kora-plus\.mov\/framestream\.php\?id=60521$/
     );
   });
 

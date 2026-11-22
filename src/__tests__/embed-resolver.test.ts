@@ -13,6 +13,7 @@ import {
   resolveEmbedPlaylist,
 } from "@/lib/embed-resolver";
 import { GET } from "@/app/api/hls/route";
+import { openLpfUrl } from "@/lib/sealed-url";
 import type { Channel } from "@/lib/types";
 
 // Shape of the provider's static wrapper (scripts trimmed to the two constants
@@ -163,7 +164,10 @@ describe("channel upgrade", () => {
       ["Win Sports +", "hls"],
       ["Win Sports + | OP2", "iframe"],
     ]);
-    expect(result[0].url).toMatch(/^\/api\/hls\?e=https%3A%2F%2Fa1[1-6]\.kora-plus\.mov%2Fframelatin\.php%3Fch%3Dn9-abc$/);
+    expect(result[0].url).toMatch(/^\/api\/hls\?t=[A-Za-z0-9_-]+$/);
+    expect(openLpfUrl(result[0].url.split("?t=")[1])).toMatch(
+      /^https:\/\/a1[1-6]\.kora-plus\.mov\/framelatin\.php\?ch=n9-abc$/
+    );
     expect(result[1].url).toBe("https://native.example/2.php?stream=winsports2");
   });
 

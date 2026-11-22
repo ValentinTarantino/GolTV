@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/secondary/route";
 import { getCache, setCache } from "@/lib/cache";
+import { openLpfUrl } from "@/lib/sealed-url";
 
 jest.mock("@/lib/cache", () => ({ getCache: jest.fn(), setCache: jest.fn() }));
 
@@ -62,7 +63,9 @@ describe("/api/secondary bare frame", () => {
     const body = await res.text();
 
     expect(res.status).toBe(200);
-    expect(body).toContain('<iframe src="https://player.test/stream/75"');
+    const frameMatch = body.match(/<iframe src="(\/api\/(?:frame|proxy)\?t=[^"]+)"/);
+    expect(frameMatch).not.toBeNull();
+    expect(openLpfUrl(frameMatch![1].split("?t=")[1])).toBe("https://player.test/stream/75");
     expect(body).toContain("background: #000");
     // The probe may fetch the URL to look for a deeper player, but a plain
     // wrapper document must never be served back as the player itself.
@@ -75,7 +78,9 @@ describe("/api/secondary bare frame", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
-    expect(body).toContain('<iframe src="https://player.test/stream/75"');
+    const frameMatch = body.match(/<iframe src="(\/api\/(?:frame|proxy)\?t=[^"]+)"/);
+    expect(frameMatch).not.toBeNull();
+    expect(openLpfUrl(frameMatch![1].split("?t=")[1])).toBe("https://player.test/stream/75");
     expect(body).toContain("background: #000");
     // The scraped wrapper chain must never be rendered to the visitor.
     expect(body).not.toContain("wrapper.test");
@@ -93,7 +98,9 @@ describe("/api/secondary bare frame", () => {
     const body = await res.text();
 
     expect(res.status).toBe(200);
-    expect(body).toContain('<iframe src="https://player.test/embed"');
+    const frameMatch = body.match(/<iframe src="(\/api\/(?:frame|proxy)\?t=[^"]+)"/);
+    expect(frameMatch).not.toBeNull();
+    expect(openLpfUrl(frameMatch![1].split("?t=")[1])).toBe("https://player.test/embed");
     expect(body).toContain("background: #000");
     expect(body).not.toContain("<base href");
     expect(body).not.toContain("clappr-big-play-button");

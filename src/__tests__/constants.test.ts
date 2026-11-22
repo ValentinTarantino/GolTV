@@ -173,8 +173,8 @@ describe("getTeamLogo", () => {
   });
 
   it("uses stable MLS crests for LAFC and LA Galaxy aliases", async () => {
-    const lafcBadge = "/badges/espn-18966.png";
-    const galaxyBadge = "/badges/espn-187.png";
+    const lafcBadge = "/badges/team-18966.png";
+    const galaxyBadge = "/badges/team-187.png";
 
     for (const name of ["LAFC", "Los Angeles FC"]) {
       await expect(getTeamLogo(name, "Estados Unidos")).resolves.toBe(lafcBadge);
@@ -187,8 +187,8 @@ describe("getTeamLogo", () => {
   });
 
   it("resolves Inter Milan and Genoa badge aliases", async () => {
-    const interBadge = "/badges/espn-110.png";
-    const genoaBadge = "/badges/espn-3263.png";
+    const interBadge = "/badges/team-110.png";
+    const genoaBadge = "/badges/team-3263.png";
 
     for (const name of ["Inter Milan", "Internazionale", "Internazionale Milano", "FC Internazionale"]) {
       await expect(getTeamLogo(name, "Italia")).resolves.toBe(interBadge);
@@ -209,8 +209,8 @@ describe("getTeamLogo", () => {
   });
 
   it("uses official MLS crests for New York Red Bulls and New England aliases", async () => {
-    const newYorkRedBullsCrest = "/badges/espn-190.png";
-    const newEnglandRevolutionCrest = "/badges/espn-189.png";
+    const newYorkRedBullsCrest = "/badges/team-190.png";
+    const newEnglandRevolutionCrest = "/badges/team-189.png";
 
     for (const team of ["New York RB", "New York Red Bulls", "Red Bull New York", "NYRB", "RBNY"]) {
       await expect(getTeamLogo(team, "USA")).resolves.toBe(newYorkRedBullsCrest);
@@ -376,14 +376,14 @@ describe("getTeamLogo", () => {
 
   it("resolves fixture crests from the local catalog or existing verified providers", async () => {
     const expected: Array<[string, string]> = [
-      ["Hannover 96", "/badges/espn-2428.png"],
-      ["St. Pauli", "/badges/espn-270.png"],
-      ["Valencia", "/badges/espn-94.png"],
-      ["Las Palmas", "/badges/espn-98.png"],
-      ["CD Castellon", "/badges/espn-4438.png"],
+      ["Hannover 96", "/badges/team-2428.png"],
+      ["St. Pauli", "/badges/team-270.png"],
+      ["Valencia", "/badges/team-94.png"],
+      ["Las Palmas", "/badges/team-98.png"],
+      ["CD Castellon", "/badges/team-4438.png"],
       ["Boyacá Chicó", "https://r2.thesportsdb.com/images/media/team/badge/boe8tv1677602771.png"],
       ["Atlético Nacional", "https://r2.thesportsdb.com/images/media/team/badge/efl4o41576157720.png"],
-      ["LDU Quito", "/badges/espn-4816.png"],
+      ["LDU Quito", "/badges/team-4816.png"],
       ["Gimnasia Mendoza", "https://r2.thesportsdb.com/images/media/team/badge/h11mlf1677636958.png"],
       ["Deportivo Garcilaso", "https://r2.thesportsdb.com/images/media/team/badge/me11g41690449129.png"],
       ["Jaguares de Córdoba", "https://r2.thesportsdb.com/images/media/team/badge/7ypl1y1629122579.png"],
@@ -466,8 +466,8 @@ describe("getTeamLogo", () => {
   }, 20000);
 
   it("peekTeamLogo resolves hardcoded teams synchronously and returns null for unknown", () => {
-    expect(peekTeamLogo("Valencia")).toBe("/badges/espn-94.png");
-    expect(peekTeamLogo("Hannover 96")).toBe("/badges/espn-2428.png");
+    expect(peekTeamLogo("Valencia")).toBe("/badges/team-94.png");
+    expect(peekTeamLogo("Hannover 96")).toBe("/badges/team-2428.png");
     expect(peekTeamLogo("Talleres Córdoba", "Argentina")).toBe("/talleres-cordoba.png");
     expect(peekTeamLogo("Some Totally Unknown FC 99999")).toBeNull();
   });

@@ -20,10 +20,26 @@ export default function HomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showLiveOnly, setShowLiveOnly] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const matchesRef = useRef<Match[]>([]);
   useEffect(() => {
     matchesRef.current = matches;
   }, [matches]);
+
+  // Category reordering is offered only to the signed-in admin, but the order
+  // itself is stored server-side, so every visitor sees the same sections.
+  useEffect(() => {
+    let active = true;
+    fetch("/api/admin/session", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : { isAdmin: false }))
+      .then((data: { isAdmin?: boolean }) => {
+        if (active) setIsAdmin(Boolean(data.isAdmin));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const currentDate = useSyncExternalStore(
     subscribeToHydration,
     () => {
@@ -70,6 +86,25 @@ export default function HomePage() {
       // Keep the current matches when a manual refresh fails.
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  // Saves the dragged category order. Returns false so MatchList can roll back
+  // and show the error banner instead of pretending it was stored.
+  const reorderLeagues = async (order: number[]): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/admin/league-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order }),
+        cache: "no-store",
+      });
+      if (!res.ok) return false;
+      // Re-read so every section lands exactly where the server persisted it.
+      await refreshMatches();
+      return true;
+    } catch {
+      return false;
     }
   };
 
@@ -177,7 +212,7 @@ export default function HomePage() {
               </h2>
             </div>
           ) : (
-            <MatchList matches={filteredMatches} />
+            <MatchList matches={filteredMatches} isAdmin={isAdmin} onReorder={reorderLeagues} />
           )}
         </div>
       </div>

@@ -277,3 +277,23 @@ export function canonicalTeamForDedup(team: string, leagueId: number): string {
 export function fixtureTeamPair(home: string, away: string, leagueId: number): string {
   return JSON.stringify([canonicalTeamForDedup(home, leagueId), canonicalTeamForDedup(away, leagueId)].sort());
 }
+
+/**
+ * Providers publish a fixture before the bracket resolves, so the same game
+ * appears twice: once with the real opponent and once with a placeholder
+ * ("Nashville SC vs TBD", "Boca Juniors vs Por definir"). Treating the unknown
+ * side as a different club duplicated the card; callers treat it as a wildcard
+ * instead (same competition, same kickoff, same known club).
+ */
+const PLACEHOLDER_TEAM_NAMES = new Set([
+  "tbd", "tba", "tbc", "tobedetermined", "tobedefined", "tobedecided",
+  "pordefinir", "adefinir", "porconfirmar", "aclasificar", "sinconfirmar",
+  "equipopordefinir", "equipoporconfirmar", "nd", "na", "sd",
+]);
+
+/** True when a provider left this side of the fixture open. */
+export function isPlaceholderTeam(name: string): boolean {
+  const compact = teamKey(name);
+  if (!compact) return true;
+  return PLACEHOLDER_TEAM_NAMES.has(compact) || PLACEHOLDER_TEAM_NAMES.has(teamKey(name, false));
+}

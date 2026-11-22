@@ -7,6 +7,7 @@ import {
   rewriteHlsPlaylist,
   toHlsProxyUrl,
 } from "@/lib/hls-proxy";
+import { openLpfUrl, sealLpfUrl } from "@/lib/sealed-url";
 import { GET } from "@/app/api/hls/route";
 
 const PLAYLIST = [
@@ -38,6 +39,14 @@ describe("isAllowedStreamUrl", () => {
   });
 });
 
+const RELAY_TOKEN_RE = /\/api\/hls\?t=([A-Za-z0-9_-]+)/;
+
+/** Decodes the upstream URL sealed inside a rewritten `/api/hls?t=` reference. */
+function relayTarget(reference: string): string | null {
+  const match = reference.match(RELAY_TOKEN_RE);
+  return match ? openLpfUrl(match[1]) : null;
+}
+
 describe("rewriteHlsPlaylist", () => {
   it("routes segment lines and URI attributes through the relay", () => {
     const upstream = new URL("https://4.ftlly.com/mls1es/mono.m3u8?token=abc");
@@ -45,21 +54,26 @@ describe("rewriteHlsPlaylist", () => {
     const lines = out.split("\n");
 
     expect(lines[0]).toBe("#EXTM3U");
-    expect(lines[1]).toBe(
-      '#EXT-X-KEY:METHOD=AES-128,URI="/api/hls?u=https%3A%2F%2F4.ftlly.com%2Fmls1es%2Fkey.bin",IV=0x9c7db8778570d05c3f9ae7afbafa6423'
+    expect(lines[1]).toMatch(
+      /^#EXT-X-KEY:METHOD=AES-128,URI="\/api\/hls\?t=[A-Za-z0-9_-]+",IV=0x9c7db8778570d05c3f9ae7afbafa6423$/
     );
-    expect(lines[4]).toBe(
-      `/api/hls?u=${encodeURIComponent("https://4.ftlly.com/mls1es/2026/10/29/00/29/40-05405.ts?token=seg1")}`
+    const keyUri = lines[1].match(/URI="([^"]+)"/)?.[1] ?? "";
+    expect(relayTarget(keyUri)).toBe("https://4.ftlly.com/mls1es/key.bin");
+    expect(relayTarget(lines[4])).toBe(
+      "https://4.ftlly.com/mls1es/2026/10/29/00/29/40-05405.ts?token=seg1"
     );
-    expect(lines[6]).toBe(
-      `/api/hls?u=${encodeURIComponent("https://8.ftlly.com/mls1es/2026/10/29/00/29/46-06006.ts?token=seg2")}`
+    expect(relayTarget(lines[6])).toBe(
+      "https://8.ftlly.com/mls1es/2026/10/29/00/29/46-06006.ts?token=seg2"
     );
+    // Provider hosts must never appear in the rewritten playlist.
+    expect(out).not.toContain("ftlly.com");
   });
 
-  it("toHlsProxyUrl percent-encodes the upstream URL", () => {
-    expect(toHlsProxyUrl("https://a.b/c?d=e&f=g")).toBe(
-      "/api/hls?u=https%3A%2F%2Fa.b%2Fc%3Fd%3De%26f%3Dg"
-    );
+  it("toHlsProxyUrl seals the upstream URL behind an opaque token", () => {
+    const proxied = toHlsProxyUrl("https://a.b/c?d=e&f=g");
+    expect(proxied).toMatch(/^\/api\/hls\?t=[A-Za-z0-9_-]+$/);
+    expect(proxied).not.toContain("a.b");
+    expect(relayTarget(proxied)).toBe("https://a.b/c?d=e&f=g");
   });
 });
 
@@ -72,10 +86,15 @@ describe("/api/hls", () => {
   });
 
   const proxyUrl = (upstream: string) =>
-    `http://localhost/api/hls?u=${encodeURIComponent(upstream)}`;
+    `http://localhost/api/hls?t=${sealLpfUrl(upstream)}`;
 
   it("returns 400 without a target URL", async () => {
     const res = await GET(makeRequest("http://localhost/api/hls"));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for a forged or malformed token", async () => {
+    const res = await GET(makeRequest("http://localhost/api/hls?t=not-a-token"));
     expect(res.status).toBe(400);
   });
 
@@ -104,8 +123,15 @@ describe("/api/hls", () => {
     expect(res.headers.get("content-type")).toBe("application/vnd.apple.mpegurl");
     expect(res.headers.get("cache-control")).toContain("no-store");
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
-    expect(body).toContain(
-      `/api/hls?u=${encodeURIComponent("https://4.ftlly.com/mls1es/2026/10/29/00/29/40-05405.ts?token=seg1")}`
+    expect(body).toContain("/api/hls?t=");
+    // The rewritten playlist seals every segment: no upstream host leaks.
+    expect(body).not.toContain("ftlly.com");
+    const segTargets = body
+      .split("\n")
+      .filter((line) => line.startsWith("/api/hls?t="))
+      .map(relayTarget);
+    expect(segTargets).toContain(
+      "https://4.ftlly.com/mls1es/2026/10/29/00/29/40-05405.ts?token=seg1"
     );
     const [calledUrl, calledInit] = (globalThis.fetch as jest.Mock).mock.calls[0];
     expect(String(calledUrl)).toBe(target);

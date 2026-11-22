@@ -3,6 +3,7 @@ import { isIPBanned } from "@/lib/chat";
 import { incrementCounter } from "@/lib/cache";
 import { getClientIP } from "@/lib/client-ip";
 import { isBlockedNetworkTarget } from "@/lib/url-guard";
+import { openLpfUrl, sealLpfUrl } from "@/lib/sealed-url";
 
 /** Requests allowed per address per minute: the player only needs a handful. */
 const MAX_REQUESTS_PER_MINUTE = 90;
@@ -74,7 +75,32 @@ export async function OPTIONS() {
 
 async function handleProxy(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const url = searchParams.get("url");
+  // `?t=` carries the target sealed (opaque token); `?url=` stays for
+  // compatibility with already-issued links and playlist rewrites.
+  const viaToken = !searchParams.get("url") && !!searchParams.get("t");
+  let url = searchParams.get("url");
+  if (!url) {
+    const token = searchParams.get("t");
+    if (token) {
+      try {
+        url = openLpfUrl(token);
+      } catch {
+        url = null;
+      }
+    }
+  }
+
+  /** Keeps the redirect hop opaque when the request arrived sealed. */
+  const proxyHref = (target: string): string => {
+    if (!viaToken) {
+      return `${request.nextUrl.origin}/api/proxy?url=${encodeURIComponent(target)}`;
+    }
+    try {
+      return `${request.nextUrl.origin}/api/proxy?t=${sealLpfUrl(target)}`;
+    } catch {
+      return `${request.nextUrl.origin}/api/proxy?url=${encodeURIComponent(target)}`;
+    }
+  };
 
   if (!url) {
     console.error("[Proxy] Missing URL parameter");
@@ -134,9 +160,7 @@ async function handleProxy(request: NextRequest) {
         if (isBlockedTarget(redirectUrl)) {
           return NextResponse.json({ error: "Target not allowed" }, { status: 403 });
         }
-        return NextResponse.redirect(
-          `${request.nextUrl.origin}/api/proxy?url=${encodeURIComponent(redirectUrl.toString())}`
-        );
+        return NextResponse.redirect(proxyHref(redirectUrl.toString()));
       }
     }
 
@@ -161,7 +185,6 @@ async function handleProxy(request: NextRequest) {
     // Process HTML content
     let modifiedBody = body;
     if (contentType.includes("text/html")) {
-      const proxyBase = `${request.nextUrl.origin}/api/proxy`;
       
       // Ad blocking patterns (similar to uBlock Origin EasyList)
       const adPatterns = [
@@ -190,7 +213,7 @@ async function handleProxy(request: NextRequest) {
         .replace(/<iframe\s+([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi, (match, before, src, after) => {
           if (src.startsWith('http')) {
             const absoluteUrl = new URL(src, targetUrl).href;
-            return `<iframe ${before}src="${proxyBase}?url=${encodeURIComponent(absoluteUrl)}"${after}>`;
+            return `<iframe ${before}src="${proxyHref(absoluteUrl)}"${after}>`;
           }
           return match;
         })
@@ -198,7 +221,7 @@ async function handleProxy(request: NextRequest) {
         .replace(/<script\s+([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi, (match, before, src, after) => {
           if (src.startsWith('http')) {
             const absoluteUrl = new URL(src, targetUrl).href;
-            return `<script ${before}src="${proxyBase}?url=${encodeURIComponent(absoluteUrl)}"${after}>`;
+            return `<script ${before}src="${proxyHref(absoluteUrl)}"${after}>`;
           }
           return match;
         })
@@ -206,7 +229,7 @@ async function handleProxy(request: NextRequest) {
         .replace(/<link\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi, (match, before, href, after) => {
           if (href.startsWith('http') || href.endsWith('.css')) {
             const absoluteUrl = new URL(href, targetUrl).href;
-            return `<link ${before}href="${proxyBase}?url=${encodeURIComponent(absoluteUrl)}"${after}>`;
+            return `<link ${before}href="${proxyHref(absoluteUrl)}"${after}>`;
           }
           return match;
         })
@@ -214,7 +237,7 @@ async function handleProxy(request: NextRequest) {
         .replace(/<img\s+([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi, (match, before, src, after) => {
           if (src.startsWith('http')) {
             const absoluteUrl = new URL(src, targetUrl).href;
-            return `<img ${before}src="${proxyBase}?url=${encodeURIComponent(absoluteUrl)}"${after}>`;
+            return `<img ${before}src="${proxyHref(absoluteUrl)}"${after}>`;
           }
           return match;
         })
@@ -222,7 +245,7 @@ async function handleProxy(request: NextRequest) {
         .replace(/<a\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi, (match, before, href, after) => {
           if (href.startsWith('http')) {
             const absoluteUrl = new URL(href, targetUrl).href;
-            return `<a ${before}href="${proxyBase}?url=${encodeURIComponent(absoluteUrl)}"${after}>`;
+            return `<a ${before}href="${proxyHref(absoluteUrl)}"${after}>`;
           }
           return match;
         })

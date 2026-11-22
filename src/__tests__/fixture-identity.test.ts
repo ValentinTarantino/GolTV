@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { canonicalTeamForDedup, fixtureTeamPair } from "@/lib/fixture-identity";
+import { canonicalTeamForDedup, fixtureTeamPair, isPlaceholderTeam } from "@/lib/fixture-identity";
 import { TEAM_DISPLAY_NAMES } from "@/lib/constants";
 import { cleanAgendaText, cleanAgendaTeamName, stripMatchStageSuffix } from "@/lib/agenda-text";
 import { parseStrapiAgenda } from "@/lib/agenda-source";
@@ -96,5 +96,14 @@ describe("agenda text ingestion", () => {
     expect(primary[0].awayTeam).toBe("Brighton & Hove Albion");
     expect(event[0].awayTeam).toBe(primary[0].awayTeam);
     expect(new Date(event[0].dateISO).getTime()).toBe(new Date(primary[0].dateISO).getTime());
+  });
+
+  it("recognises an unresolved opponent as a placeholder", () => {
+    for (const name of ["TBD", "TBA", "Por definir", "A definir", "Por confirmar"]) {
+      expect(isPlaceholderTeam(name)).toBe(true);
+    }
+    for (const name of ["Nashville SC", "Cincinnati", "Boca Juniors"]) {
+      expect(isPlaceholderTeam(name)).toBe(false);
+    }
   });
 });

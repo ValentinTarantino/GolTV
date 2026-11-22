@@ -1,5 +1,6 @@
 import { badgeNameFor, listLpfMatches } from "@/lib/lpf-matches";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
+import { proxyImageUrl } from "@/lib/public-url";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -54,16 +55,23 @@ export async function GET(): Promise<Response> {
     }
   }
 
+  // Explicit field list: provider identity (`source`), provider coordinates
+  // (`viewTid`/`viewMid`) and upstream URLs never leave the server.
   const payload = matches.map((match) => ({
-    ...match,
+    id: match.id,
+    competition: match.competition,
+    home: match.home,
+    away: match.away,
     // The provider publishes the exact crest of every team; it comes through
     // our own route so the CDN host stays out of the browser.
     homeLogo: match.homePk
       ? `/api/lpf/crest?pk=${match.homePk}`
-      : (logos.get(`home:${badgeNameFor(match.home)}`) ?? ""),
+      : proxyImageUrl(logos.get(`home:${badgeNameFor(match.home)}`) ?? ""),
     awayLogo: match.awayPk
       ? `/api/lpf/crest?pk=${match.awayPk}`
-      : (logos.get(`away:${badgeNameFor(match.away)}`) ?? ""),
+      : proxyImageUrl(logos.get(`away:${badgeNameFor(match.away)}`) ?? ""),
+    start: match.start,
+    status: match.status,
   }));
 
   return Response.json(

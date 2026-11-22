@@ -9,6 +9,7 @@ import {
   resolveEmbedPlaylist,
 } from "@/lib/embed-resolver";
 import { isIPBanned } from "@/lib/chat";
+import { openLpfUrl } from "@/lib/sealed-url";
 
 function getClientIP(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -62,6 +63,33 @@ export async function GET(request: Request): Promise<Response> {
   const rawEmbed = params.get("e");
   if (rawEmbed) return relayEmbedPage(rawEmbed);
 
+  // Sealed token form: the upstream URL never reaches the browser.
+  const rawToken = params.get("t");
+  if (rawToken) {
+    let target: string | null = null;
+    try {
+      target = openLpfUrl(rawToken);
+    } catch {
+      target = null;
+    }
+    if (!target) {
+      return new Response("Invalid or expired stream token", { status: 400 });
+    }
+    let tokenUrl: URL;
+    try {
+      tokenUrl = new URL(target);
+    } catch {
+      return new Response("Invalid stream token", { status: 400 });
+    }
+    if (tokenUrl.protocol === "https:" && isEmbedPlayerPage(tokenUrl)) {
+      return relayEmbedPage(target);
+    }
+    if (!isAllowedStreamUrl(tokenUrl)) {
+      return new Response("Stream host not allowed", { status: 403 });
+    }
+    return relayUpstream(tokenUrl, request);
+  }
+
   const rawTarget = params.get("u");
 
   let upstream: URL;
@@ -74,6 +102,10 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Stream host not allowed", { status: 403 });
   }
 
+  return relayUpstream(upstream, request);
+}
+
+async function relayUpstream(upstream: URL, request: Request): Promise<Response> {
   try {
     const headers: Record<string, string> = { Accept: "*/*" };
     const range = request.headers.get("range");

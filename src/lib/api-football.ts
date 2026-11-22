@@ -1,4 +1,5 @@
 import { API_FOOTBALL_BASE, SUPPORTED_LEAGUES, getBroadcastChannels } from "./constants";
+import { proxyImageUrl } from "./public-url";
 import type { Match, MatchStatusShort } from "./types";
 
 /* ─── Multi-Key Manager ─── */
@@ -179,19 +180,19 @@ function fixtureToMatch(fixture: APIFixture): Match {
       id: fixture.league.id,
       name: knownLeague ? knownLeague.name : fixture.league.name,
       country: fixture.league.country,
-      logo: fixture.league.logo,
+      logo: proxyImageUrl(fixture.league.logo),
       flag: fixture.league.flag || "",
       slug: getSlugForLeague(fixture.league.id, fixture.league.name),
     },
     homeTeam: {
       id: fixture.teams.home.id,
       name: fixture.teams.home.name,
-      logo: fixture.teams.home.logo,
+      logo: proxyImageUrl(fixture.teams.home.logo),
     },
     awayTeam: {
       id: fixture.teams.away.id,
       name: fixture.teams.away.name,
-      logo: fixture.teams.away.logo,
+      logo: proxyImageUrl(fixture.teams.away.logo),
     },
     date: fixture.fixture.date,
     timestamp: fixture.fixture.timestamp,

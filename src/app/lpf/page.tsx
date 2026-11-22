@@ -9,7 +9,6 @@ import ViewerBadge from "@/components/matches/ViewerBadge";
 
 interface LpfMatch {
   id: string;
-  source: "sportplus" | "angulismo";
   competition: string;
   home: string;
   away: string;
@@ -17,8 +16,6 @@ interface LpfMatch {
   awayLogo?: string;
   start: string;
   status: "live" | "upcoming" | "finished";
-  viewTid?: string;
-  viewMid?: string;
 }
 
 type ListState = "loading" | "ready" | "error";
@@ -66,7 +63,7 @@ function formatTime(start: string): string {
 function TeamCrest({ src, name }: { src?: string; name: string }) {
   if (!src) {
     return (
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center border-2 border-current/40 text-[10px] font-black uppercase">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-current/40 text-xs font-black uppercase">
         {name.slice(0, 2)}
       </span>
     );
@@ -77,7 +74,7 @@ function TeamCrest({ src, name }: { src?: string; name: string }) {
       src={src}
       alt={name}
       title={name}
-      className="h-7 w-7 shrink-0 object-contain"
+      className="h-9 w-9 shrink-0 object-contain"
       loading="lazy"
     />
   );
@@ -394,7 +391,7 @@ export default function LpfPlayPage() {
                         data-match={match.id}
                         onClick={() => selectMatch(match.id)}
                         title={`${match.home} vs ${match.away}`}
-                        className={`flex w-full min-w-0 flex-col gap-1.5 border-4 px-2.5 py-2 text-left transition-transform hover:-translate-y-0.5 sm:w-52 sm:shrink-0 sm:px-3 sm:py-2.5 md:w-64 ${
+                        className={`flex w-full min-w-0 flex-col gap-2 border-4 px-3 py-3 text-left transition-transform hover:-translate-y-0.5 sm:w-64 sm:shrink-0 sm:px-4 sm:py-3.5 md:w-80 ${
                           isActive
                             ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
                             : "border-white bg-black text-white shadow-brutal"
@@ -402,21 +399,21 @@ export default function LpfPlayPage() {
                       >
                       <span className="flex items-center justify-center gap-2">
                         <TeamCrest src={match.homeLogo} name={match.home} />
-                        <span className="text-[9px] font-black uppercase opacity-80 sm:text-[10px]">vs</span>
+                        <span className="text-[11px] font-black uppercase opacity-80 sm:text-xs">vs</span>
                         <TeamCrest src={match.awayLogo} name={match.away} />
                       </span>
-                      <span className="text-center text-[10px] font-black uppercase leading-tight sm:text-left">
+                      <span className="text-center text-xs font-black uppercase leading-tight sm:text-sm">
                         {match.home} <span className="opacity-80">vs</span> {match.away}
                       </span>
                       <span className="flex items-center justify-between gap-1">
-                        <span className="text-[9px] font-bold uppercase sm:text-[10px]">{formatTime(match.start)}</span>
+                        <span className="text-[11px] font-bold uppercase sm:text-xs">{formatTime(match.start)}</span>
                         {match.status === "live" ? (
-                          <span className="flex shrink-0 items-center gap-1 text-[9px] font-black uppercase">
+                          <span className="flex shrink-0 items-center gap-1 text-[11px] font-black uppercase">
                             <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
                             {copy.live}
                           </span>
                         ) : (
-                          <span className="shrink-0 text-[9px] font-black uppercase">
+                          <span className="shrink-0 text-[11px] font-black uppercase">
                             {statusLabel(match.status)}
                           </span>
                         )}

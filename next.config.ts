@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
     // Badge widths at 1x, 2x and 3x pixel density, including 48px desktop cards.
     imageSizes: [32, 40, 48, 64, 80, 96, 128, 144, 192, 256, 384],
     formats: ["image/webp"],
+    // Same-origin image proxies carry their target in the query string; without
+    // these patterns next/image rejects them before they ever render.
+    localPatterns: [
+      { pathname: "/badges/**" },
+      { pathname: "/icon.svg" },
+      { pathname: "/api/img" },
+      { pathname: "/api/league-logos" },
+      { pathname: "/api/lpf/crest" },
+    ],
     remotePatterns: [
       {
         protocol: "https",
@@ -127,6 +136,12 @@ const nextConfig: NextConfig = {
         // Player 1 plays through this bare-frame document, so the watch page
         // has to be able to frame it. DENY would block even our own origin.
         source: "/api/secondary",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
+      {
+        // /api/frame answers with a redirect into the provider page; the
+        // framed document is the provider's, but keep the hop frameable.
+        source: "/api/frame",
         headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
       },
     ];

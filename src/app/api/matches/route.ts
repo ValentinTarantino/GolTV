@@ -1,4 +1,4 @@
-import { fixtureTeamPair } from "@/lib/fixture-identity";
+import { canonicalTeamForDedup, fixtureTeamPair, isPlaceholderTeam } from "@/lib/fixture-identity";
 import { cleanAgendaText, cleanAgendaTeamName } from "@/lib/agenda-text";
 import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
@@ -9,6 +9,10 @@ import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam,
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { leagueRanks, loadLeagueOrder } from "@/lib/league-order";
 import { espnSlugsForLeague, espnSlugsForLeagues, findEspnEvent, loadEspnScoreboards } from "@/lib/espn-scores";
+import { findSportplusScoreEvent, listSportplusScores, type SportplusScoreEvent } from "@/lib/lpf-matches";
+import { getCache, setCache } from "@/lib/cache";
+import { proxyImageUrl } from "@/lib/public-url";
+import { matchTeamsPair } from "@/lib/team-matching";
 import { isIPBanned } from "@/lib/chat";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
@@ -56,8 +60,55 @@ interface SeenFixture {
 const CROSS_DATE_DUPLICATE_WINDOW_MS = 12 * 60 * 60 * 1000; // Increased to 12 hours
 const SAME_FIXTURE_NEXT_DAY_WINDOW_MS = 36 * 60 * 60 * 1000; // Increased to 36 hours
 
+/**
+ * Index of the fixtures already accepted, per competition and kickoff minute.
+ * Some providers cannot match a fixture on the team pair:
+ *  - they publish it before the bracket resolves ("Nashville SC vs TBD"),
+ *  - or they cut the club name ("Girona vs Eiba" next to "Girona vs Eibar").
+ * Both are only ever merged with a record that shares the competition, the
+ * exact kickoff minute and the other club, so two real fixtures cannot collide.
+ */
+interface KickoffFixture {
+  index: number;
+  homeKey: string;
+  awayKey: string;
+  /** True when one side of this record is a placeholder ("TBD"). */
+  open: boolean;
+}
+
+function kickoffKey(leagueId: number, dateISO: string): string {
+  return `${leagueId}|${new Date(dateISO).toISOString().slice(0, 16)}`;
+}
+
+/** True when one club name is a cut-off version of the other (min 4 chars). */
+function isTruncatedClub(left: string, right: string): boolean {
+  if (!left || !right || left === right) return false;
+  const [short, long] = left.length <= right.length ? [left, right] : [right, left];
+  if (short.length < 4) return false;
+  if (long.startsWith(short)) return true;
+  // Providers also drop the leading designator ("Deportes Concepción" ->
+  // "Concepción"): the short form is then a suffix, not a prefix. The higher
+  // minimum length keeps short generic tails ("nacional", "racing") safe.
+  return short.length >= 5 && long.endsWith(short);
+}
+
+/**
+ * When two records of the same fixture disagree on a club name, keep the one
+ * the visitor can actually read: a resolved name over "TBD", and the full name
+ * over a provider's cut-off version ("Eibar" over "Eiba").
+ */
+function preferCompleteName(current: string, candidate: string, leagueId: number): string {
+  if (!candidate || isPlaceholderTeam(candidate)) return current;
+  if (isPlaceholderTeam(current)) return candidate;
+  if (candidate.length <= current.length) return current;
+  const currentKey = canonicalTeamForDedup(current, leagueId);
+  const candidateKey = canonicalTeamForDedup(candidate, leagueId);
+  return isTruncatedClub(currentKey, candidateKey) ? candidate : current;
+}
+
 function findDuplicateFixture(
   seenMatches: Map<string, SeenFixture[]>,
+  kickoffFixtures: Map<string, KickoffFixture[]>,
   dateISO: string,
   leagueId: number,
   homeTeam: string,
@@ -92,8 +143,28 @@ const duplicate = previous.find((fixture) => {
   });
   if (duplicate) return duplicate.index;
 
+  const homeKey = canonicalTeamForDedup(homeTeam, leagueId);
+  const awayKey = canonicalTeamForDedup(awayTeam, leagueId);
+  const homeOpen = isPlaceholderTeam(homeTeam);
+  const awayOpen = isPlaceholderTeam(awayTeam);
+  const openFixture = homeOpen || awayOpen;
+  const sameMinute = kickoffFixtures.get(kickoffKey(leagueId, dateISO)) ?? [];
+
+  for (const candidate of sameMinute) {
+    // Same known club on one side; the other side is either unresolved in one
+    // of the two records, or cut short by a provider.
+    const homeMatched = !homeOpen && homeKey === candidate.homeKey;
+    const awayMatched = !awayOpen && awayKey === candidate.awayKey;
+    if (openFixture && (homeMatched || awayMatched)) return candidate.index;
+    if (homeMatched && isTruncatedClub(awayKey, candidate.awayKey)) return candidate.index;
+    if (awayMatched && isTruncatedClub(homeKey, candidate.homeKey)) return candidate.index;
+  }
+
   previous.push({ date, argentinaDate, timestamp, kickoffTime, id, index });
   seenMatches.set(key, previous);
+  const list = kickoffFixtures.get(kickoffKey(leagueId, dateISO)) ?? [];
+  list.push({ index, homeKey, awayKey, open: openFixture });
+  kickoffFixtures.set(kickoffKey(leagueId, dateISO), list);
   return undefined;
 }
 
@@ -151,7 +222,7 @@ function inferStatus(dateISO: string): "NS" | "1H" | "FT" {
   if (diffMin > 10) return "NS";
   // Agendas have no final whistle status. Allow extra time/penalties, but
   // don't advertise a kickoff as live for four hours.
-  if (!Number.isFinite(diffMin) || diffMin <= -180) return "FT";
+  if (!Number.isFinite(diffMin) || diffMin <= -140) return "FT";
   return "1H";
 }
 
@@ -182,6 +253,7 @@ export async function GET(request: NextRequest) {
     ...playerFiveAgenda.map((entry) => ({ ...entry, embeds: undefined, dateInferred: false, fixtureStatus: undefined, preferredPlayer: "5" as const })),
   ];
   const seenMatches = new Map<string, SeenFixture[]>();
+  const kickoffFixtures = new Map<string, KickoffFixture[]>();
   const matches: Match[] = [];
 
   for (const raw of agenda) {
@@ -216,16 +288,25 @@ export async function GET(request: NextRequest) {
       league.id === 129 ? ("5" as const) : "preferredPlayer" in entry ? entry.preferredPlayer : undefined;
     const status = entry.fixtureStatus ?? inferStatus(entry.dateISO);
     // Keep explicitly confirmed finals on their Argentine calendar day. An
-    // expired undated/inferred listing still cannot claim a rescheduled game.
+    // inferred final stays visible for five hours after kickoff so recently
+    // finished games still show their result state; older inferred listings
+    // are dropped, and a rescheduled game can't claim another day.
     if (status === "PST" || status === "CANC") continue;
-    if (status === "FT" && (entry.fixtureStatus !== "FT" || toArgentinaDate(entry.dateISO) !== date)) continue;
+    if (status === "FT") {
+      const minsAgo = (Date.now() - new Date(entry.dateISO).getTime()) / 60000;
+      const sameDay = toArgentinaDate(entry.dateISO) === date;
+      if (entry.fixtureStatus === "FT" ? !sameDay : !sameDay || minsAgo > 300) continue;
+    }
 
     const id = hashSlug(entry.slug);
-    const duplicateIndex = findDuplicateFixture(seenMatches, entry.dateISO, league.id, entry.homeTeam, entry.awayTeam, id, matches.length);
+    const duplicateIndex = findDuplicateFixture(seenMatches, kickoffFixtures, entry.dateISO, league.id, entry.homeTeam, entry.awayTeam, id, matches.length);
     if (duplicateIndex !== undefined) {
       // Multiple primary records can carry different channels for one game.
       // Keep them on the winning fixture instead of discarding their signals.
       const existing = matches[duplicateIndex];
+      // Same fixture under two provider spellings: keep the readable club name.
+      existing.homeTeam.name = preferCompleteName(existing.homeTeam.name, entry.homeTeam, league.id);
+      existing.awayTeam.name = preferCompleteName(existing.awayTeam.name, entry.awayTeam, league.id);
       // A verified final whistle wins over another agenda's clock-based guess,
       // without replacing the primary fixture's identity or stream sources.
       if (entry.fixtureStatus && Math.abs(existing.timestamp * 1000 - Date.parse(entry.dateISO)) <= 60 * 60_000) {
@@ -255,7 +336,7 @@ export async function GET(request: NextRequest) {
         id: league.id,
         name: league.name,
         country: league.country,
-        logo: LEAGUE_LOGOS[league.id] || `https://media.api-sports.io/football/leagues/${league.id}.png`,
+        logo: proxyImageUrl(LEAGUE_LOGOS[league.id] || `https://media.api-sports.io/football/leagues/${league.id}.png`),
         flag: league.countryFlag,
         slug: league.slug,
       },
@@ -285,12 +366,35 @@ export async function GET(request: NextRequest) {
 
   // Live score enrichment from ESPN's public scoreboard (no API key). One
   // request per league slug per ~45s; a miss or failure keeps agenda data.
-  const espnSlugs = espnSlugsForLeagues(new Set(matches.map((m) => m.league.id)));
+  // Sources label Segunda División fixtures as "La Liga", so whenever a 140
+  // match exists we also pull esp.2: a hit there reclassifies the fixture.
+  const leagueIds = new Set(matches.map((m) => m.league.id));
+  const espnSlugs = espnSlugsForLeagues(leagueIds);
+  if (leagueIds.has(140) && !espnSlugs.includes("esp.2")) espnSlugs.push("esp.2");
+  const reclassifiedFixtures = new Set<Match>();
   if (espnSlugs.length > 0) {
     const boards = await loadEspnScoreboards(espnSlugs);
+    const segunda = SUPPORTED_LEAGUES.find((l) => l.id === 141);
     for (const m of matches) {
       const events = espnSlugsForLeague(m.league.id).flatMap((slug) => boards.get(slug) ?? []);
-      const event = findEspnEvent(events, m.homeTeam.name, m.awayTeam.name, m.date);
+      let event = findEspnEvent(events, m.homeTeam.name, m.awayTeam.name, m.date);
+      // Segunda fixture mislabeled as La Liga: ESPN only has it under esp.2.
+      if (!event && m.league.id === 140) {
+        const segundaEvents = boards.get("esp.2") ?? [];
+        const segundaEvent = findEspnEvent(segundaEvents, m.homeTeam.name, m.awayTeam.name, m.date);
+        if (segundaEvent && segunda) {
+          m.league = {
+            id: segunda.id,
+            name: segunda.name,
+            country: segunda.country,
+            logo: proxyImageUrl(LEAGUE_LOGOS[segunda.id] || `https://media.api-sports.io/football/leagues/${segunda.id}.png`),
+            flag: segunda.countryFlag,
+            slug: segunda.slug,
+          };
+          reclassifiedFixtures.add(m);
+          event = segundaEvent;
+        }
+      }
       if (!event) continue;
       m.score = { home: event.homeScore, away: event.awayScore };
       if (event.statusShort === "FT") {
@@ -302,6 +406,71 @@ export async function GET(request: NextRequest) {
         m.status = { ...m.status, elapsed: null };
       }
     }
+  }
+
+  // ESPN reclassification can merge two fixtures that were distinct leagues
+  // during the first dedup pass (a "La Liga"-labeled Segunda match next to a
+  // properly labeled one). Only fixtures ESPN just moved are re-checked —
+  // the fuzzy team matcher is too loose for a global second dedup pass.
+  if (espnSlugs.length > 0) {
+    const argentinaDay = (iso: string) =>
+      new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+    const richness = (m: Match) =>
+      (m.score.home != null || m.score.away != null ? 2 : 0) +
+      (m.status.short !== "NS" ? 1 : 0);
+    const drop = new Set<number>();
+    matches.forEach((m, i) => {
+      if (!reclassifiedFixtures.has(m)) return;
+      for (let j = 0; j < matches.length; j++) {
+        if (j === i || drop.has(j)) continue;
+        const other = matches[j];
+        if (other.league.id !== m.league.id || argentinaDay(other.date) !== argentinaDay(m.date)) continue;
+        if (!matchTeamsPair(m.homeTeam.name, m.awayTeam.name, other.homeTeam.name, other.awayTeam.name)) continue;
+        if (richness(other) > richness(m)) {
+          drop.add(i);
+          return;
+        }
+        drop.add(j);
+      }
+    });
+    for (let i = matches.length - 1; i >= 0; i--) {
+      if (drop.has(i)) matches.splice(i, 1);
+    }
+  }
+
+  // Sportplus's global board covers competitions ESPN misses (e.g. Chilean
+  // Primera B). One request returns every live match; only fixtures still
+  // missing a score after ESPN enrichment are looked up. The board drops a
+  // match once its broadcast ends, so the last score seen is remembered per
+  // fixture: a vanished live match past its ~140min window reads as FT.
+  if (matches.some((m) => m.score.home == null && m.score.away == null)) {
+    const sportplusEvents = await listSportplusScores();
+    const memoryWrites: Promise<void>[] = [];
+    for (const m of matches) {
+      if (m.score.home != null || m.score.away != null) continue;
+      const memoryKey = `sp:last:${toArgentinaDate(m.date)}|${normalize(m.homeTeam.name)}|${normalize(m.awayTeam.name)}`;
+      const boardEvent = findSportplusScoreEvent(sportplusEvents, m.homeTeam.name, m.awayTeam.name, m.date);
+      const event = boardEvent ?? (await getCache<SportplusScoreEvent>(memoryKey));
+      if (!event) continue;
+
+      let statusShort = event.statusShort;
+      if (!boardEvent && statusShort !== "FT") {
+        // Off the board while the match should already be over → final.
+        const startTs = new Date(event.date.replace(/([+-]\d{2})(\d{2})$/, "$1:$2")).getTime();
+        if (!Number.isNaN(startTs) && Date.now() - startTs > 140 * 60_000) statusShort = "FT";
+      }
+
+      m.score = { home: event.homeScore, away: event.awayScore };
+      if (statusShort === "FT") {
+        m.status = { short: "FT", long: "Finalizado", elapsed: null };
+      } else {
+        m.status = { short: statusShort as Match["status"]["short"], long: "En Juego", elapsed: event.elapsed };
+      }
+      if (boardEvent) {
+        memoryWrites.push(setCache(memoryKey, event, 3 * 60 * 60 * 1000));
+      }
+    }
+    await Promise.allSettled(memoryWrites);
   }
 
   const badgeKey = (name: string, country: string) => JSON.stringify([country, name]);
@@ -349,8 +518,8 @@ export async function GET(request: NextRequest) {
   }
 
   for (const m of matches) {
-    m.homeTeam.logo = logoMap.get(badgeKey(m.homeTeam.name, m.league.country)) ?? "";
-    m.awayTeam.logo = logoMap.get(badgeKey(m.awayTeam.name, m.league.country)) ?? "";
+    m.homeTeam.logo = proxyImageUrl(logoMap.get(badgeKey(m.homeTeam.name, m.league.country)) ?? "");
+    m.awayTeam.logo = proxyImageUrl(logoMap.get(badgeKey(m.awayTeam.name, m.league.country)) ?? "");
   }
 
   return Response.json({ matches, date }, { 

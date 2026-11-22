@@ -1,5 +1,6 @@
 import type { Standing, StandingsTable, StandingsTab, BracketRound, BracketMatch, LeagueStandingsData } from "./types";
 import { getCache, setCache } from "./cache";
+import { proxyImageUrl } from "./public-url";
 
 const PROMIEDOS_BASE = "https://www.promiedos.com.ar/league";
 
@@ -303,7 +304,7 @@ const tabs: StandingsTab[] = response.league.standings.map((standingGroup: ApiFo
           team: {
             id: row.team?.id || 0,
             name: row.team?.name || "",
-            logo: row.team?.logo || "",
+            logo: proxyImageUrl(row.team?.logo || ""),
           },
           points: row.points || 0,
           played: row.all?.played || 0,

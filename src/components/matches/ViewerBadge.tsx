@@ -31,7 +31,23 @@ interface ViewerBadgeProps {
 export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps) {
   const { t } = useLanguage();
   const [count, setCount] = useState<number | null>(null);
+  // Viewer counts are admin-only, but the heartbeat keeps running for every
+  // visitor or the number the admin sees would miss regular viewers.
+  const [isAdmin, setIsAdmin] = useState(false);
   const viewerIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { isAdmin?: boolean } | null) => {
+        if (!cancelled && data?.isAdmin) setIsAdmin(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -93,7 +109,7 @@ export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps
     };
   }, [matchId, active]);
 
-  if (!active || count === null) return null;
+  if (!active || !isAdmin || count === null) return null;
 
   return (
     <span

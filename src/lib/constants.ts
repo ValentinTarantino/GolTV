@@ -99,6 +99,7 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 2, name: "Champions League", country: "Internacional", countryFlag: "🌎", slug: "champions-league", season: 2026 },
   { id: 3, name: "Europa League", country: "Internacional", countryFlag: "🌎", slug: "europa-league", season: 2026 },
   { id: 140, name: "La Liga", country: "España", countryFlag: "🇪🇸", slug: "la-liga", season: 2026 },
+  { id: 141, name: "Segunda División", country: "España", countryFlag: "🇪🇸", slug: "segunda-division", season: 2026 },
   { id: 143, name: "Copa del Rey", country: "España", countryFlag: "🇪🇸", slug: "copa-del-rey", season: 2026 },
   { id: 39, name: "Premier League", country: "Inglaterra", countryFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", slug: "premier-league", season: 2026 },
   { id: 78, name: "Bundesliga", country: "Alemania", countryFlag: "🇩🇪", slug: "bundesliga", season: 2026 },
@@ -320,6 +321,12 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "la liga": 140,
   "laliga": 140,
   "laliga ea sports": 140,
+  "segunda division": 141,
+  "segunda division espanola": 141,
+  "segunda division espana": 141,
+  "la liga 2": 141,
+  "laliga 2": 141,
+  "laliga2": 141,
   "copa del rey": 143,
   "copa del rey de espana": 143,
   "copa del rey espana": 143,
@@ -908,6 +915,12 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "wolves": "leedsunited",
   "xolos": "clubtijuana",
   "celtadevigoii": "celtadevigo",
+  // ESPN lists the reserve side as "RC Celta Fortuna"; agendas call it
+  // "Celta de Vigo II". Point both spellings at the II canonical so the
+  // scoreboard matcher pairs them (the senior team must NOT match this).
+  "rcceltafortuna": "celtadevigoii",
+  "celtafortuna": "celtadevigoii",
+  "celtadevigofortuna": "celtadevigoii",
 };
 
 

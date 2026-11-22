@@ -1,4 +1,5 @@
 import { canalRelayUrl, resolveCanalById } from "@/lib/streams";
+import { publicFrameUrl } from "@/lib/public-url";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,12 @@ export async function GET(
   try {
     return Response.json(
       {
-        // An iframe channel is the third party page itself; there is nothing to
-        // relay. Everything else goes out sealed.
+        // An iframe channel is the third party page itself; it goes out as an
+        // opaque /api/frame (or /api/proxy) reference so the provider host
+        // never appears in the payload. Everything else goes out sealed.
         src:
           resolved.kind === "iframe"
-            ? resolved.url
+            ? publicFrameUrl(resolved.url)
             : canalRelayUrl(resolved.url, { encrypted: resolved.clearKey !== null }),
         kind: resolved.kind,
         clearKey: resolved.clearKey,

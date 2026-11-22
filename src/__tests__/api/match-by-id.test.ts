@@ -43,7 +43,14 @@ import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findSportplusStreams } from "@/lib/sportplus-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
 import { findPrimaryStreams } from "@/lib/primary-player-source";
+import { openLpfUrl } from "@/lib/sealed-url";
 import type { Match } from "@/lib/types";
+
+/** Decodes the upstream URL sealed inside an `/api/frame?t=` reference. */
+function sealedTarget(url: string): string | null {
+  const token = url.split("?t=")[1];
+  return token ? openLpfUrl(token) : null;
+}
 
 function makeMatch(overrides: Partial<Match> = {}): Match {
   return {
@@ -72,7 +79,15 @@ describe("/api/matches/[matchId]", () => {
     (findPrimaryStreams as jest.Mock).mockResolvedValueOnce(channels);
     const response = await GET(makeRequest("http://localhost/api/matches/12345?player=6&home=Boca%20Juniors&away=River%20Plate"), { params: Promise.resolve({ matchId: "12345" }) });
     const data = await response.json();
-    expect(data.match.channels).toEqual(channels);
+    expect(data.match.channels).toHaveLength(1);
+    expect(data.match.channels[0]).toMatchObject({
+      id: "primary-test",
+      name: "Señal 1",
+      kind: "iframe",
+    });
+    // The provider page is sealed: the payload carries an opaque relay URL.
+    expect(data.match.channels[0].url).toMatch(/^\/api\/(frame|proxy)\?t=/);
+    expect(sealedTarget(data.match.channels[0].url)).toBe("https://example.com/player");
     expect(findPrimaryStreams).toHaveBeenCalledWith("Boca Juniors", "River Plate");
     expect(findSecondaryStreams).not.toHaveBeenCalled();
   });
@@ -197,7 +212,12 @@ describe("/api/matches/[matchId]", () => {
 
     expect(res.status).toBe(200);
     expect(findSecondaryStreams).toHaveBeenCalledWith("Platense", "Estudiantes");
-    expect(data.match.channels).toEqual(channels);
+    expect(data.match.channels).toHaveLength(channels.length);
+    data.match.channels.forEach((channel: { id: string; url: string }, index: number) => {
+      expect(channel.id).toBe(channels[index].id);
+      expect(channel.url).toMatch(/^\/api\/(frame|proxy)\?t=/);
+      expect(sealedTarget(channel.url)).toBe(channels[index].url);
+    });
     expect(findPrimaryStreams).not.toHaveBeenCalled();
   });
 

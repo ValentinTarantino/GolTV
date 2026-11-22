@@ -32,6 +32,7 @@ const LEAGUE_SLUGS: Record<number, string[]> = {
   2: ["uefa.champions"],
   3: ["uefa.europa"],
   140: ["esp.1"], // La Liga
+  141: ["esp.2"], // Segunda División
   143: ["esp.copa_del_rey"],
   39: ["eng.1"], // Premier League
   78: ["ger.1"], // Bundesliga
