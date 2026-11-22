@@ -62,7 +62,7 @@ export interface Match {
 
 export interface Channel {
   iframeReferrerPolicy?: "no-referrer";
-  provider?: "iframe-bridge" | "primary-feed" | "secondary-feed";
+  provider?: "iframe-bridge" | "primary-feed" | "secondary-feed" | "player-five";
   streamId?: number;
   siteType?: number;
   id: string;

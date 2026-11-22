@@ -56,9 +56,11 @@ export function parsePlayerFiveChannels(data: unknown, home: string, away: strin
           const url = new URL(option.iframe);
           if (url.protocol !== "https:" || url.username || url.password || seen.has(url.href)) continue;
           seen.add(url.href);
+          const kind = /\.m3u8$/i.test(url.pathname) ? "hls" : "iframe";
           channels.push({ id: `player-five-${createHash("sha256").update(url.href).digest("hex").slice(0, 16)}`,
             name: `${channel.name || "Canal"} · ${option.name || "Opción"}`,
-            url: url.href, kind: /\.m3u8$/i.test(url.pathname) ? "hls" : "iframe" });
+            url: url.href, kind,
+            ...(kind === "iframe" ? { provider: "player-five" as const } : {}) });
         } catch { /* Ignore malformed source URLs. */ }
       }
     }

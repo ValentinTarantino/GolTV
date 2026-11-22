@@ -106,6 +106,12 @@ export function publicChannels(channels: Channel[] | undefined): Channel[] | und
         return channel;
       }
     }
+    // Player-five embeds are fragile third-party players: any hop through our
+    // relay routes (302 or JS navigation) gets flagged by their anti-leech
+    // checks and kills fullscreen. They load the provider URL directly, the
+    // same way they did before URL sealing — the domain is visible in the
+    // network tab either way once the frame loads.
+    if (channel.provider === "player-five") return channel;
     return { ...channel, url: publicFrameUrl(channel.url) };
   });
 }
