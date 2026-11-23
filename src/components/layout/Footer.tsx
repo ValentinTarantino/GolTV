@@ -45,10 +45,10 @@ export default function Footer() {
           </div>
 
           {/* Warning/Disclaimer */}
-          <div className="md:col-start-4 md:col-span-1 md:justify-self-end w-full md:w-[24rem] md:max-w-[24rem]">
-            <div className="mx-auto w-full bg-accent-secondary border-4 border-black p-4 sm:p-5 shadow-brutal transform rotate-1">
+          <div className="w-full min-w-0 md:col-start-4 md:col-span-1 md:justify-self-end md:w-[24rem] md:max-w-full">
+            <div className="mx-auto w-full max-w-full min-w-0 overflow-hidden bg-accent-secondary border-4 border-black p-4 shadow-[4px_4px_0px_0px_var(--color-accent-primary)] sm:p-5 sm:rotate-1 sm:shadow-brutal">
               <h3 className="text-xl font-black text-black uppercase mb-2">{t.footer.legalTitle}</h3>
-              <p className="text-xs sm:text-sm font-bold text-black uppercase leading-tight max-w-[22rem]">
+              <p className="text-xs sm:text-sm font-bold text-black uppercase leading-tight [overflow-wrap:anywhere]">
                 {t.footer.legalText}
               </p>
             </div>
