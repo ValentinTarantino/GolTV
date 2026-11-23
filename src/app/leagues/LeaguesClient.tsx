@@ -405,7 +405,7 @@ export default function LeaguesClient({ leagueLogos }: { leagueLogos: Record<str
                         className={`w-full text-left px-3 py-2.5 text-sm font-bold transition-all flex items-center gap-2 border-2 mb-2 ${
                           selectedId === league.id
                             ? "bg-black text-accent-primary border-black shadow-brutal-sm"
-                            : "bg-transparent text-black border-black shadow-brutal-sm hover:bg-black/20"
+                            : "bg-transparent text-black border-black shadow-[3px_3px_0px_0px_#000] hover:bg-black/20"
                         }`}
                       >
                         <div className={`relative isolate h-8 w-8 flex-shrink-0 border-2 ${selectedId === league.id || league.id === 268 || league.id === 130 ? "border-white" : "border-black"} ${league.id === 9901 || league.id === 268 || league.id === 57 || league.id === 1034 || league.id === 130 ? "bg-black" : "bg-white"}`}>
