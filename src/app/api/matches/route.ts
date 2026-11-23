@@ -12,6 +12,7 @@ import { espnSlugsForLeague, espnSlugsForLeagues, findEspnEvent, loadEspnScorebo
 import { findSportplusScoreEvent, listSportplusScores, type SportplusScoreEvent } from "@/lib/lpf-matches";
 import { getCache, setCache } from "@/lib/cache";
 import { proxyImageUrl } from "@/lib/public-url";
+import { prefetchImage } from "@/lib/image-cache";
 import { matchTeamsPair } from "@/lib/team-matching";
 import { classifyAgendaLeague, hashSlug } from "@/lib/agenda-fixture";
 import { isIPBanned } from "@/lib/chat";
@@ -91,6 +92,9 @@ function resolveTeamLogos(matches: Match[]): Promise<Map<string, string>> {
         getTeamLogo(name, country)
           .then((logo) => {
             logoMap.set(key, logo);
+            // Prefetch the image into the shared cache so it loads instantly
+            // when the client requests it via /api/img. Fire-and-forget.
+            if (logo) prefetchImage(logo).catch(() => {});
           })
           .catch(() => {})
       );

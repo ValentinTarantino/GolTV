@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Play } from "lucide-react";
@@ -49,6 +49,18 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
   const saveScroll = () => {
     sessionStorage.setItem("home-scroll", String(window.scrollY));
   };
+
+  // Warm the browser cache for this fixture's crests as soon as the card is
+  // visible, so the watch page renders them instantly instead of fetching
+  // them while its skeleton is still up.
+  useEffect(() => {
+    for (const logo of [match.homeTeam.logo, match.awayTeam.logo, match.league.logo]) {
+      if (logo) {
+        const img = new window.Image();
+        img.src = logo;
+      }
+    }
+  }, [match.homeTeam.logo, match.awayTeam.logo, match.league.logo]);
 
   return (
     <Link

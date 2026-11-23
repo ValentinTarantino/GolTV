@@ -11,6 +11,7 @@
  */
 
 import { openImageToken, isProxiedImageHost } from "@/lib/public-url";
+import { getCachedImage, setCachedImage, prefetchImage } from "@/lib/image-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,18 @@ export async function GET(request: Request): Promise<Response> {
   const target = openImageToken(token);
   if (!target || !isProxiedImageHost(target)) {
     return new Response("Invalid image reference", { status: 400 });
+  }
+
+  // Serve from cache if available — badges are static assets.
+  const cached = getCachedImage(target);
+  if (cached) {
+    return new Response(cached.bytes, {
+      status: 200,
+      headers: {
+        "Content-Type": cached.contentType,
+        "Cache-Control": "public, max-age=86400, immutable",
+      },
+    });
   }
 
   // Retry once on failure — CDN hiccups are common and badges are cheap to refetch.
@@ -43,10 +56,13 @@ export async function GET(request: Request): Promise<Response> {
         return new Response("Image too large", { status: 502 });
       }
 
+      const contentType = upstream.headers.get("content-type") ?? "image/png";
+      setCachedImage(target, bytes, contentType);
+
       return new Response(bytes, {
         status: 200,
         headers: {
-          "Content-Type": upstream.headers.get("content-type") ?? "image/png",
+          "Content-Type": contentType,
           // Badges are static assets; cache aggressively at the edge/browser.
           "Cache-Control": "public, max-age=86400, immutable",
         },
