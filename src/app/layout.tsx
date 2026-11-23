@@ -77,7 +77,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${spaceGrotesk.variable} ${barlowCondensed.variable} h-full`}>
+    <html lang="es" className={`${spaceGrotesk.variable} ${barlowCondensed.variable} h-full overflow-x-clip`}>
       <body className="min-h-full flex flex-col font-sans antialiased">
         <DesktopBackgroundParallax />
         <BanChecker />
