@@ -40,24 +40,11 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
   const upcoming = isUpcoming(match.status.short);
   const viewable = isViewable(match.status.short, match.timestamp);
 
-  const watchUrl = (() => {
-    const params = new URLSearchParams();
-    if (match._preferredPlayer) params.set("player", match._preferredPlayer);
-    if (match._eventSlug && match._eventSources) {
-      params.set("eventSlug", match._eventSlug);
-      params.set("eventSources", JSON.stringify(match._eventSources));
-    }
-    if (match._streamId || match._eventSlug) {
-      params.set("home", match.homeTeam.name);
-      params.set("away", match.awayTeam.name);
-      params.set("league", match.league.name);
-    }
-    if (match._streamId) {
-      params.set("streamId", match._streamId);
-    }
-    const qs = params.toString();
-    return `/watch/${match.id}${qs ? `?${qs}` : ""}`;
-  })();
+  // Agenda fixtures resolve server-side from the match id; only the preferred
+  // player travels in the URL.
+  const watchUrl = match._preferredPlayer
+    ? `/watch/${match.id}?player=${match._preferredPlayer}`
+    : `/watch/${match.id}`;
 
   const saveScroll = () => {
     sessionStorage.setItem("home-scroll", String(window.scrollY));

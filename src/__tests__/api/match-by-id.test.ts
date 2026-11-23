@@ -12,14 +12,22 @@ jest.mock("@/lib/streaming", () => ({
 jest.mock("@/lib/agenda-source", () => ({
   getAgendaStream: jest.fn(),
   findAgendaStreams: jest.fn().mockResolvedValue([]),
+  fetchAgenda: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/event-source", () => ({
   findEventStreams: jest.fn().mockResolvedValue([]),
+  fetchEventAgenda: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/secondary-source", () => ({
   findSecondaryStreams: jest.fn().mockResolvedValue([]),
+  fetchSecondaryAgenda: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock("@/lib/player-five-source", () => ({
+  findPlayerFiveStreams: jest.fn().mockResolvedValue([]),
+  fetchPlayerFiveAgenda: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/sportplus-source", () => ({
@@ -43,6 +51,8 @@ import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findSportplusStreams } from "@/lib/sportplus-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
 import { findPrimaryStreams } from "@/lib/primary-player-source";
+import { findPlayerFiveStreams, fetchPlayerFiveAgenda } from "@/lib/player-five-source";
+import { hashSlug } from "@/lib/agenda-fixture";
 import { openLpfUrl } from "@/lib/sealed-url";
 import type { Match } from "@/lib/types";
 
@@ -292,5 +302,36 @@ describe("/api/matches/[matchId]", () => {
     expect(findPlayerTwoStreams).toHaveBeenCalledWith("Boca", "River");
     expect(data.match.channels[0].kind).toBe("iframe");
     expect(data.match.channels[0].url).toContain("/p4/");
+  });
+
+  it("resolves agenda fixtures from the match id without query params", async () => {
+    (getMatchById as jest.Mock).mockResolvedValue(null);
+    const slug = "player-five-gimnasia-vs-tristan-2026-01-01";
+    const id = hashSlug(slug);
+    (fetchPlayerFiveAgenda as jest.Mock).mockResolvedValue([
+      {
+        slug,
+        homeTeam: "Gimnasia y Tiro",
+        awayTeam: "Tristán Suárez",
+        league: "Primera Nacional",
+        dateISO: "2026-01-01T21:00:00.000Z",
+        hasStreams: true,
+      },
+    ]);
+    (findPlayerFiveStreams as jest.Mock).mockResolvedValue([
+      { id: "p5-1", name: "Canal · Opción 1", url: "https://example.com/embed", kind: "iframe", provider: "player-five" },
+    ]);
+
+    const req = makeRequest(`http://localhost/api/matches/${id}?player=5`);
+    const res = await GET(req, {
+      params: Promise.resolve({ matchId: String(id) }),
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(findPlayerFiveStreams).toHaveBeenCalledWith("Gimnasia y Tiro", "Tristán Suárez");
+    expect(data.match.homeTeam.name).toBe("Gimnasia y Tiro");
+    expect(data.match.awayTeam.name).toBe("Tristán Suárez");
+    expect(data.match.league.id).toBe(129);
   });
 });

@@ -12,6 +12,7 @@ import { proxyImageUrl, publicChannels } from "@/lib/public-url";
 
 /** League badge URLs go through the image proxy so CDN hosts stay hidden. */
 const getLeagueLogo = (leagueId: number): string => proxyImageUrl(rawLeagueLogo(leagueId));
+import { findAgendaFixtureById } from "@/lib/agenda-fixture";
 import { isIPBanned } from "@/lib/chat";
 import type { Match, Channel } from "@/lib/types";
 import { validateParams, validateQuery, createErrorResponse, matchIdParamsSchema, matchIdQuerySchema } from "@/lib/validators";
@@ -54,7 +55,8 @@ export async function GET(
   const queryValidation = await validateQuery(request, matchIdQuerySchema);
   if ("error" in queryValidation) return queryValidation.error;
 
-  const { streamId, eventSlug, eventSources, player, home, away, league } = queryValidation.data;
+  const { streamId, eventSlug, eventSources, player } = queryValidation.data;
+  let { home, away, league } = queryValidation.data;
   const playerMode = player === "1" || player === "3" || player === "4" || player === "5" || player === "6" || player === "7" ? player : "2";
   const id = parseInt(matchId, 10);
 
@@ -116,6 +118,23 @@ export async function GET(
     return respond(match);
   }
 
+  // Agenda fixtures are not API-Football records: their id is hashSlug(slug)
+  // and watch links no longer carry the fixture context, so rebuild it from
+  // the cached agendas. Older shared links still work — explicit params win.
+  let fixtureDateISO: string | undefined;
+  if (!isNaN(id) && (!home || !away)) {
+    const fixture = await findAgendaFixtureById(id).catch(() => null);
+    if (fixture) {
+      home = home || fixture.homeTeam;
+      away = away || fixture.awayTeam;
+      league = league || fixture.leagueName;
+      fixtureDateISO = fixture.dateISO;
+    }
+  }
+  const fixtureTimestamp = fixtureDateISO
+    ? Math.floor(new Date(fixtureDateISO).getTime() / 1000)
+    : Math.floor(Date.now() / 1000);
+
   const homeTeam = home || "Home";
   const awayTeam = away || "Away";
   const leagueName = league || "Internacional";
@@ -137,8 +156,8 @@ export async function GET(
       },
       homeTeam: { id: 0, name: homeTeam, logo: "" },
       awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: new Date().toISOString(),
-      timestamp: Math.floor(Date.now() / 1000),
+      date: fixtureDateISO ?? new Date().toISOString(),
+      timestamp: fixtureTimestamp,
       status: { short: "LIVE", long: "En Juego", elapsed: null },
       score: { home: 0, away: 0 },
       channels,
@@ -164,8 +183,8 @@ export async function GET(
       },
       homeTeam: { id: 0, name: homeTeam, logo: "" },
       awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: new Date().toISOString(),
-      timestamp: Math.floor(Date.now() / 1000),
+      date: fixtureDateISO ?? new Date().toISOString(),
+      timestamp: fixtureTimestamp,
       status: { short: "LIVE", long: "En Juego", elapsed: null },
       score: { home: 0, away: 0 },
       channels,
@@ -189,8 +208,8 @@ export async function GET(
       },
       homeTeam: { id: 0, name: homeTeam, logo: "" },
       awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: new Date().toISOString(),
-      timestamp: Math.floor(Date.now() / 1000),
+      date: fixtureDateISO ?? new Date().toISOString(),
+      timestamp: fixtureTimestamp,
       status: { short: "LIVE", long: "En Juego", elapsed: null },
       score: { home: 0, away: 0 },
       channels,
@@ -214,8 +233,8 @@ export async function GET(
       },
       homeTeam: { id: 0, name: homeTeam, logo: "" },
       awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: new Date().toISOString(),
-      timestamp: Math.floor(Date.now() / 1000),
+      date: fixtureDateISO ?? new Date().toISOString(),
+      timestamp: fixtureTimestamp,
       status: { short: "LIVE", long: "En Juego", elapsed: null },
       score: { home: 0, away: 0 },
       channels,
@@ -251,8 +270,8 @@ export async function GET(
       },
       homeTeam: { id: 0, name: homeTeam, logo: "" },
       awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: new Date().toISOString(),
-      timestamp: Math.floor(Date.now() / 1000),
+      date: fixtureDateISO ?? new Date().toISOString(),
+      timestamp: fixtureTimestamp,
       status: { short: "LIVE", long: "En Juego", elapsed: null },
       score: { home: 0, away: 0 },
       channels,
@@ -279,8 +298,8 @@ export async function GET(
       },
       homeTeam: { id: 0, name: homeTeam, logo: "" },
       awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: new Date().toISOString(),
-      timestamp: Math.floor(Date.now() / 1000),
+      date: fixtureDateISO ?? new Date().toISOString(),
+      timestamp: fixtureTimestamp,
       status: { short: "LIVE", long: "En Juego", elapsed: null },
       score: { home: 0, away: 0 },
       channels,
@@ -306,8 +325,8 @@ export async function GET(
       },
       homeTeam: { id: 0, name: homeTeam, logo: "" },
       awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: new Date().toISOString(),
-      timestamp: Math.floor(Date.now() / 1000),
+      date: fixtureDateISO ?? new Date().toISOString(),
+      timestamp: fixtureTimestamp,
       status: { short: "LIVE", long: "En Juego", elapsed: null },
       score: { home: 0, away: 0 },
       channels,

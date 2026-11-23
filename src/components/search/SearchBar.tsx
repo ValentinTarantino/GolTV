@@ -57,18 +57,8 @@ export default function SearchBar() {
 
   const handleSelect = useCallback(
     (match: Match) => {
-      const params = new URLSearchParams();
-      if (match._eventSlug && match._eventSources) {
-        params.set("eventSlug", match._eventSlug);
-        params.set("eventSources", JSON.stringify(match._eventSources));
-      }
-      params.set("home", match.homeTeam.name);
-      params.set("away", match.awayTeam.name);
-      params.set("league", match.league.name);
-      if (match._preferredPlayer) params.set("player", match._preferredPlayer);
-      if (match._streamId) params.set("streamId", match._streamId);
-      const qs = params.toString();
-      router.push(`/watch/${match.id}${qs ? `?${qs}` : ""}`);
+      const qs = match._preferredPlayer ? `?player=${match._preferredPlayer}` : "";
+      router.push(`/watch/${match.id}${qs}`);
       setIsOpen(false);
       setQuery("");
     },

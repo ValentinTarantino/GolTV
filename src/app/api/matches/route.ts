@@ -5,7 +5,7 @@ import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
 import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
-import { matchPlLeague, getBroadcastChannels, LEAGUE_LOGOS, isItalianSerieATeam, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub } from "@/lib/constants";
+import { getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { leagueRanks, loadLeagueOrder } from "@/lib/league-order";
 import { espnSlugsForLeague, espnSlugsForLeagues, findEspnEvent, loadEspnScoreboards } from "@/lib/espn-scores";
@@ -13,6 +13,7 @@ import { findSportplusScoreEvent, listSportplusScores, type SportplusScoreEvent 
 import { getCache, setCache } from "@/lib/cache";
 import { proxyImageUrl } from "@/lib/public-url";
 import { matchTeamsPair } from "@/lib/team-matching";
+import { classifyAgendaLeague, hashSlug } from "@/lib/agenda-fixture";
 import { isIPBanned } from "@/lib/chat";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
@@ -228,55 +229,6 @@ const duplicate = previous.find((fixture) => {
   list.push({ index, homeKey, awayKey, open: openFixture });
   kickoffFixtures.set(kickoffKey(leagueId, dateISO), list);
   return undefined;
-}
-
-const CHILEAN_CLUBS = [
-  "audaxitaliano", "cobresal", "colocolo", "coquimbounido", "deportesconcepcion",
-  "deportesiquique", "deporteslaserena", "deporteslimache", "huachipato",
-  "nublense", "ohiggins", "palestino", "unionlacalera", "unionespanola",
-  "universidadcatolica", "universidaddechile", "universidaddeconcepcion", "univconcepcion",
-  "santiagowanderers",
-];
-const BOLIVIAN_CLUBS = [
-  "abb", "alwaysready", "aurora", "blooming", "bolivar", "guabira", "gvsanjose",
-  "independientepetrolero", "jorgewilstermann", "nacionalpotosi", "orientepetrolero",
-  "realoruro", "realtomayapo", "royalpari", "sanantoniobulobulo", "thestrongest",
-  "totorarealoruro", "universitariodevinto", "vacadiez", "wilstermann",
-];
-
-function classifyAgendaLeague(leagueName: string, homeTeam: string, awayTeam: string) {
-  const mappedLeague = matchPlLeague(leagueName, homeTeam, awayTeam);
-  // Guard the combined agenda too: a provider season suffix or an alternate
-  // Liga Pro label must not leave a match between two Italian clubs in Ecuador.
-  if (
-    mappedLeague?.id === 57
-    && (isItalianSerieATeam(homeTeam) || isItalianSerieATeam(awayTeam))
-  ) {
-    return SUPPORTED_LEAGUES.find((league) => league.id === 135) ?? null;
-  }
-  if (mappedLeague?.id !== 268) return mappedLeague;
-
-  const teamKeys = [normalize(homeTeam), normalize(awayTeam)];
-  const isBolivianFixture = teamKeys.some((team) =>
-    BOLIVIAN_CLUBS.some((club) => team === club || team.startsWith(club))
-  );
-  if (isBolivianFixture) return null;
-
-  const isChileanFixture = teamKeys.some((team) =>
-    CHILEAN_CLUBS.some((club) => team === club || team.startsWith(club))
-  );
-  if (isChileanFixture) {
-    return SUPPORTED_LEAGUES.find((league) => league.id === 265) ?? null;
-  }
-
-  return mappedLeague;
-}
-function hashSlug(slug: string): number {
-  let hash = 0;
-  for (let i = 0; i < slug.length; i++) {
-    hash = ((hash << 5) - hash + slug.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
 }
 
 function inferStatus(dateISO: string): "NS" | "1H" | "FT" {
