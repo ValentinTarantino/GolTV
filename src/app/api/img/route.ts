@@ -14,7 +14,7 @@ import { openImageToken, isProxiedImageHost } from "@/lib/public-url";
 
 export const dynamic = "force-dynamic";
 
-const FETCH_TIMEOUT_MS = 10_000;
+const FETCH_TIMEOUT_MS = 15_000;
 const MAX_BYTES = 2 * 1024 * 1024;
 
 export async function GET(request: Request): Promise<Response> {
@@ -24,31 +24,38 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Invalid image reference", { status: 400 });
   }
 
-  try {
-    const upstream = await fetch(target, {
-      headers: { "User-Agent": "goltv-libre/1.0", Accept: "image/*" },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      cache: "no-store",
-      redirect: "error",
-    });
-    if (!upstream.ok) {
-      return new Response("Image unavailable", { status: 404 });
-    }
+  // Retry once on failure — CDN hiccups are common and badges are cheap to refetch.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const upstream = await fetch(target, {
+        headers: { "User-Agent": "goltv-libre/1.0", Accept: "image/*" },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        cache: "no-store",
+        redirect: "follow",
+      });
+      if (!upstream.ok) {
+        if (attempt === 0) continue;
+        return new Response("Image unavailable", { status: 404 });
+      }
 
-    const bytes = await upstream.arrayBuffer();
-    if (bytes.byteLength > MAX_BYTES) {
-      return new Response("Image too large", { status: 502 });
-    }
+      const bytes = await upstream.arrayBuffer();
+      if (bytes.byteLength > MAX_BYTES) {
+        return new Response("Image too large", { status: 502 });
+      }
 
-    return new Response(bytes, {
-      status: 200,
-      headers: {
-        "Content-Type": upstream.headers.get("content-type") ?? "image/png",
-        // Badges are static assets; cache aggressively at the edge/browser.
-        "Cache-Control": "public, max-age=86400, immutable",
-      },
-    });
-  } catch {
-    return new Response("Image unavailable", { status: 502 });
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          "Content-Type": upstream.headers.get("content-type") ?? "image/png",
+          // Badges are static assets; cache aggressively at the edge/browser.
+          "Cache-Control": "public, max-age=86400, immutable",
+        },
+      });
+    } catch {
+      if (attempt === 0) continue;
+      return new Response("Image unavailable", { status: 502 });
+    }
   }
+
+  return new Response("Image unavailable", { status: 502 });
 }

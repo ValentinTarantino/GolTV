@@ -487,6 +487,14 @@ const PARAGUAY_TEAMS = [
   "12 de octubre", "resistencia", "san lorenzo"
 ];
 
+const COLOMBIA_TEAMS = [
+  "atletico nacional", "atletico junior", "america de cali", "boca juniors de cali",
+  "deportes quindio", "deportes tolima", "aguilas doradas", "envigado",
+  "patriotas", "boyaca chico", "atletico bucaramanga", "once caldas",
+  "deportivo pereira", "atletico huila", "fortaleza", "lanceo ali", "lanceo agu",
+  "real santander", "dim", "independiente Medellin", "juniors de barranquilla"
+];
+
 /** True when either side is a known Paraguayan club. */
 export function hasParaguayanClub(homeTeam?: string, awayTeam?: string): boolean {
   const normalizeText = (value: string) => value
@@ -781,10 +789,12 @@ export function matchPlLeague(plLeagueName: string, homeTeam?: string, awayTeam?
   // Paraguayan and a Chilean club, so the opponent breaks the tie — Recoleta
   // vs Guaraní is Paraguayan, Recoleta vs Santiago Wanderers is Chilean.
   const hasParaguayClub = PARAGUAY_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
+  const hasColombianClub = COLOMBIA_TEAMS.some((team) => combinedTeams.includes(normalizeText(team)));
   const relocateFromArgentina = (league: LeagueConfig | null): LeagueConfig | null => {
     if (league?.id !== 129) return league;
     if (hasChileanClub) return SUPPORTED_LEAGUES.find((l) => l.id === 265) ?? league;
     if (hasParaguayClub) return SUPPORTED_LEAGUES.find((l) => l.id === 255) ?? league;
+    if (hasColombianClub) return SUPPORTED_LEAGUES.find((l) => l.id === 239) ?? league;
     return league;
   };
 
