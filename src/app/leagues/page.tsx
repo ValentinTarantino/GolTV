@@ -25,7 +25,11 @@ const COUNTRY_ORDER = [
 
 // Cup fixtures remain available on the home page, but knockout cups without
 // regular league tables do not belong in the standings selector.
-const LEAGUES_PAGE_EXCLUDED_IDS = new Set([143, 501, 281, 5, 6, 10, 1034]);
+const LEAGUES_PAGE_EXCLUDED_IDS = new Set([143, 501, 281, 5, 6, 10, 1034, 141]);
+
+// Number of bottom teams marked with the red relegation badge. Leagues not
+// listed keep the default of 3 (Brasileirão drops 4).
+const RELEGATION_ZONE_SIZE: Record<number, number> = { 71: 4 };
 
 function groupByCountry() {
   const groups: Record<string, typeof SUPPORTED_LEAGUES> = {};
@@ -58,10 +62,12 @@ function StandingsTable({
   table,
   t,
   showTrend,
+  relegationCount = 3,
 }: {
   table: StandingsTable;
   t: ReturnType<typeof useLanguage>["t"];
   showTrend: boolean;
+  relegationCount?: number;
 }) {
   const rows = table.standings;
 
@@ -98,7 +104,7 @@ function StandingsTable({
                   className={`inline-flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 text-xs font-black ${
                     row.rank <= 3
                       ? "bg-accent-primary text-black"
-                      : row.rank >= rows.length - 2
+                      : row.rank > rows.length - relegationCount
                       ? "bg-red-500/80 text-white"
                       : "bg-white/10 text-white"
                   }`}
@@ -530,7 +536,7 @@ export default function LeaguesPage() {
                                 <h2 className="font-black text-accent-primary uppercase text-sm tracking-wider">{table.name}</h2>
                               </div>
                             )}
-                            <StandingsTable table={table} t={t} showTrend={true} />
+                            <StandingsTable table={table} t={t} showTrend={true} relegationCount={RELEGATION_ZONE_SIZE[selectedId] ?? 3} />
                           </div>
                         ))}
                       </div>

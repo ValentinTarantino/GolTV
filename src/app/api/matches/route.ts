@@ -11,7 +11,7 @@ import { leagueRanks, loadLeagueOrder } from "@/lib/league-order";
 import { espnSlugsForLeague, espnSlugsForLeagues, findEspnEvent, loadEspnScoreboards } from "@/lib/espn-scores";
 import { findSportplusScoreEvent, listSportplusScores, type SportplusScoreEvent } from "@/lib/lpf-matches";
 import { getCache, setCache } from "@/lib/cache";
-import { proxyImageUrl } from "@/lib/public-url";
+import { openImageToken, proxyImageUrl } from "@/lib/public-url";
 import { prefetchImage } from "@/lib/image-cache";
 import { matchTeamsPair } from "@/lib/team-matching";
 import { classifyAgendaLeague, hashSlug } from "@/lib/agenda-fixture";
@@ -94,7 +94,7 @@ function resolveTeamLogos(matches: Match[]): Promise<Map<string, string>> {
             logoMap.set(key, logo);
             // Prefetch the image into the shared cache so it loads instantly
             // when the client requests it via /api/img. Fire-and-forget.
-            if (logo) prefetchImage(logo).catch(() => {});
+            if (logo) prefetchImage(logo);
           })
           .catch(() => {})
       );
@@ -506,6 +506,22 @@ export async function GET(request: NextRequest) {
   for (const m of matches) {
     m.homeTeam.logo = proxyImageUrl(logoMap.get(badgeKey(m.homeTeam.name, m.league.country)) ?? "");
     m.awayTeam.logo = proxyImageUrl(logoMap.get(badgeKey(m.awayTeam.name, m.league.country)) ?? "");
+  }
+
+  // Warm every sealed badge (league + team crests) into the shared image
+  // cache before responding, so the browser's /api/img requests — fired the
+  // moment the cards render — are served from memory instead of waiting on
+  // the upstream CDN. Dedupe by upstream URL; fire-and-forget.
+  const warmed = new Set<string>();
+  for (const m of matches) {
+    for (const logo of [m.league.logo, m.homeTeam.logo, m.awayTeam.logo]) {
+      if (!logo?.startsWith("/api/img?t=")) continue;
+      const target = openImageToken(logo.slice("/api/img?t=".length));
+      if (target && !warmed.has(target)) {
+        warmed.add(target);
+        prefetchImage(target);
+      }
+    }
   }
 
   return Response.json({ matches, date }, { 

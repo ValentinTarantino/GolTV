@@ -50,6 +50,11 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
     sessionStorage.setItem("home-scroll", String(window.scrollY));
   };
 
+  // Badges already sealed behind /api/img are tiny static files: skip the
+  // /_next/image optimizer hop so the prefetch below warms the exact URL the
+  // <img> will request, and the browser serves it straight from cache.
+  const directBadge = (logo: string) => logo.startsWith("/api/img");
+
   // Warm the browser cache for this fixture's crests as soon as the card is
   // visible, so the watch page renders them instantly instead of fetching
   // them while its skeleton is still up.
@@ -86,7 +91,7 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
                 sizes="(max-width: 639px) 40px, 48px"
                 loading={prioritizeLogos ? "eager" : "lazy"}
                 fetchPriority={prioritizeLogos ? "high" : "auto"}
-                unoptimized={crestFallback.home}
+                unoptimized={crestFallback.home || directBadge(match.homeTeam.logo)}
                 onError={() => setCrestFallback((f) => (f.home ? f : { ...f, home: true }))}
               />
             ) : nationalTeamFlag(match.homeTeam.name) ? (
@@ -157,7 +162,7 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
                 sizes="(max-width: 639px) 40px, 48px"
                 loading={prioritizeLogos ? "eager" : "lazy"}
                 fetchPriority={prioritizeLogos ? "high" : "auto"}
-                unoptimized={crestFallback.away}
+                unoptimized={crestFallback.away || directBadge(match.awayTeam.logo)}
                 onError={() => setCrestFallback((f) => (f.away ? f : { ...f, away: true }))}
               />
             ) : nationalTeamFlag(match.awayTeam.name) ? (
