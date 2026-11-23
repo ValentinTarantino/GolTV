@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useSyncExternalStore } from "react";
-import { Zap, Filter, RefreshCw } from "lucide-react";
+import { Zap, RefreshCw } from "lucide-react";
 import MatchList from "@/components/matches/MatchList";
 import { MatchSkeleton } from "@/components/ui/Skeleton";
 import NetworkNotice from "@/components/ui/NetworkNotice";
@@ -150,64 +150,99 @@ export default function HomePage() {
     <div className="mx-auto max-w-7xl px-3 pb-20 pt-6 sm:px-4 sm:pb-16 sm:pt-8 md:px-6" id="home-page">
       <NetworkNotice />
 
-      {/* Filters — the single strong accent block of the page. Everything
-          above it (ticker, network strip) is deliberately quieter so this
-          yellow bar is the only "hero". No rotation: it keeps the left edge
-          aligned with the category sections below. */}
+      {/* Scoreboard header — two-tier: dark title block + lime control strip,
+          wrapped in a single bordered container with magenta offset shadow. */}
       <div className="relative mb-6 animate-fade-in sm:mb-8">
         <div
           aria-hidden
-          className="pointer-events-none absolute -inset-x-6 -top-10 h-40 bg-[radial-gradient(ellipse_at_top,rgba(204,255,0,0.10),transparent_70%)]"
+          className="pointer-events-none absolute -inset-x-6 -top-12 h-44 bg-[radial-gradient(ellipse_at_top,rgba(204,255,0,0.12),transparent_70%)]"
         />
-        <div className="relative flex flex-wrap items-center gap-3 border-3 border-black bg-accent-primary p-3 plate-face sm:gap-4 sm:border-4 sm:p-4">
-          <div className="mr-1 flex flex-col sm:mr-2">
-            <h1 className="text-[26px] font-black uppercase leading-none tracking-tight text-black sm:text-[28px]">
-              {t.home.todayMatches}
-            </h1>
-            {currentDate && (
-              <span className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
-                {currentDate}
-              </span>
-            )}
+
+        <div className="relative overflow-hidden border-4 border-white shadow-[6px_6px_0px_0px_#facc15]">
+          {/* ── Title tier: dark scoreboard with diagonal accent ── */}
+          <div className="relative bg-[#070805] px-3 py-4 sm:px-5 sm:py-5">
+            {/* Diagonal dark gradient overlay on right */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute right-0 top-0 h-full w-1/2 bg-[linear-gradient(135deg,transparent_40%,rgba(0,0,0,0.3)_100%)]"
+            />
+            <div className="relative flex flex-wrap items-center gap-2 sm:gap-5">
+              {/* Whistle icon — image covering the tile */}
+              <div className="grid h-14 w-14 shrink-0 place-items-center border-4 border-accent-primary bg-black shadow-[4px_4px_0px_0px_rgba(255,255,255,0.25)] sm:h-20 sm:w-20">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/whistle.png" alt="Silbato" className="h-[48px] w-[48px] object-contain sm:h-[72px] sm:w-[72px]" />
+              </div>
+
+              {/* Title + date */}
+              <div className="flex min-w-0 flex-1 flex-col">
+                <h1 className="text-[22px] font-black uppercase leading-none tracking-tight text-white sm:text-[34px]">
+                  {t.home.todayMatches}
+                </h1>
+                {currentDate && (
+                  <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/60 sm:mt-1.5 sm:text-[12px]">
+                    {currentDate}
+                  </span>
+                )}
+              </div>
+
+              {/* Stats badges */}
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span className="border-2 border-white/20 bg-black/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white sm:px-2.5 sm:py-1 sm:text-[11px]">
+                  {matches.length} {t.home.fixtures}
+                </span>
+                {liveMatches.length > 0 && (
+                  <span className="inline-flex items-center gap-1 border-2 border-accent-primary/40 bg-accent-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-accent-primary sm:px-2.5 sm:py-1 sm:text-[11px]">
+                    <Zap size={10} strokeWidth={3} className="animate-pulse" />
+                    {liveMatches.length} {t.home.live}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          {liveMatches.length > 0 && (
-            <div className="inline-flex items-center gap-1.5 border-2 border-black bg-black px-2 py-1 sm:gap-2 sm:px-3">
-              <Zap size={12} strokeWidth={3} className="text-accent-primary" />
-              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
-                {liveMatches.length} {t.home.live}
-              </span>
+          {/* ── Control tier: electric lime strip ── */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t-4 border-black bg-[#b8ff00] px-3 py-2 sm:gap-3 sm:px-5 sm:py-2.5">
+            {/* Filter toggle */}
+            <div className="flex h-7 border-2 border-black bg-white" role="group" aria-label={t.home.onlyLive}>
+              <button
+                onClick={() => setShowLiveOnly(false)}
+                className={`px-2.5 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                  !showLiveOnly ? "bg-black text-accent-primary" : "text-black/50 hover:text-black"
+                }`}
+              >
+                {t.home.all}
+              </button>
+              <button
+                onClick={() => setShowLiveOnly(true)}
+                className={`flex items-center gap-1 border-l-2 border-black px-2.5 text-[10px] font-black uppercase tracking-wider transition-colors ${
+                  showLiveOnly ? "bg-black text-accent-primary" : "text-black/50 hover:text-black"
+                }`}
+              >
+                <Zap size={10} strokeWidth={3} />
+                {t.home.onlyLive}
+              </button>
             </div>
-          )}
 
-          <button
-            onClick={() => setShowLiveOnly(!showLiveOnly)}
-            className={`inline-flex h-8 items-center gap-1.5 border-2 border-black px-3 text-[11px] font-black uppercase tracking-wider transition-colors ${
-              showLiveOnly
-                ? "bg-black text-white"
-                : "bg-white text-black hover:bg-black hover:text-white"
-            }`}
-          >
-            <Filter size={12} strokeWidth={3} />
-            {showLiveOnly ? t.home.seeAll : t.home.onlyLive}
-          </button>
-
-          <div className="ml-auto flex flex-wrap items-center gap-3">
-            <span className="flex flex-col items-end text-[9px] font-black uppercase leading-[1.2] tracking-[0.16em] text-black/45">
-              <span>{t.home.lastUpdated}</span>
-              <span className="text-[11px] tabular-nums tracking-normal text-black/70">
-                {lastUpdated ? lastUpdated.toLocaleTimeString(language === "es" ? "es-AR" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              {/* Timestamp — inline on the lime strip */}
+              <span className="hidden text-[9px] font-black uppercase tracking-wider text-black/50 sm:inline sm:text-[10px]">
+                {t.home.lastUpdated}{" "}
+                <span className="tabular-nums text-black">
+                  {lastUpdated ? lastUpdated.toLocaleTimeString(language === "es" ? "es-AR" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+                </span>
               </span>
-            </span>
-            <button
-              onClick={refreshMatches}
-              disabled={isRefreshing}
-              className="inline-flex h-8 items-center gap-1.5 border-2 border-black bg-white px-3 text-[11px] font-black uppercase tracking-wider text-black transition-colors hover:bg-black hover:text-white disabled:cursor-wait disabled:opacity-60"
-              aria-label={t.home.refresh}
-            >
-              <RefreshCw size={12} className={isRefreshing ? "animate-spin" : ""} strokeWidth={3} />
-              {t.home.refresh}
-            </button>
+
+              {/* Refresh */}
+              <button
+                onClick={refreshMatches}
+                disabled={isRefreshing}
+                className="inline-flex h-7 items-center gap-1 border-2 border-black bg-black px-2.5 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-white hover:text-black disabled:cursor-wait disabled:opacity-60 sm:h-8 sm:gap-1.5 sm:px-3 sm:text-[11px]"
+                aria-label={t.home.refresh}
+              >
+                <RefreshCw size={10} className={isRefreshing ? "animate-spin" : ""} strokeWidth={3} />
+                <span className="hidden sm:inline">{t.home.refresh}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
