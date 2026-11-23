@@ -135,6 +135,7 @@ const CHILEAN_CLUB_DEDUP_ALIASES: Record<string, string> = {
   coquimbounido: "coquimbounido",
   laserena: "deporteslaserena",
   deporteslaserena: "deporteslaserena",
+  dlaserena: "deporteslaserena",
   iquique: "deportesiquique",
   deportesiquique: "deportesiquique",
   limache: "deporteslimache",
