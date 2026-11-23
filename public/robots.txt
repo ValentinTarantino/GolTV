@@ -1,7 +1,8 @@
-# GolTV Libre - Fútbol en vivo gratis
+# GolTV - Fútbol en vivo gratis
 User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /watch/
+Disallow: /sixseven
 
-Sitemap: https://goltv-libre.vercel.app/sitemap.xml
+Sitemap: https://goltv.stream/sitemap.xml

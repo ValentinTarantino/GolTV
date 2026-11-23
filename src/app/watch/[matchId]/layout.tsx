@@ -19,15 +19,16 @@ export async function generateMetadata({ params }: { params: Promise<{ matchId: 
 
   if (!match) {
     return {
-      title: "GolTV",
+      title: "GolTV - Fútbol en vivo",
+      robots: { index: false, follow: false },
     };
   }
 
   const home = match.homeTeam.name;
   const away = match.awayTeam.name;
   const league = match.league.name;
-  const title = `${home} vs ${away} - ${league} | GolTV Libre`;
-  const description = `Mirá ${home} vs ${away} de ${league} en vivo gratis en GolTV Libre.`;
+  const title = `${home} vs ${away} - ${league} | GolTV`;
+  const description = `Mirá ${home} vs ${away} de ${league} en vivo gratis en GolTV.`;
 
   const ogImageUrl = new URL("/api/og", process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000");
   ogImageUrl.searchParams.set("home", home);
@@ -47,7 +48,7 @@ export async function generateMetadata({ params }: { params: Promise<{ matchId: 
       title,
       description,
       type: "website",
-      siteName: "GolTV Libre",
+      siteName: "GolTV",
       images: [{ url: ogImageUrl.toString(), width: 1200, height: 630 }],
     },
     twitter: {

@@ -47,7 +47,7 @@ function WatchPageInner({
       ? playerParam
       : isPrimeraNacional
         ? "5"
-        : "2"
+        : "6"
   );
 
   useEffect(() => {
@@ -90,7 +90,7 @@ function WatchPageInner({
   useEffect(() => {
     if (!isLoading) {
       if (match) {
-        document.title = `${match.homeTeam.name} vs ${match.awayTeam.name} - ${match.league.name} | GolTV Libre`;
+        document.title = `${match.homeTeam.name} vs ${match.awayTeam.name} - ${match.league.name} | GolTV`;
       } else {
         document.title = "GolTV";
       }
@@ -194,9 +194,8 @@ function WatchPageInner({
             <div data-theater-hide className="mb-3 flex flex-wrap gap-2" id="player-mode-selector">
               {/* Display numbers are independent of the existing provider IDs. */}
               {([
-                { mode: "2", label: t.player.playerTwoB },
-                { mode: "6", label: t.player.playerTwo },
-                { mode: "1", label: t.player.playerOne },
+                { mode: "6", label: t.player.playerTwoB },
+                { mode: "2", label: t.player.playerTwo },
                 { mode: "3", label: t.player.playerThree },
                 { mode: "4", label: t.player.playerFour },
                 { mode: "5", label: t.player.playerFive },

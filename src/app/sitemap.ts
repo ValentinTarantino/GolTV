@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { SUPPORTED_LEAGUES } from "@/lib/constants";
 import { hasStandings } from "@/lib/standings";
 
-const BASE_URL = "https://goltv-libre.vercel.app";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://goltv.stream";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: MetadataRoute.Sitemap = [

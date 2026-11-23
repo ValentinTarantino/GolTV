@@ -1,9 +1,19 @@
+import type { Metadata } from "next";
 import { LEAGUE_LOGOS } from "@/lib/constants";
 import { proxyImageUrl, openImageToken } from "@/lib/public-url";
 import { prefetchImage } from "@/lib/image-cache";
 import LeaguesClient from "./LeaguesClient";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Tablas de posiciones y ligas",
+  description:
+    "Tablas de posiciones, goleadores y fixtures de todas las ligas: Liga Profesional Argentina, Brasileirão, Liga AUF Uruguaya, La Liga, Premier League, Serie A, Bundesliga y más.",
+  alternates: {
+    canonical: "/leagues",
+  },
+};
 
 export default function LeaguesPage() {
   const logos: Record<string, string> = {};
