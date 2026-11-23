@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import RetryImage from "@/components/ui/RetryImage";
-import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical, Star } from "lucide-react";
 import type { Match } from "@/lib/types";
 import { translateLeague } from "@/i18n/dictionaries";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -36,6 +36,31 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
   const [overId, setOverId] = useState<number | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
   const [orderError, setOrderError] = useState(false);
+
+  // User's favorite leagues — stored in localStorage, affects only this user
+  const [favoriteLeagues, setFavoriteLeagues] = useState<number[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("goltv-favorite-leagues");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleFavorite = (leagueId: number) => {
+    setFavoriteLeagues((prev) => {
+      const next = prev.includes(leagueId)
+        ? prev.filter((id) => id !== leagueId)
+        : [...prev, leagueId];
+      try {
+        localStorage.setItem("goltv-favorite-leagues", JSON.stringify(next));
+      } catch {
+        // Ignore localStorage errors
+      }
+      return next;
+    });
+  };
 
   if (matches.length === 0) {
     return (
@@ -101,6 +126,13 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
       })
     : groups;
 
+  // User favorites appear first, then admin order or default order
+  const displayGroups = [...orderedGroups].sort((left, right) => {
+    const leftFav = favoriteLeagues.includes(left.leagueId) ? 0 : 1;
+    const rightFav = favoriteLeagues.includes(right.leagueId) ? 0 : 1;
+    return leftFav - rightFav;
+  });
+
   const saveOrder = async (next: number[]) => {
     setOrder(next);
     setOrderError(false);
@@ -149,7 +181,7 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
           {t.home.orderError}
         </div>
       )}
-        {orderedGroups.map((group, groupIndex) => (
+        {displayGroups.map((group, groupIndex) => (
           <section
             key={`${group.leagueId}-${group.leagueName}`}
             className={`border-4 border-white bg-bg-card p-3 shadow-[6px_6px_0px_0px_var(--color-accent-secondary)] animate-fade-in stagger-${Math.min(groupIndex + 1, 6)} sm:p-4 ${
@@ -192,7 +224,7 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
                 }
               : undefined}
           >
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:flex-1 sm:gap-4">
               {canReorder && (
                 <GripVertical
                   size={18}
@@ -220,11 +252,33 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
                 </div>
               )}
               </div>
-              <div className="flex flex-col">
-                <h2 className="text-[20px] font-black uppercase leading-none tracking-tight text-black sm:text-[26px]">
-                  {translateLeague(group.leagueName, language)}
-                </h2>
+              <div className="flex flex-1 items-center justify-between gap-2 sm:flex-none">
+                <div className="flex flex-col">
+                  <h2 className="text-[20px] font-black uppercase leading-none tracking-tight text-black sm:text-[26px]">
+                    {translateLeague(group.leagueName, language)}
+                  </h2>
+                </div>
               </div>
+              {/* Single star button — mobile: next to name, desktop: far right */}
+              {!canReorder && (
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(group.leagueId)}
+                  title={favoriteLeagues.includes(group.leagueId) ? "Quitar de favoritos" : "Agregar a favoritos"}
+                  aria-label={favoriteLeagues.includes(group.leagueId) ? "Quitar de favoritos" : "Agregar a favoritos"}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-black p-0 transition-colors sm:h-9 sm:w-9 sm:ml-auto ${
+                    favoriteLeagues.includes(group.leagueId)
+                      ? "bg-black text-accent-primary hover:bg-accent-primary hover:text-black"
+                      : "bg-white text-black hover:bg-black hover:text-accent-primary"
+                  }`}
+                >
+                  <Star
+                    size={14}
+                    strokeWidth={3}
+                    fill={favoriteLeagues.includes(group.leagueId) ? "currentColor" : "none"}
+                  />
+                </button>
+              )}
             </div>
 
             {canReorder && (

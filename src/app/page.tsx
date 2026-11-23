@@ -167,8 +167,8 @@ export default function HomePage() {
               className="pointer-events-none absolute right-0 top-0 h-full w-1/2 bg-[linear-gradient(135deg,transparent_40%,rgba(0,0,0,0.3)_100%)]"
             />
             <div className="relative flex flex-wrap items-center gap-2 sm:gap-5">
-              {/* Whistle icon — image covering the tile */}
-              <div className="grid h-14 w-14 shrink-0 place-items-center border-4 border-accent-primary bg-black shadow-[4px_4px_0px_0px_rgba(255,255,255,0.25)] sm:h-20 sm:w-20">
+              {/* Whistle icon — image without border or shadow */}
+              <div className="grid h-14 w-14 shrink-0 place-items-center bg-black sm:h-20 sm:w-20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/whistle.png" alt="Silbato" className="h-[48px] w-[48px] object-contain sm:h-[72px] sm:w-[72px]" />
               </div>
@@ -185,8 +185,8 @@ export default function HomePage() {
                 )}
               </div>
 
-              {/* Stats badges */}
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              {/* Stats badges — stacked on mobile, inline on desktop */}
+              <div className="flex flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-2">
                 <span className="border-2 border-white/20 bg-black/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white sm:px-2.5 sm:py-1 sm:text-[11px]">
                   {matches.length} {t.home.fixtures}
                 </span>
@@ -201,7 +201,7 @@ export default function HomePage() {
           </div>
 
           {/* ── Control tier: electric lime strip ── */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t-4 border-black bg-[#b8ff00] px-3 py-2 sm:gap-3 sm:px-5 sm:py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t-4 border-black bg-[#c0df00] px-3 py-2 sm:gap-3 sm:px-5 sm:py-2.5">
             {/* Filter toggle */}
             <div className="flex h-7 border-2 border-black bg-white" role="group" aria-label={t.home.onlyLive}>
               <button

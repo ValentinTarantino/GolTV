@@ -25,7 +25,7 @@ const COUNTRY_ORDER = [
 
 // Cup fixtures remain available on the home page, but knockout cups without
 // regular league tables do not belong in the standings selector.
-const LEAGUES_PAGE_EXCLUDED_IDS = new Set([143, 501, 281, 5, 6, 10, 1034, 141]);
+const LEAGUES_PAGE_EXCLUDED_IDS = new Set([143, 501, 281, 5, 6, 10, 1034, 141, 267, 240, 930]);
 
 // Number of bottom teams marked with the red relegation badge. Leagues not
 // listed keep the default of 3 (Brasileirão drops 4).
@@ -402,13 +402,23 @@ export default function LeaguesClient({ leagueLogos }: { leagueLogos: Record<str
                       <button
                         key={league.id}
                         onClick={() => selectLeague(league.id)}
-                        className={`w-full text-left px-3 py-2 text-sm font-bold transition-all flex items-center gap-2 border-2 ${
+                        className={`w-full text-left px-3 py-2.5 text-sm font-bold transition-all flex items-center gap-2 border-2 mb-2 ${
                           selectedId === league.id
                             ? "bg-black text-accent-primary border-black shadow-brutal-sm"
-                            : "text-black hover:bg-black/10 border-transparent"
+                            : "bg-transparent text-black border-black shadow-brutal-sm hover:bg-black/20"
                         }`}
                       >
-                        <RetryImage src={leagueLogos[String(league.id)] || ""} alt={league.name} width={28} height={28} className="object-contain shrink-0 max-w-7 max-h-7" unoptimized />
+                        <div className={`relative isolate h-8 w-8 flex-shrink-0 border-2 ${selectedId === league.id || league.id === 268 || league.id === 130 ? "border-white" : "border-black"} ${league.id === 9901 || league.id === 268 || league.id === 57 || league.id === 1034 || league.id === 130 ? "bg-black" : "bg-white"}`}>
+                          {leagueLogos[String(league.id)] ? (
+                            <div className="absolute inset-0.5">
+                              <RetryImage src={leagueLogos[String(league.id)]} alt={league.name} fill className="object-contain" sizes="32px" unoptimized />
+                            </div>
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-sm font-black text-accent-primary">
+                              ⚽
+                            </div>
+                          )}
+                        </div>
                         <span className="truncate">{league.name}</span>
                       </button>
                     ))}
@@ -423,7 +433,7 @@ export default function LeaguesClient({ leagueLogos }: { leagueLogos: Record<str
 
       <div className="min-h-screen bg-bg-primary">
         <div className="px-3 sm:px-4 md:px-6 py-4 sm:py-6">
-          <div className="flex gap-0">
+          <div className="flex gap-0 items-start">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="lg:hidden fixed bottom-20 left-4 z-[70] bg-accent-primary text-black border-4 border-black shadow-brutal p-3 font-black"
@@ -434,12 +444,11 @@ export default function LeaguesClient({ leagueLogos }: { leagueLogos: Record<str
             {/* Desktop sidebar (in normal flow) */}
             <aside
               className={`
-                hidden lg:block sticky top-20
-                h-[calc(100vh-5rem)]
+                hidden lg:block sticky top-20 self-start
                 w-64 xl:w-72
                 bg-accent-primary
                 border-t-4 border-b-4 border-r-4 border-black
-                overflow-y-auto
+                overflow-y-visible
                 shrink-0
               `}
             >
@@ -458,17 +467,23 @@ export default function LeaguesClient({ leagueLogos }: { leagueLogos: Record<str
                         <button
                           key={league.id}
                           onClick={() => selectLeague(league.id)}
-                          className={`w-full text-left px-3 py-2 text-sm font-bold transition-all flex items-center gap-2 border-2 ${
+                          className={`w-full text-left px-3 py-2.5 text-sm font-bold transition-all flex items-center gap-2 border-2 mb-2 ${
                             selectedId === league.id
-                              ? "bg-black text-accent-primary border-black shadow-brutal-sm"
-                              : "text-black hover:bg-black/10 border-transparent"
+                              ? "bg-black text-accent-primary border-white shadow-brutal-sm"
+                              : "bg-transparent text-black border-black shadow-[3px_3px_0px_0px_#000] hover:bg-black/20"
                           }`}
                         >
-                          {leagueLogos[String(league.id)] ? (
-                            <RetryImage src={leagueLogos[String(league.id)]} alt={league.name} width={28} height={28} className="object-contain shrink-0 max-w-7 max-h-7" unoptimized />
-                          ) : (
-                            <span className="text-lg shrink-0">⚽</span>
-                          )}
+                          <div className={`relative isolate h-8 w-8 flex-shrink-0 border-2 ${selectedId === league.id || league.id === 268 || league.id === 130 ? "border-white" : "border-black"} ${league.id === 9901 || league.id === 268 || league.id === 57 || league.id === 1034 || league.id === 130 ? "bg-black" : "bg-white"}`}>
+                            {leagueLogos[String(league.id)] ? (
+                              <div className="absolute inset-0.5">
+                                <RetryImage src={leagueLogos[String(league.id)]} alt={league.name} fill className="object-contain" sizes="32px" unoptimized />
+                              </div>
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-sm font-black text-accent-primary">
+                                ⚽
+                              </div>
+                            )}
+                          </div>
                           <span className="truncate">{league.name}</span>
                         </button>
                       ))}
@@ -481,7 +496,17 @@ export default function LeaguesClient({ leagueLogos }: { leagueLogos: Record<str
             <main className="flex-1 min-w-0">
             {selectedLeague && (
               <div className="bg-accent-primary border-4 border-black shadow-brutal p-4 sm:p-5 mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4">
-                <RetryImage src={leagueLogos[String(selectedLeague.id)] || ""} alt={selectedLeague.name} width={48} height={48} className="object-contain shrink-0 max-w-12 max-h-12" unoptimized priority />
+                <div className={`relative isolate h-12 w-12 flex-shrink-0 border-2 shadow-brutal-sm ${selectedLeague.id === 268 || selectedLeague.id === 130 ? "border-white" : "border-black"} ${selectedLeague.id === 9901 || selectedLeague.id === 268 || selectedLeague.id === 57 || selectedLeague.id === 1034 || selectedLeague.id === 130 ? "bg-black" : "bg-white"}`}>
+                  {leagueLogos[String(selectedLeague.id)] ? (
+                    <div className="absolute inset-0.5">
+                      <RetryImage src={leagueLogos[String(selectedLeague.id)]} alt={selectedLeague.name} fill className="object-contain" sizes="48px" unoptimized priority />
+                    </div>
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xl font-black text-accent-primary">
+                      ⚽
+                    </div>
+                  )}
+                </div>
                 <div>
                   <h1 className="font-black text-black uppercase text-lg sm:text-xl tracking-tight">{selectedLeague.name}</h1>
                 </div>
