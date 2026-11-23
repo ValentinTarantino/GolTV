@@ -261,7 +261,7 @@ export default function DashPlayer({ url, title, clearKey }: DashPlayerProps) {
     <div
       ref={containerRef}
       className={`relative w-full aspect-video overflow-hidden bg-black group cursor-pointer ${
-        isFullscreen ? "border-0 shadow-none" : "border-3 sm:border-4 border-white shadow-brutal"
+        isFullscreen ? "border-0 shadow-none" : "border-3 sm:border-4 border-white player-plate"
       }`}
       onMouseMove={() => setShowControls(true)}
       onClick={togglePlay}

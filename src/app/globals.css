@@ -32,6 +32,8 @@
   --shadow-btn-primary-hover: 5px 5px 0px 0px #ffffff;
   
   --font-sans: "Space Grotesk", system-ui, sans-serif;
+  /* Fixture team names: condensed, uppercase, one line per club. */
+  --font-team: var(--font-barlow-condensed), "Space Grotesk", system-ui, sans-serif;
   
   --animate-slide-up: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-fade-in: fade-in 0.2s ease-out forwards;
@@ -103,10 +105,10 @@
     overflow-x: hidden;
     background-image: repeating-linear-gradient(
       to bottom,
-      #080808,
-      #080808 120px,
-      #181818 120px,
-      #181818 240px
+      #0a0a0a,
+      #0a0a0a 120px,
+      #101010 120px,
+      #101010 240px
     );
     background-position: 0 0;
     background-attachment: scroll;
@@ -168,7 +170,9 @@
 
 @media (min-width: 1024px) {
   .watch-theater-body {
-    grid-template-columns: 24rem minmax(0, 1fr);
+    /* Chat column width is mirrored by the back/fullscreen row on the watch
+       page (lg:w-[26rem]) so both right edges line up. */
+    grid-template-columns: 26rem minmax(0, 1fr);
     grid-template-rows: auto auto minmax(0, 1fr);
     grid-template-areas: "chat league" "chat actions" "chat content";
   }
@@ -424,6 +428,24 @@ body.watch-theater-open > main {
   .stagger-6 { animation-delay: 0.3s; }
   .stagger-7 { animation-delay: 0.35s; }
   .stagger-8 { animation-delay: 0.4s; }
+
+  /* The lime competition bar's plate colours: bright top bevel, dark bottom
+     bevel, hard white drop shadow. Also used on the "PARTIDOS DE HOY" sign. */
+  .plate-face {
+    box-shadow:
+      inset 0 5px 0 rgba(255, 255, 255, 0.6),
+      inset 0 -6px 0 rgba(0, 0, 0, 0.35),
+      5px 5px 0 0 #ffffff;
+  }
+
+  /* Same palette on the video bezel, with a thinner bevel so it never covers
+     the picture. */
+  .player-plate {
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.55),
+      5px 5px 0 0 #ffffff;
+  }
 
   /* Skeleton placeholder: the shimmer keyframe slides background-position, so
      the block needs an actual gradient to sweep across. Without it the

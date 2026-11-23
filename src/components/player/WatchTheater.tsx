@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import { Maximize2, Minimize2, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+/** Imperative controls so a host page can render its own fullscreen button
+ *  (e.g. next to "volver a partidos") while the theater keeps owning the
+ *  layout, native fullscreen and chat state. */
+export interface WatchTheaterHandle {
+  toggleFullscreen: () => Promise<void>;
+}
 
 interface WatchTheaterProps {
   title: string;
@@ -10,9 +17,13 @@ interface WatchTheaterProps {
   header?: ReactNode;
   children: ReactNode;
   fullscreenEnabled?: boolean;
+  /** When the host draws the fullscreen entry button itself, the theater only
+   *  renders the toolbar once it is expanded (to offer "salir"). */
+  externalFullscreenEntry?: boolean;
+  ref?: Ref<WatchTheaterHandle>;
 }
 
-export default function WatchTheater({ title, chat, header, children, fullscreenEnabled = true }: WatchTheaterProps) {
+export default function WatchTheater({ title, chat, header, children, fullscreenEnabled = true, externalFullscreenEntry = false, ref }: WatchTheaterProps) {
   const { t } = useLanguage();
   const container = useRef<HTMLDivElement>(null);
   const ownsFullscreen = useRef(false);
@@ -133,7 +144,7 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
     };
   }, [chatInputFocused, expanded]);
 
-  const toggleFullscreen = async () => {
+  const toggleFullscreen = useCallback(async () => {
     const element = container.current;
     if (!element || (!fullscreenEnabled && !expanded)) return;
     if (expanded) {
@@ -153,16 +164,18 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
     } catch {
       // Browsers without element fullscreen still get a viewport-filling mode.
     }
-  };
+  }, [expanded, fullscreenEnabled]);
 
   const buttonStyle = "inline-flex items-center justify-center gap-2 border-2 px-3 py-2 text-xs font-black uppercase transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-primary";
+
+  useImperativeHandle(ref, () => ({ toggleFullscreen }), [toggleFullscreen]);
 
   return (
     <div ref={container} className="watch-theater" data-expanded={expanded} data-chat-visible={chatVisible}
       data-chat-input-focused={chatInputFocused} data-fullscreen-enabled={fullscreenEnabled}>
       <div className="watch-theater-body grid gap-4 sm:gap-5">
       <div className="watch-theater-header" data-theater-hide>{header}</div>
-      {(fullscreenEnabled || expanded) && <div className="watch-theater-toolbar flex flex-wrap items-center justify-end gap-2">
+      {(fullscreenEnabled || expanded) && (expanded || !externalFullscreenEntry) && <div className="watch-theater-toolbar flex flex-wrap items-center justify-end gap-2">
         <p className="watch-theater-title hidden min-w-0 flex-1 truncate text-sm font-bold text-white">{title}</p>
         {expanded && (
           <button
@@ -176,17 +189,19 @@ export default function WatchTheater({ title, chat, header, children, fullscreen
             {chatVisible ? t.watch.hideChat : t.watch.showChat}
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => void toggleFullscreen()}
-          className={`${buttonStyle} border-accent-primary bg-accent-primary text-black hover:bg-white hover:border-white`}
-          aria-pressed={expanded}
-        >
-          {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          {expanded ? t.watch.exitFullscreenChat : t.watch.fullscreenWithChat}
-        </button>
+        {(expanded || !externalFullscreenEntry) && (
+          <button
+            type="button"
+            onClick={() => void toggleFullscreen()}
+            className={`${buttonStyle} border-accent-primary bg-accent-primary text-black hover:bg-white hover:border-white`}
+            aria-pressed={expanded}
+          >
+            {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            {expanded ? t.watch.exitFullscreenChat : t.watch.fullscreenWithChat}
+          </button>
+        )}
       </div>}
-        <aside id={chatId} hidden={expanded && !chatVisible} className="watch-theater-chat w-full lg:w-96 shrink-0"
+        <aside id={chatId} hidden={expanded && !chatVisible} className="watch-theater-chat w-full lg:w-[26rem] shrink-0"
           onClickCapture={event => {
             if (event.target instanceof HTMLElement && event.target.matches("input, textarea, select")) {
               setChatInputFocused(true);

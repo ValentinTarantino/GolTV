@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { Space_Grotesk, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -13,6 +13,15 @@ import { TimeZoneProvider } from "@/contexts/TimeZoneContext";
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Condensed sport face for the fixture team names: uppercase and narrow, so
+// long clubs ("Deportes Concepción", "Gimnasia La Plata") stay on one line.
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow-condensed",
+  subsets: ["latin"],
+  weight: ["600", "700"],
   display: "swap",
 });
 
@@ -68,7 +77,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${spaceGrotesk.variable} h-full`}>
+    <html lang="es" className={`${spaceGrotesk.variable} ${barlowCondensed.variable} h-full`}>
       <body className="min-h-full flex flex-col font-sans antialiased">
         <DesktopBackgroundParallax />
         <BanChecker />

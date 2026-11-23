@@ -67,17 +67,19 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
     }
   }, [match.homeTeam.logo, match.awayTeam.logo, match.league.logo]);
 
-  return (
-    <Link
-      href={watchUrl}
-      onClick={saveScroll}
-      className={`group block p-3 sm:p-4 transition-all duration-200 ${
+  const cardId = `match-card-${match._eventSlug ?? match._streamId ?? match.id}`;
+  // Finished fixtures are results, not destinations: no link, no hover, no
+  // watch CTA — clicking one used to open a dead player and confuse users.
+  const cardClass = finished
+    ? "block py-3 pl-2 pr-3 bg-bg-card border-4 border-white opacity-60 sm:py-4 sm:pl-3 sm:pr-4"
+    : `group block py-3 pl-2 pr-3 transition-all duration-200 sm:py-4 sm:pl-3 sm:pr-4 ${
         live
           ? "bg-black border-4 border-accent-primary shadow-brutal hover:-translate-y-1 hover:-translate-x-1"
           : "bg-bg-card border-4 border-white transition-all relative hover:-translate-y-1 hover:-translate-x-1 hover:shadow-brutal hover:border-accent-primary"
-      }`}
-      id={`match-card-${match._eventSlug ?? match._streamId ?? match.id}`}
-    >
+      }`;
+
+  const content = (
+    <>
       <div className="flex items-center justify-between gap-2 sm:gap-4">
         {/* Home Team */}
         <div className="flex flex-1 items-center gap-2 sm:gap-3 min-w-0">
@@ -100,56 +102,66 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
               </span>
             ) : null}
           </div>
-          <span className="truncate text-sm sm:text-base font-bold text-white uppercase tracking-tight">
+          <span className="truncate font-team text-[16px] font-bold uppercase leading-none tracking-[0.01em] text-white sm:text-[18px]">
             {translateCountryName(shortenTeamName(match.homeTeam.name), language)}
           </span>
         </div>
 
+        <span aria-hidden className="hidden h-7 w-px shrink-0 bg-white/10 sm:block" />
+
         {/* Score / Status */}
-        <div className="flex flex-col items-center gap-1 sm:gap-1.5 flex-shrink-0 min-w-[70px] sm:min-w-[90px] bg-white/10 p-1.5 sm:p-2 border-2 border-white/30">
+        <div className="flex flex-col items-center gap-1 sm:gap-1.5 flex-shrink-0 min-w-[70px] sm:min-w-[88px]">
           {(live || finished) && match.score.home != null && match.score.away != null && (
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className={`text-xl sm:text-2xl font-black tabular-nums ${live ? "text-accent-primary" : "text-white"}`}>
+              <span className={`text-xl font-black tabular-nums sm:text-[22px] ${live ? "text-accent-primary" : "text-white"}`}>
                 {match.score.home}
               </span>
-              <span className="text-xs sm:text-sm font-bold text-white/50">-</span>
-              <span className={`text-xl sm:text-2xl font-black tabular-nums ${live ? "text-accent-primary" : "text-white"}`}>
+              <span className="text-xs sm:text-sm font-bold text-white/40">-</span>
+              <span className={`text-xl font-black tabular-nums sm:text-[22px] ${live ? "text-accent-primary" : "text-white"}`}>
                 {match.score.away}
               </span>
             </div>
           )}
 
-          {(live || upcoming) && (
-            <span className={`text-sm sm:text-lg font-black tabular-nums bg-black px-1.5 sm:px-2 py-0.5 sm:py-1 border-2 ${live ? "text-accent-primary border-accent-primary" : "text-accent-primary border-accent-primary"}`}>
+          {live && (
+            <span className="border-2 border-accent-primary bg-black px-2 py-0.5 text-base font-black tabular-nums text-accent-primary sm:text-lg">
+              {formatTime(match.date, language, timeZone)}
+            </span>
+          )}
+
+          {upcoming && (
+            <span className="border-2 border-white/25 bg-black px-2 py-0.5 text-base font-black tabular-nums text-white sm:text-lg">
               {formatTime(match.date, language, timeZone)}
             </span>
           )}
 
           {finished && (
-            <span className="text-sm sm:text-lg font-black tabular-nums text-white/60 bg-black px-1.5 sm:px-2 py-0.5 sm:py-1 border-2 border-white/30">
+            <span className="border-2 border-white/15 bg-black px-2 py-0.5 text-base font-black tabular-nums text-white/55 sm:text-lg">
               {formatTime(match.date, language, timeZone)}
             </span>
           )}
 
           {/* Status badge */}
           {finished && (
-            <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1">
-              <span className="inline-flex px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-extrabold uppercase bg-white text-black border-2 border-black">
+            <div className="mt-0.5 flex items-center gap-1 sm:mt-1 sm:gap-1.5">
+              <span className="inline-flex border-2 border-black bg-white px-2 py-0.5 text-[10px] font-extrabold uppercase text-black sm:px-3 sm:py-1 sm:text-xs">
                 {getStatusLabel(match.status.short, match.status.elapsed, language)}
               </span>
             </div>
           )}
 
           {live && match.status.elapsed && (
-            <span className="text-xs sm:text-sm font-black text-accent-primary animate-pulse">
+            <span className="text-[11px] font-black tracking-wide text-accent-primary animate-pulse">
               {match.status.elapsed}&apos;
             </span>
           )}
         </div>
 
+        <span aria-hidden className="hidden h-7 w-px shrink-0 bg-white/10 sm:block" />
+
         {/* Away Team */}
         <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3 min-w-0">
-          <span className="truncate text-right text-sm sm:text-base font-bold text-white uppercase tracking-tight">
+          <span className="truncate text-right font-team text-[16px] font-bold uppercase leading-none tracking-[0.01em] text-white sm:text-[18px]">
             {translateCountryName(shortenTeamName(match.awayTeam.name), language)}
           </span>
           <div className="relative h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
@@ -185,6 +197,20 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
           {live ? t.match.watchLiveFree : t.match.watchMatch}
         </div>
       )}
+    </>
+  );
+
+  if (finished) {
+    return (
+      <div className={cardClass} id={cardId}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link href={watchUrl} onClick={saveScroll} className={cardClass} id={cardId}>
+      {content}
     </Link>
   );
 }

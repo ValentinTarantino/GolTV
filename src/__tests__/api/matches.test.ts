@@ -272,7 +272,7 @@ describe("/api/matches", () => {
     expect((await (await GET(makeRequest())).json()).matches).toEqual([]);
   });
 
-  it.each([false, true])("retains Miami's confirmed final in the daily fixture, including primary duplicate: %s", async (primaryAvailable) => {
+  it.each([false, true])("drops Miami's confirmed final from the daily fixture, including primary duplicate: %s", async (primaryAvailable) => {
     jest.setSystemTime(new Date("2026-11-01T23:20:00-03:00"));
     const entry = {
       homeTeam: "New England Revolution", awayTeam: "Inter Miami CF", league: "MLS",
@@ -283,16 +283,10 @@ describe("/api/matches", () => {
     if (primaryAvailable) (fetchAgenda as jest.Mock).mockResolvedValue([flMatch({
       homeTeam: "New England", awayTeam: "Inter Miami", league: "MLS", dateISO: entry.dateISO,
     })]);
-    const { matches } = await (await GET(makeRequest())).json();
-    expect(matches).toHaveLength(1);
-    expect(matches[0].league.id).toBe(332);
-    expect(matches[0].status).toMatchObject({ short: "FT", long: "Finalizado" });
-    expect(matches[0].awayTeam.name).toMatch(/Inter Miami/);
-    // It remains visible after the old three-hour expiry, until the day ends.
+    expect((await (await GET(makeRequest())).json()).matches).toEqual([]);
+    // It stays gone for the rest of the day — finished games are not listings.
     jest.setSystemTime(new Date("2026-11-01T23:59:00-03:00"));
-    expect((await (await GET(makeRequest())).json()).matches).toHaveLength(1);
-    jest.setSystemTime(new Date("2026-11-02T00:05:00-03:00"));
-    expect((await (await GET(makeRequest())).json()).matches).toHaveLength(0);
+    expect((await (await GET(makeRequest())).json()).matches).toEqual([]);
   });
 
   beforeEach(() => {
@@ -798,7 +792,7 @@ describe("/api/matches", () => {
         date: "2026-11-05T00:00:00Z",
         home: "Girona", away: "Eibar",
         homeScore: 1, awayScore: 2,
-        statusShort: "FT", elapsed: null,
+        statusShort: "2H", elapsed: "67",
       }]],
     ]));
 
@@ -809,7 +803,26 @@ describe("/api/matches", () => {
 
     expect(girona).toHaveLength(1);
     expect(girona[0].score).toEqual({ home: 1, away: 2 });
-    expect(girona[0].status.short).toBe("FT");
+    expect(girona[0].status.short).toBe("2H");
+  });
+
+  it("drops a played match that the agenda lists again", async () => {
+    jest.setSystemTime(new Date("2026-11-04T22:30:00-03:00"));
+    const day = "2026-11-04";
+    const finished = {
+      homeTeam: "Estudiantes", awayTeam: "Talleres", league: "Liga Profesional",
+      slug: "estudiantes-vs-talleres", dateISO: `${day}T20:00:00-03:00`,
+      dateInferred: false, fixtureStatus: "FT" as const,
+      sources: [{ id: "s1", name: "Signal" }],
+    };
+    (fetchAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([finished]);
+    (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
+    (fetchPlayerFiveAgenda as jest.Mock).mockResolvedValue([]);
+    (loadEspnScoreboards as jest.Mock).mockResolvedValue(new Map());
+
+    // Confirmed final: filtered before enrichment even runs.
+    expect((await (await GET(makeRequest(day))).json()).matches).toEqual([]);
   });
 
   it("returns empty array when agenda is empty", async () => {
@@ -1468,7 +1481,7 @@ describe("/api/matches", () => {
     expect(matches).toHaveLength(2);
   });
 
-  it("shows a recently finished fixture as final even without a score source", async () => {
+  it("drops a recently finished fixture even without a score source", async () => {
     jest.setSystemTime(new Date("2026-11-01T14:35:00-03:00"));
     (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({
@@ -1477,9 +1490,7 @@ describe("/api/matches", () => {
       }),
     ]);
     const { matches } = await (await GET(makeRequest("2026-11-01"))).json();
-    expect(matches).toHaveLength(1);
-    expect(matches[0].status).toMatchObject({ short: "FT", long: "Finalizado" });
-    expect(matches[0].score).toEqual({ home: null, away: null });
+    expect(matches).toHaveLength(0);
   });
 
   it("reuses the last Sportplus score when the match leaves the live board", async () => {
@@ -1512,8 +1523,9 @@ describe("/api/matches", () => {
     const ft = matches.find((m: { homeTeam: { name: string } }) => m.homeTeam.name === "San Marcos");
     const ongoing = matches.find((m: { homeTeam: { name: string } }) => m.homeTeam.name === "Deportes Limache");
 
-    expect(ft.score).toEqual({ home: 1, away: 0 });
-    expect(ft.status.short).toBe("FT");
+    // The remembered score pushed the 10:00 fixture past its window → FT →
+    // it leaves the listing; the still-live one keeps its remembered score.
+    expect(ft).toBeUndefined();
     expect(ongoing.score).toEqual({ home: 0, away: 1 });
     expect(ongoing.status.short).toBe("1H");
     expect(ongoing.status.elapsed).toBe(28);

@@ -2,28 +2,44 @@
   {
     "id": "ferro-carril-salto",
     "country": "Uruguay",
-    "names": ["Ferro Carril", "Ferro Carril FC", "Ferro Carril de Salto"],
+    "names": [
+      "Ferro Carril",
+      "Ferro Carril FC",
+      "Ferro Carril de Salto"
+    ],
     "source": "https://x.com/_FerroCarrilFC",
     "file": "/badges/ferro-carril-salto.png"
   },
   {
     "id": "espn-4129",
     "country": "Chile",
-    "names": ["Everton", "Everton CD", "Everton de Viña del Mar", "Everton de Vina"],
+    "names": [
+      "Everton",
+      "Everton CD",
+      "Everton de Viña del Mar",
+      "Everton de Vina"
+    ],
     "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4129.png",
     "file": "/badges/team-4129.png"
   },
   {
     "id": "espn-368",
     "country": "Inglaterra",
-    "names": ["Everton", "Everton FC"],
+    "names": [
+      "Everton",
+      "Everton FC"
+    ],
     "source": "https://a.espncdn.com/i/teamlogos/soccer/500/368.png",
     "file": "/badges/team-368.png"
   },
   {
     "id": "espn-4137",
     "country": "Chile",
-    "names": ["La Serena", "Deportes La Serena", "CD La Serena"],
+    "names": [
+      "La Serena",
+      "Deportes La Serena",
+      "CD La Serena"
+    ],
     "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4137.png",
     "file": "/badges/team-4137.png"
   },
@@ -1450,5 +1466,19 @@
     ],
     "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9283.png",
     "file": "/badges/team-9283.png"
+  },
+  {
+    "id": "espn-5584",
+    "country": "Paraguay",
+    "names": [
+      "Nacional",
+      "Nacional Asunción",
+      "Nacional de Asunción",
+      "Nacional Asuncion",
+      "Club Nacional",
+      "Nacional de Asuncion"
+    ],
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/5584.png",
+    "file": "/badges/nacional-asuncion.png"
   }
 ]

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, use, Suspense } from "react";
+import { useState, useEffect, use, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import RetryImage from "@/components/ui/RetryImage";
 import Link from "next/link";
-import { ArrowLeft, Tv } from "lucide-react";
+import { ArrowLeft, Maximize2, Tv } from "lucide-react";
 import VideoPlayer from "@/components/player/VideoPlayer";
-import WatchTheater from "@/components/player/WatchTheater";
+import WatchTheater, { type WatchTheaterHandle } from "@/components/player/WatchTheater";
 import ChannelSelector from "@/components/player/ChannelSelector";
 import ChatBox from "@/components/chat/ChatBox";
 import LiveBadge from "@/components/matches/LiveBadge";
@@ -31,6 +31,9 @@ function WatchPageInner({
   const [isLoading, setIsLoading] = useState(true);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
+  // The theater owns fullscreen/native-Fullscreen-API state; this page only
+  // renders the trigger next to "volver a partidos".
+  const theaterRef = useRef<WatchTheaterHandle>(null);
   // Honor ?player=N in the URL (shared links / reloads) — anything else falls
   // back to the default player.
   const playerParam = searchParams.get("player");
@@ -128,16 +131,28 @@ function WatchPageInner({
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 py-4 sm:py-6" id="watch-page">
-      <Link
-        href="/"
-        className="mb-3 sm:mb-4 inline-flex items-center gap-1.5 sm:gap-2 bg-bg-card text-white text-[10px] sm:text-xs font-black uppercase px-2.5 sm:px-3.5 py-1 sm:py-1.5 border-2 border-white shadow-btn hover:bg-accent-primary hover:text-black hover:border-black transition-all hover:-translate-y-0.5"
-        id="watch-back-btn"
-      >
-        <ArrowLeft size={12} strokeWidth={3} />
-        {t.watch.backMatches}
-      </Link>
+      <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 lg:w-[26rem] lg:flex-nowrap">
+        <Link
+          href="/"
+          className="inline-flex shrink-0 items-center gap-1.5 border-2 border-white bg-bg-card px-2.5 py-1 text-[10px] font-black uppercase text-white shadow-btn transition-all hover:-translate-y-0.5 hover:border-black hover:bg-accent-primary hover:text-black sm:gap-2 sm:px-3.5 sm:py-1.5 sm:text-xs"
+          id="watch-back-btn"
+        >
+          <ArrowLeft size={12} strokeWidth={3} />
+          {t.watch.backMatches}
+        </Link>
+        <button
+          type="button"
+          onClick={() => void theaterRef.current?.toggleFullscreen()}
+          className="inline-flex items-center justify-center gap-1.5 border-2 border-black bg-accent-primary px-2.5 py-1 text-[10px] font-black uppercase text-black shadow-btn transition-all hover:-translate-y-0.5 hover:bg-white sm:gap-2 sm:px-3.5 sm:py-1.5 sm:text-xs lg:flex-1"
+          id="watch-fullscreen-btn"
+        >
+          <Maximize2 size={12} strokeWidth={3} />
+          <span className="sm:hidden">{t.watch.fullscreenShort}</span>
+          <span className="hidden sm:inline">{t.watch.fullscreenWithChat}</span>
+        </button>
+      </div>
 
-      <WatchTheater title={`${match.homeTeam.name} vs ${match.awayTeam.name}`} chat={<ChatBox matchId={matchId} />}
+      <WatchTheater ref={theaterRef} externalFullscreenEntry title={`${match.homeTeam.name} vs ${match.awayTeam.name}`} chat={<ChatBox matchId={matchId} />}
         header={
           <div
             data-theater-hide
@@ -220,7 +235,7 @@ function WatchPageInner({
                 borderlessFullscreen={false}
               />
             ) : (
-              <div className="relative w-full aspect-video bg-black overflow-hidden border-3 sm:border-4 border-white shadow-brutal flex flex-col items-center justify-center gap-2 sm:gap-3 p-4 sm:p-6 text-center">
+              <div className="relative w-full aspect-video bg-black overflow-hidden border-3 sm:border-4 border-white player-plate flex flex-col items-center justify-center gap-2 sm:gap-3 p-4 sm:p-6 text-center">
                 {finished ? (
                   <>
                     <Tv size={32} strokeWidth={3} className="text-accent-secondary" />

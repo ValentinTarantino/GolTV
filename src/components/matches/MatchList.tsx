@@ -143,16 +143,16 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
   const canReorder = Boolean(isAdmin && onReorder);
 
   return (
-    <div className="space-y-6 sm:space-y-10">
+    <div className="space-y-8 sm:space-y-10">
       {canReorder && orderError && (
         <div className="border-4 border-red-500 bg-black px-3 py-2 text-xs font-black uppercase tracking-widest text-red-400">
           {t.home.orderError}
         </div>
       )}
-      {orderedGroups.map((group, groupIndex) => (
-        <section
-          key={`${group.leagueId}-${group.leagueName}`}
-          className={`border-4 border-white bg-bg-card p-3 sm:p-4 md:p-6 shadow-[6px_6px_0px_0px_var(--color-accent-secondary)] animate-fade-in stagger-${Math.min(groupIndex + 1, 6)} ${
+        {orderedGroups.map((group, groupIndex) => (
+          <section
+            key={`${group.leagueId}-${group.leagueName}`}
+            className={`border-4 border-white bg-bg-card p-3 shadow-[6px_6px_0px_0px_var(--color-accent-secondary)] animate-fade-in stagger-${Math.min(groupIndex + 1, 6)} sm:p-4 ${
             dragId === group.leagueId ? "opacity-40" : ""
           } ${overId === group.leagueId && dragId !== group.leagueId ? "ring-4 ring-accent-primary" : ""}`}
           style={{ opacity: 0 }}
@@ -178,7 +178,7 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
         >
           {/* League Header */}
           <div
-            className={`mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-accent-primary border-4 border-black p-3 sm:p-4 shadow-brutal-white ${
+            className={`plate-face mb-3 flex flex-col justify-between gap-3 border-4 border-black bg-accent-primary py-2.5 pl-2 pr-2.5 sm:mb-4 sm:flex-row sm:items-center sm:gap-4 sm:py-3 sm:pl-2.5 sm:pr-3 ${
               canReorder ? "cursor-grab active:cursor-grabbing" : ""
             }`}
             id={`league-header-${group.leagueId}-${groupIndex}`}
@@ -221,7 +221,7 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
               )}
               </div>
               <div className="flex flex-col">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-black text-black uppercase tracking-tight">
+                <h2 className="text-[20px] font-black uppercase leading-none tracking-tight text-black sm:text-[26px]">
                   {translateLeague(group.leagueName, language)}
                 </h2>
               </div>
@@ -257,7 +257,7 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
           </div>
 
           {/* Match Cards */}
-          <div className="grid gap-3 sm:gap-4 grid-cols-1">
+          <div className="grid grid-cols-1 gap-1.5">
             {group.matches.map((match, index) => {
               const sourceKey = match._eventSlug ?? match._streamId;
               const identity = sourceKey

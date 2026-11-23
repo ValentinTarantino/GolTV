@@ -17,13 +17,14 @@ export default function Header() {
 
   return (
     <>
-      {/* Brutalist Top Marquee / Ticker */}
-      <div className="w-full bg-accent-primary text-black border-b-2 border-white py-1.5 overflow-hidden select-none font-black text-xs sm:text-sm uppercase tracking-wider">
-        <div className="animate-marquee flex items-center whitespace-nowrap">
+      {/* Brutalist Top Marquee / Ticker — one slim lime line: black on lime so
+          it reads at a glance instead of glowing white over the accent. */}
+      <div className="h-[26px] w-full overflow-hidden border-b-2 border-white bg-accent-primary text-black select-none font-black text-[10px] uppercase tracking-[0.22em] sm:text-[11px]">
+        <div className="animate-marquee flex h-full items-center whitespace-nowrap">
           {[...tickerItems, ...tickerItems, ...tickerItems, ...tickerItems].map((item, idx) => (
-            <span key={idx} className="flex items-center mx-4">
+            <span key={idx} className="flex items-center gap-5 px-5">
               <span>{item}</span>
-              <span className="mx-4 text-black font-black">✦</span>
+              <span className="text-black/35">✦</span>
             </span>
           ))}
         </div>

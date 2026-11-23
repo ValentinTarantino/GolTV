@@ -56,11 +56,11 @@ export default function OnlineCounter() {
 
   return (
     <div
-      className="fixed bottom-3 right-3 z-40 flex items-center gap-1.5 border-2 border-white bg-black px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-brutal"
+      className="pointer-events-none fixed bottom-3 right-3 z-40 flex select-none items-center gap-1.5 border-2 border-white bg-black px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white sm:bottom-4 sm:right-4"
       title={t.watch.viewers}
     >
-      <Eye size={13} strokeWidth={3} className="text-accent-primary" />
-      <span>{count}</span>
+      <Eye size={12} strokeWidth={3} className="text-accent-primary" />
+      <span className="tabular-nums">{count}</span>
       <span className="hidden sm:inline">{t.watch.viewers}</span>
     </div>
   );

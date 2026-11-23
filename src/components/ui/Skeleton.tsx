@@ -8,12 +8,12 @@ import FootballLoader from "@/components/ui/FootballLoader";
  */
 export function MatchSkeleton({ label }: { label?: string }) {
   return (
-    <div className="space-y-6 sm:space-y-10">
+    <div className="space-y-8 sm:space-y-10">
       {/* Loader + label so it is obvious the fixture is being fetched */}
       <div className="flex flex-col items-center gap-3 animate-fade-in">
         <FootballLoader size={56} />
         {label && (
-          <p className="text-xs sm:text-sm font-black uppercase tracking-widest text-white/70">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">
             {label}
           </p>
         )}
@@ -22,35 +22,37 @@ export function MatchSkeleton({ label }: { label?: string }) {
       {[1, 2].map((group) => (
         <section
           key={group}
-          className="border-4 border-white bg-bg-card p-3 sm:p-4 md:p-6 shadow-[6px_6px_0px_0px_var(--color-accent-secondary)]"
+          className="border-4 border-white bg-bg-card p-3 shadow-[6px_6px_0px_0px_var(--color-accent-secondary)] sm:p-4"
         >
           {/* League header skeleton: dark blocks pulsing over the yellow bar */}
-          <div className="mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4 bg-accent-primary border-4 border-black p-3 sm:p-4 shadow-brutal-white">
+          <div className="plate-face mb-3 flex items-center gap-3 border-4 border-black bg-accent-primary p-2.5 sm:mb-4 sm:gap-4 sm:p-3">
             <div className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-black bg-black animate-pulse flex-shrink-0" />
-            <div className="h-6 sm:h-7 w-40 sm:w-56 bg-black animate-pulse" />
+            <div className="h-5 sm:h-6 w-40 sm:w-56 bg-black animate-pulse" />
           </div>
 
-          {/* Match card skeletons */}
-          <div className="grid gap-3 sm:gap-4 grid-cols-1">
+          {/* Match card skeletons — same shape as the real card: two crest
+              boxes, a centre time block and the watch bar. */}
+          <div className="grid grid-cols-1 gap-1.5">
             {[1, 2, 3].map((match) => (
               <div key={match} className="border-4 border-white bg-black p-3 sm:p-4">
                 <div className="flex items-center justify-between gap-2 sm:gap-4">
                   {/* Home team */}
                   <div className="flex flex-1 items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full skeleton-block flex-shrink-0" />
+                    <div className="h-10 w-10 flex-shrink-0 skeleton-block sm:h-12 sm:w-12" />
                     <div className="h-4 w-20 sm:w-28 skeleton-block" />
                   </div>
-                  {/* Center: status + time */}
+                  {/* Centre: time + status */}
                   <div className="flex flex-col items-center gap-1.5">
-                    <div className="h-5 w-16 skeleton-block" />
-                    <div className="h-4 w-12 skeleton-block" />
+                    <div className="h-6 w-16 skeleton-block" />
+                    <div className="h-2.5 w-8 skeleton-block" />
                   </div>
                   {/* Away team */}
                   <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3 min-w-0">
                     <div className="h-4 w-20 sm:w-28 skeleton-block" />
-                    <div className="h-9 w-9 rounded-full skeleton-block flex-shrink-0" />
+                    <div className="h-10 w-10 flex-shrink-0 skeleton-block sm:h-12 sm:w-12" />
                   </div>
                 </div>
+                <div className="mt-3 h-9 skeleton-block sm:mt-4" />
               </div>
             ))}
           </div>

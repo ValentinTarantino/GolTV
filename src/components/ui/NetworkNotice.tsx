@@ -1,55 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const borderColors = [
-  [
-    "border-[#ccff00] shadow-[0_0_14px_3px_#ccff00]",
-    "border-[#ccff00] shadow-[0_0_5px_1px_#ccff00]",
-  ],
-  [
-    "border-[#ffffff] shadow-[0_0_14px_3px_#ffffff]",
-    "border-[#ffffff] shadow-[0_0_5px_1px_#ffffff]",
-  ],
-  [
-    "border-[#00f0ff] shadow-[0_0_14px_3px_#00f0ff]",
-    "border-[#00f0ff] shadow-[0_0_5px_1px_#00f0ff]",
-  ],
-  [
-    "border-[#ffe66d] shadow-[0_0_14px_3px_#ffe66d]",
-    "border-[#ffe66d] shadow-[0_0_5px_1px_#ffe66d]",
-  ],
-] as const;
-
+/**
+ * Network/IP warning. Back to the card layout: full sentence with the two key
+ * phrases highlighted and the three provider buttons in their brand colours.
+ * What changed is the weight — a single lime border with a soft static glow
+ * (site accent, no colour-cycling pulse) and tighter padding/type, so it reads
+ * as a notice inside the page instead of a neon sign pushing the agenda down.
+ */
 export default function NetworkNotice() {
   const { t } = useLanguage();
-  const [pulseStep, setPulseStep] = useState(0);
 
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const intervalId = window.setInterval(() => {
-      setPulseStep((step) => step + 1);
-    }, 1500);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
-  const borderColorIndex = Math.floor(pulseStep / 2) % borderColors.length;
-  const borderPulseIndex = pulseStep % 2;
+  const linkClass =
+    "inline-flex shrink-0 items-center justify-center border-2 border-black px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white transition-all duration-150 hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:px-3 sm:text-[11px]";
 
   return (
-    <aside className={`mb-4 flex flex-wrap items-center justify-between gap-2 border-4 ${borderColors[borderColorIndex][borderPulseIndex]} bg-black p-3 text-xs font-bold text-white transition-[border-color,box-shadow] duration-[1500ms] ease-in-out sm:mb-5 sm:p-4 sm:text-sm lg:p-5 lg:text-base`} role="note">
-      <p>
-        {t.home.networkNotice} {" "}
-        <strong className="text-accent-primary">{t.home.networkNoticeImmediate}</strong>{" "}
-        <strong className="text-orange-400">{t.home.networkNoticeOptions}</strong>
+    <aside
+      role="note"
+      className="mb-4 flex flex-col gap-2.5 border-2 border-accent-primary bg-black p-3 shadow-[0_0_18px_rgba(204,255,0,0.40)] transition-shadow duration-300 hover:shadow-[0_0_24px_rgba(204,255,0,0.55)] sm:mb-5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-3.5"
+    >
+      <p className="text-[11px] font-bold leading-snug text-white sm:text-[13px]">
+        {t.home.networkNotice}{" "}
+        <span className="text-accent-primary">{t.home.networkNoticeImmediate}</span>{" "}
+        <span className="text-orange-400">{t.home.networkNoticeOptions}</span>
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex shrink-0 flex-wrap gap-1.5 sm:gap-2">
         <a
           href="https://one.one.one.one/"
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 border-2 border-black bg-orange-700 px-3 py-1.5 font-black text-white transition-colors hover:-translate-y-0.5 hover:bg-orange-800 lg:px-4 lg:py-2"
+          className={`${linkClass} bg-orange-700 hover:bg-orange-600`}
         >
           {t.home.downloadOne}
         </a>
@@ -57,7 +38,7 @@ export default function NetworkNotice() {
           href="https://protonvpn.com/es-419"
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 border-2 border-black bg-violet-600 px-3 py-1.5 font-black text-white transition-colors hover:-translate-y-0.5 hover:bg-violet-700 lg:px-4 lg:py-2"
+          className={`${linkClass} bg-violet-600 hover:bg-violet-500`}
         >
           {t.home.protonVpn}
         </a>
@@ -65,7 +46,7 @@ export default function NetworkNotice() {
           href="https://www.urban-vpn.com/es/"
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 border-2 border-black bg-teal-700 px-3 py-1.5 font-black text-white transition-colors hover:-translate-y-0.5 hover:bg-teal-800 lg:px-4 lg:py-2"
+          className={`${linkClass} bg-teal-700 hover:bg-teal-600`}
         >
           {t.home.urbanVpn}
         </a>

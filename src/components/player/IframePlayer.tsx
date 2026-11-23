@@ -125,7 +125,7 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
         </div>
       )}
       {!isPrimaryFeed && (
-        <div className={`relative w-full aspect-video bg-black overflow-hidden${borderless ? "" : " border-4 border-white shadow-brutal"}`}>
+        <div className={`relative w-full aspect-video bg-black overflow-hidden${borderless ? "" : " border-4 border-white player-plate"}`}>
         {!isPrimaryFeed && isLoading && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/60 z-10">
             <div className="flex flex-col items-center gap-3">

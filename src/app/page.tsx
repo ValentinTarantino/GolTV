@@ -147,56 +147,68 @@ export default function HomePage() {
   const filteredMatches = showLiveOnly ? liveMatches : matches;
 
   return (
-    <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 py-6 sm:py-8" id="home-page">
+    <div className="mx-auto max-w-7xl px-3 pb-20 pt-6 sm:px-4 sm:pb-16 sm:pt-8 md:px-6" id="home-page">
       <NetworkNotice />
 
-      {/* Filters */}
-      <div className="mb-6 sm:mb-8 flex flex-wrap items-center gap-3 sm:gap-4 animate-fade-in bg-accent-primary border-3 sm:border-4 border-black p-3 sm:p-4 shadow-brutal transform rotate-1">
-        <div className="flex flex-col mr-1 sm:mr-2">
-          <h1 className="text-2xl sm:text-3xl font-black text-black uppercase tracking-tight">
-            {t.home.todayMatches}
-          </h1>
-          {currentDate && (
-            <span className="text-xs sm:text-sm font-bold text-black/80 uppercase tracking-widest mt-1">
-              {currentDate}
-            </span>
-          )}
-        </div>
-
-        {liveMatches.length > 0 && (
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-black border-2 border-white px-2 sm:px-3 py-0.5 sm:py-1">
-            <Zap size={14} strokeWidth={3} className="text-accent-primary" />
-            <span className="text-xs sm:text-sm font-black text-white uppercase tracking-widest">
-              {liveMatches.length} {t.home.live}
-            </span>
+      {/* Filters — the single strong accent block of the page. Everything
+          above it (ticker, network strip) is deliberately quieter so this
+          yellow bar is the only "hero". No rotation: it keeps the left edge
+          aligned with the category sections below. */}
+      <div className="relative mb-6 animate-fade-in sm:mb-8">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -inset-x-6 -top-10 h-40 bg-[radial-gradient(ellipse_at_top,rgba(204,255,0,0.10),transparent_70%)]"
+        />
+        <div className="relative flex flex-wrap items-center gap-3 border-3 border-black bg-accent-primary p-3 plate-face sm:gap-4 sm:border-4 sm:p-4">
+          <div className="mr-1 flex flex-col sm:mr-2">
+            <h1 className="text-[26px] font-black uppercase leading-none tracking-tight text-black sm:text-[28px]">
+              {t.home.todayMatches}
+            </h1>
+            {currentDate && (
+              <span className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
+                {currentDate}
+              </span>
+            )}
           </div>
-        )}
 
-        <button
-          onClick={() => setShowLiveOnly(!showLiveOnly)}
-          className={`inline-flex items-center gap-1.5 sm:gap-2 border-2 px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-black uppercase transition-all ${
-            showLiveOnly
-              ? "bg-black border-white text-white shadow-brutal-white hover:-translate-y-1"
-              : "bg-white border-black text-black hover:bg-black hover:text-white hover:border-white hover:shadow-brutal-white hover:-translate-y-1"
-          }`}
-        >
-          <Filter size={14} strokeWidth={3} />
-          {showLiveOnly ? t.home.seeAll : t.home.onlyLive}
-        </button>
+          {liveMatches.length > 0 && (
+            <div className="inline-flex items-center gap-1.5 border-2 border-black bg-black px-2 py-1 sm:gap-2 sm:px-3">
+              <Zap size={12} strokeWidth={3} className="text-accent-primary" />
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
+                {liveMatches.length} {t.home.live}
+              </span>
+            </div>
+          )}
 
-        <div className="ml-auto flex flex-wrap items-center gap-2 text-xs font-bold text-black/70 uppercase">
-          <span>
-            {t.home.lastUpdated}: {lastUpdated ? lastUpdated.toLocaleTimeString(language === "es" ? "es-AR" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
-          </span>
           <button
-            onClick={refreshMatches}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 border-2 border-black bg-white px-2.5 py-1.5 text-xs font-black text-black transition-colors hover:bg-black hover:text-white disabled:cursor-wait disabled:opacity-60"
-            aria-label={t.home.refresh}
+            onClick={() => setShowLiveOnly(!showLiveOnly)}
+            className={`inline-flex h-8 items-center gap-1.5 border-2 border-black px-3 text-[11px] font-black uppercase tracking-wider transition-colors ${
+              showLiveOnly
+                ? "bg-black text-white"
+                : "bg-white text-black hover:bg-black hover:text-white"
+            }`}
           >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-            {t.home.refresh}
+            <Filter size={12} strokeWidth={3} />
+            {showLiveOnly ? t.home.seeAll : t.home.onlyLive}
           </button>
+
+          <div className="ml-auto flex flex-wrap items-center gap-3">
+            <span className="flex flex-col items-end text-[9px] font-black uppercase leading-[1.2] tracking-[0.16em] text-black/45">
+              <span>{t.home.lastUpdated}</span>
+              <span className="text-[11px] tabular-nums tracking-normal text-black/70">
+                {lastUpdated ? lastUpdated.toLocaleTimeString(language === "es" ? "es-AR" : "en-US", { hour: "2-digit", minute: "2-digit" }) : "--:--"}
+              </span>
+            </span>
+            <button
+              onClick={refreshMatches}
+              disabled={isRefreshing}
+              className="inline-flex h-8 items-center gap-1.5 border-2 border-black bg-white px-3 text-[11px] font-black uppercase tracking-wider text-black transition-colors hover:bg-black hover:text-white disabled:cursor-wait disabled:opacity-60"
+              aria-label={t.home.refresh}
+            >
+              <RefreshCw size={12} className={isRefreshing ? "animate-spin" : ""} strokeWidth={3} />
+              {t.home.refresh}
+            </button>
+          </div>
         </div>
       </div>
 

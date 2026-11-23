@@ -5,7 +5,7 @@ import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
 import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
-import { getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub } from "@/lib/constants";
+import { getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub, FINISHED_STATUSES } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { leagueRanks, loadLeagueOrder } from "@/lib/league-order";
 import { espnSlugsForLeague, espnSlugsForLeagues, findEspnEvent, loadEspnScoreboards } from "@/lib/espn-scores";
@@ -310,16 +310,10 @@ export async function GET(request: NextRequest) {
     const preferredPlayer =
       league.id === 129 ? ("5" as const) : "preferredPlayer" in entry ? entry.preferredPlayer : undefined;
     const status = entry.fixtureStatus ?? inferStatus(entry.dateISO);
-    // Keep explicitly confirmed finals on their Argentine calendar day. An
-    // inferred final stays visible for five hours after kickoff so recently
-    // finished games still show their result state; older inferred listings
-    // are dropped, and a rescheduled game can't claim another day.
-    if (status === "PST" || status === "CANC") continue;
-    if (status === "FT") {
-      const minsAgo = (Date.now() - new Date(entry.dateISO).getTime()) / 60000;
-      const sameDay = toArgentinaDate(entry.dateISO) === date;
-      if (entry.fixtureStatus === "FT" ? !sameDay : !sameDay || minsAgo > 300) continue;
-    }
+    // Finished fixtures are results, not listings: once a match is over it
+    // leaves the agenda so users never click a dead player. Postponed and
+    // cancelled entries are dropped the same way.
+    if (FINISHED_STATUSES.includes(status) || status === "PST" || status === "CANC") continue;
 
     const id = hashSlug(entry.slug);
     const duplicateIndex = findDuplicateFixture(seenMatches, kickoffFixtures, entry.dateISO, league.id, entry.homeTeam, entry.awayTeam, id, matches.length);
@@ -500,6 +494,13 @@ export async function GET(request: NextRequest) {
       }
     }
     await Promise.allSettled(memoryWrites);
+  }
+
+  // Enrichment can flip a fixture to a finished state after it passed the
+  // entry filter (ESPN final whistle, Sportplus board drop). Finished games
+  // leave the listing entirely — they are results, not watchable fixtures.
+  for (let i = matches.length - 1; i >= 0; i--) {
+    if (FINISHED_STATUSES.includes(matches[i].status.short)) matches.splice(i, 1);
   }
 
   const logoMap = await logoWork;
