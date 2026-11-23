@@ -12,7 +12,7 @@ import {
   rewriteCanalManifest,
   rewriteCanalPlaylist,
   sealCanalUrl,
-} from "@/lib/canales";
+} from "@/lib/streams";
 
 describe("canales source", () => {
   beforeEach(() => {

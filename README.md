@@ -69,8 +69,6 @@ Requiere Node.js y npm. Desde la raíz del proyecto:
 | `npm run docker:build` | Construye la imagen Docker |
 | `npm run docker:run` | Ejecuta el contenedor en el puerto 3000 |
 | `npm run docker:compose` | Construye y levanta los servicios con Docker Compose |
-| `npm run sync:badges` | Sincroniza los escudos locales |
-| `npm run test:streams` | Comprueba señales externas |
 
 ### Chat y administración
 
@@ -167,8 +165,6 @@ Node.js and npm are required. From the project root:
 | `npm run docker:build` | Build the Docker image |
 | `npm run docker:run` | Run the container on port 3000 |
 | `npm run docker:compose` | Build and start services with Docker Compose |
-| `npm run sync:badges` | Sync local team crests |
-| `npm run test:streams` | Check external streams |
 
 ### Chat and administration
 

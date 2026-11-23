@@ -1,9 +1,8 @@
-import type { Channel, Match, MatchStatusShort } from "./types";
-import { getTeamLogo } from "./team-logos";
+import type { Channel } from "./types";
 import { getCache, setCache, acquireLock, releaseLock } from "./cache";
-import { proxyImageUrl } from "./public-url";
 import { isAllowedStreamUrl, toHlsProxyUrl } from "./hls-proxy";
 import { sealLpfUrl } from "./sealed-url";
+import { matchTeamsPair } from "./team-matching";
 
 const STREAM_API_BASE = "https://football-live-stream-api.p.rapidapi.com";
 const RAPID_API_KEY = process.env.RAPIDAPI_KEY || "";
@@ -76,161 +75,6 @@ function preferPlayUrl(raw: string): string {
 export function getStreamUsage() {
   const today = new Date().toISOString().slice(0, 10);
   return { used: 0, limit: 9999, date: today };
-}
-
-const LEAGUE_ID_MAP: Record<string, number> = {
-  "conmebol copa libertadores": 13,
-  "copa libertadores": 13,
-  "conmebol copa sudamericana": 11,
-  "copa sudamericana": 11,
-  "uefa champions league": 2,
-  "champions league": 2,
-  "uefa europa league": 3,
-  "europa league": 3,
-  "uefa nations league": 5,
-  "nations league": 5,
-  "concacaf nations league": 6,
-  "concacaf champions league": 7,
-  "concacaf champions cup": 7,
-  "english premier league": 39,
-  "premier league": 39,
-  "spanish la liga": 140,
-  "la liga": 140,
-  "copa del rey": 143,
-  "copa rey": 143,
-  "argentine division 1": 128,
-  "liga profesional": 128,
-  "copa de la liga": 1032,
-  "copa argentina": 130,
-  "chilean primera division": 265,
-  "liga de primera": 265,
-  "copa chile": 267,
-  "liga betplay": 239,
-  "colombian primera": 239,
-  "primera division colombiana": 239,
-  "brazilian serie a": 71,
-  "brasileirao": 71,
-  "copa do brasil": 73,
-  "peruvian primera division": 281,
-  "liga 1 peru": 281,
-  "copa peru": 503,
-  "copa perú": 503,
-  "paraguayan division profesional": 250,
-  "division profesional": 250,
-  "copa paraguay": 501,
-  "uruguayan primera division": 268,
-  "liga auf": 268,
-  "copa uruguay": 930,
-};
-
-const STREAM_LEAGUE_PATTERNS: RegExp[] = [
-  /\blibertadores\b/,
-  /\bsudamericana\b/,
-  /\b(uefa\s+)?champions league\b/,
-  /\b(uefa\s+)?europa league\b/,
-  /\b(uefa\s+)?nations league\b/,
-  /\bnations league\b/,
-  /\bconcacaf\s+nations league\b/,
-  /\bconcacaf\s+champions( league| cup)?\b/,
-  /\bspanish la liga\b/,
-  /\bla liga\b/,
-  /\bcopa del rey\b/,
-  /\benglish premier( league)?\b/,
-  /^premier league$/,
-  /\bliga profesional\b/,
-  /\bcopa argentina\b/,
-  /\bcopa de la liga\b/,
-  /\bargentine\b/,
-  /\bargentina\b/,
-  /\bchilean\b/,
-  /\bchile\b/,
-  /\bliga de primera\b/,
-  /\bcopa chile\b/,
-  /\bliga betplay\b/,
-  /\bbetplay\b/,
-  /\bcolombian\b/,
-  /\bcolombia\b/,
-  /\bprimera division\b.*\bcolombia\b|\bcolombia\b.*\bprimera division\b/,
-  /\bbrazil(ian)?\b/,
-  /\bbrasil(eir\w*)?\b/,
-  /\bcopa do brasil\b/,
-  /\bperuvian\b/,
-  /\bperu\b/,
-  /\bliga 1\b.*\bperu\b|\bperu\b.*\bliga 1\b/,
-  /\bcopa peru\b/,
-  /\bparaguayan\b/,
-  /\bparaguay\b/,
-  /\bdivision profesional\b/,
-  /\bcopa paraguay\b/,
-  /\buruguayan\b/,
-  /\buruguay\b/,
-  /\bliga auf\b/,
-  /\bcopa uruguay\b/,
-];
-
-export function isAllowedStreamLeague(leagueName: string): boolean {
-  const lower = leagueName
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-
-  const normalizedMlsLabel = lower.replace(/[-_:]/g, " ").replace(/\s+/g, " ").trim();
-  if (/^(?:(?:usa|united states) )?(?:mls|major league soccer)(?: \d{4})?(?: (?:regular season|playoffs?|eastern conference|western conference))?$/.test(normalizedMlsLabel)) {
-    return true;
-  }
-
-  if (
-    /\b(belarus|azerbaijan|armenia|jordan|kazakhstan|poland|polish|mexico|liga mx|italian|italy|germany|german|france|french|concacaf|asian|russia|scottish|irish|maltese|israel)\b/.test(
-      lower
-    )
-  ) {
-    return false;
-  }
-
-  if (lower.includes("premier") && !/\benglish premier/.test(lower) && lower !== "premier league") {
-    return false;
-  }
-
-  return STREAM_LEAGUE_PATTERNS.some((re) => re.test(lower));
-}
-
-import { matchTeamsPair } from "./team-matching";
-
-export function stableStreamMatchId(streamId: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < streamId.length; i++) {
-    hash ^= streamId.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return 800_000_000 + ((hash >>> 0) % 100_000_000);
-}
-
-function resolveLeagueId(leagueName: string): number {
-  const normalized = leagueName.toLowerCase().trim();
-  if (LEAGUE_ID_MAP[normalized]) return LEAGUE_ID_MAP[normalized];
-  for (const [key, id] of Object.entries(LEAGUE_ID_MAP)) {
-    if (normalized === key) return id;
-    if (key === "premier league" || key === "liga 1") continue;
-    if (normalized.includes(key)) return id;
-  }
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i++) {
-    hash = (hash * 31 + normalized.charCodeAt(i)) | 0;
-  }
-  return -1_000_000 - (Math.abs(hash) % 900_000);
-}
-
-export const PLACEHOLDER_TEAM_LOGO = proxyImageUrl(
-  "https://media.api-sports.io/football/teams/40.png"
-);
-
-export function getLeagueLogo(leagueName: string): string {
-  const leagueId = resolveLeagueId(leagueName);
-  if (leagueId > 0) {
-    return proxyImageUrl(`https://media.api-sports.io/football/leagues/${leagueId}.png`);
-  }
-  return "";
 }
 
 export function isValidHlsManifest(text: string): boolean {
@@ -422,71 +266,6 @@ async function fetchStreamUrl(matchId: string): Promise<string | null> {
   }
 }
 
-export async function fetchLiveStreamMatches(): Promise<Match[]> {
-  if (!RAPID_API_KEY) {
-    console.warn("[stream] RAPIDAPI_KEY not configured");
-    return [];
-  }
-  if (await isInCooldown()) {
-    console.warn("[stream] In cooldown — returning cached/empty live list");
-  }
-
-  try {
-    const matches = await fetchAllMatches();
-    const liveMatches = matches.filter((m) => m.status === "Live");
-    const filteredMatches = liveMatches.filter((m) => isAllowedStreamLeague(m.league));
-
-    const matchesWithLogos = await Promise.all(
-      filteredMatches.map(async (m) => {
-        const scoreParts = m.score.split(" - ").map(Number);
-        const leagueId = resolveLeagueId(m.league);
-        const [homeLogo, awayLogo] = await Promise.all([
-          getTeamLogo(m.home_name),
-          getTeamLogo(m.away_name),
-        ]);
-
-        return {
-          id: stableStreamMatchId(m.id),
-          league: {
-            id: leagueId,
-            name: m.league,
-            country: "Internacional",
-            logo: getLeagueLogo(m.league),
-            flag: "",
-            slug: m.league.toLowerCase().replace(/\s+/g, "-"),
-          },
-          homeTeam: {
-            id: 0,
-            name: m.home_name,
-            logo: m.home_flag || homeLogo || PLACEHOLDER_TEAM_LOGO,
-          },
-          awayTeam: {
-            id: 0,
-            name: m.away_name,
-            logo: m.away_flag || awayLogo || PLACEHOLDER_TEAM_LOGO,
-          },
-          date: m.date || new Date().toISOString(),
-          timestamp: Math.floor(Date.now() / 1000),
-          status: { short: "LIVE" as MatchStatusShort, long: "En Juego", elapsed: null },
-          score: { home: scoreParts[0] || 0, away: scoreParts[1] || 0 },
-          channels: [],
-          _streamId: m.id,
-        };
-      })
-    );
-
-    return matchesWithLogos;
-  } catch (error) {
-    console.warn("Failed to fetch live stream matches:", error);
-    return [];
-  }
-}
-
-export async function getStreamMatchMeta(streamId: string): Promise<StreamMatch | null> {
-  const matches = await fetchAllMatches();
-  return matches.find((m) => m.id === streamId) ?? null;
-}
-
 export async function getStreamsForMatch(
   homeTeam: string,
   awayTeam: string,
@@ -528,8 +307,4 @@ export async function getStreamsForMatch(
   }
 
   return [];
-}
-
-export function clearStreamUrlCache(): void {
-  // No-op with Redis, but kept for API compatibility
 }

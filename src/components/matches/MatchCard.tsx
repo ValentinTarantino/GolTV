@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import RetryImage from "@/components/ui/RetryImage";
 import { Play } from "lucide-react";
 import type { Match } from "@/lib/types";
 import { shortenTeamName } from "@/lib/constants";
@@ -83,7 +83,7 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
         <div className="flex flex-1 items-center gap-2 sm:gap-3 min-w-0">
           <div className="relative h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
             {match.homeTeam.logo ? (
-              <Image
+              <RetryImage
                 src={match.homeTeam.logo}
                 alt={match.homeTeam.name}
                 fill
@@ -154,7 +154,7 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
           </span>
           <div className="relative h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
             {match.awayTeam.logo ? (
-              <Image
+              <RetryImage
                 src={match.awayTeam.logo}
                 alt={match.awayTeam.name}
                 fill

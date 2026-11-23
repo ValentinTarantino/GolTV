@@ -119,13 +119,6 @@ export const API_FOOTBALL_BASE = "https://v3.football.api-sports.io";
 export const LIVE_STATUSES = ["1H", "HT", "2H", "ET", "BT", "P", "INT", "LIVE"];
 export const FINISHED_STATUSES = ["FT", "AET", "PEN", "AWD", "WO"];
 export const UPCOMING_STATUSES = ["NS", "TBD"];
-export const CANCELLED_STATUSES = ["SUSP", "PST", "CANC", "ABD"];
-
-export const DEMO_STREAMS: { id: string; name: string; url: string }[] = [
-  { id: "ch1", name: "Canal 1", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
-  { id: "ch2", name: "Canal 2", url: "https://cdn.jwplayer.com/manifests/pZxWPRg4.m3u8" },
-  { id: "ch3", name: "Canal 3", url: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8" },
-];
 
 export const CHANNEL_SETS: Record<string, { id: string; name: string; url: string }[]> = {
   argentina: [

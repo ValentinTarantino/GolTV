@@ -30,15 +30,6 @@ export function formatTime(dateStr: string, lang: Language = "es", timeZone?: st
   });
 }
 
-export function formatDate(dateStr: string, lang: Language = "es"): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString(lang === "es" ? "es-AR" : "en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
 export function formatDateISO(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -76,27 +67,5 @@ export function getStatusLabel(status: MatchStatusShort, elapsed: number | strin
   return "";
 }
 
-export function getDayLabel(date: Date, lang: Language = "es"): string {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(date);
-  target.setHours(0, 0, 0, 0);
 
-  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
 
-  if (lang === "en") {
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Tomorrow";
-    if (diffDays === -1) return "Yesterday";
-    return date.toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
-  }
-
-  if (diffDays === 0) return "Hoy";
-  if (diffDays === 1) return "Mañana";
-  if (diffDays === -1) return "Ayer";
-  return date.toLocaleDateString("es-AR", { weekday: "short", day: "numeric" });
-}
-
-export function cn(...classes: (string | false | null | undefined)[]): string {
-  return classes.filter(Boolean).join(" ");
-}

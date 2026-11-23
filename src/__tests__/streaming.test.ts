@@ -1,23 +1,8 @@
 import {
-  stableStreamMatchId,
   unwrapNestedStreamUrl,
   isValidHlsManifest,
 } from "@/lib/streaming";
 import { teamsMatch, matchTeamsPair } from "@/lib/team-matching";
-
-describe("stableStreamMatchId", () => {
-  it("returns a deterministic id in the synthetic range", () => {
-    const a = stableStreamMatchId("abc-123");
-    const b = stableStreamMatchId("abc-123");
-    expect(a).toBe(b);
-    expect(a).toBeGreaterThanOrEqual(800_000_000);
-    expect(a).toBeLessThan(900_000_000);
-  });
-
-  it("produces different ids for different stream ids", () => {
-    expect(stableStreamMatchId("match-1")).not.toBe(stableStreamMatchId("match-2"));
-  });
-});
 
 describe("unwrapNestedStreamUrl", () => {
   it("unwraps football-live-stream wrapper urls", () => {

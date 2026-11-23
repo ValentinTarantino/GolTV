@@ -54,15 +54,6 @@ export const healthQuerySchema = z.object({
   detailed: z.enum(["true", "false"]).optional(),
 });
 
-export type MatchesQuery = z.infer<typeof matchesQuerySchema>;
-export type MatchIdParams = z.infer<typeof matchIdParamsSchema>;
-export type MatchIdQuery = z.infer<typeof matchIdQuerySchema>;
-export type ChatPost = z.infer<typeof chatPostSchema>;
-export type ViewerHeartbeat = z.infer<typeof viewerHeartbeatSchema>;
-export type StandingsQuery = z.infer<typeof standingsQuerySchema>;
-export type LeaguesQuery = z.infer<typeof leaguesQuerySchema>;
-export type HealthQuery = z.infer<typeof healthQuerySchema>;
-
 export function createErrorResponse(message: string, status: number = 400): Response {
   return Response.json({ error: message }, { status });
 }

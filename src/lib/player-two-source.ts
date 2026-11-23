@@ -395,26 +395,9 @@ async function iframeChannelFor(match: ProviderMatch): Promise<Channel | null> {
   }
 }
 
-/** @internal — exposed only for unit tests / debugging */
-export async function __listLiveMatchesForTest(): Promise<ProviderMatch[]> {
-  const base = apiBase();
-  if (!base) return [];
-  const params = { code: [100], stream: true, sportType: 1 };
-  const codes = await signatureCodes(params);
-  const token = codes.get(100);
-  if (!token) return [];
-  const data = await signedBytes("/api/match/live", params, token);
-  return parseMatches(data);
-}
-
 // ---------------------------------------------------------------------------
 // Test-only helpers
 // ---------------------------------------------------------------------------
-
-/** @internal — exposed only for unit tests */
-export function __parseMatchesForTest(data: Buffer): ProviderMatch[] {
-  return parseMatches(data);
-}
 
 /** @internal — exposed only for unit tests */
 export function __rot47ForTest(s: string): string {

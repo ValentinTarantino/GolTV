@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
+import RetryImage from "@/components/ui/RetryImage";
 import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
 import type { Match } from "@/lib/types";
 import { translateLeague } from "@/i18n/dictionaries";
@@ -204,7 +204,7 @@ export default function MatchList({ matches, isAdmin = false, onReorder }: Match
               <div className={`relative isolate h-10 w-10 flex-shrink-0 border-2 border-black shadow-brutal-sm sm:h-12 sm:w-12 ${group.leagueId === 9901 || group.leagueId === 268 || group.leagueId === 57 || group.leagueId === 1034 ? "bg-black" : "bg-white"}`}>
               {group.leagueLogo ? (
                 <div className="absolute inset-1">
-                  <Image
+                  <RetryImage
                     src={group.leagueLogo}
                     alt={group.leagueName}
                     fill

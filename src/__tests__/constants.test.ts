@@ -9,7 +9,6 @@ import {
   shortenTeamName,
 } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
-import { isAllowedStreamLeague } from "@/lib/streaming";
 
 describe("SUPPORTED_LEAGUES", () => {
   it("contains Liga Profesional Argentina", () => {
@@ -102,30 +101,6 @@ describe("getBroadcastChannels", () => {
 
   it("returns default channels for unknown league", () => {
     expect(getBroadcastChannels(999999)).toEqual(["TyC Sports", "ESPN", "Fox Sports"]);
-  });
-});
-
-describe("isAllowedStreamLeague", () => {
-  it("allows focus leagues", () => {
-    expect(isAllowedStreamLeague("Copa Libertadores")).toBe(true);
-    expect(isAllowedStreamLeague("English Premier League")).toBe(true);
-    expect(isAllowedStreamLeague("Liga AUF Uruguaya")).toBe(true);
-    expect(isAllowedStreamLeague("MLS")).toBe(true);
-    expect(isAllowedStreamLeague("USA - MLS 2026")).toBe(true);
-    expect(isAllowedStreamLeague("Major League Soccer")).toBe(true);
-    expect(isAllowedStreamLeague("MLS 2026 - Regular Season")).toBe(true);
-  });
-
-  it("rejects unrelated live noise", () => {
-    expect(isAllowedStreamLeague("OCA Asian Games")).toBe(false);
-    expect(isAllowedStreamLeague("RUS D3B")).toBe(false);
-    expect(isAllowedStreamLeague("Mexican Liga MX")).toBe(false);
-    expect(isAllowedStreamLeague("Belarusian Premier League")).toBe(false);
-    expect(isAllowedStreamLeague("Poland Liga 1")).toBe(false);
-    expect(isAllowedStreamLeague("Azerbaijan Premier League")).toBe(false);
-    expect(isAllowedStreamLeague("Armenian Premier League")).toBe(false);
-    expect(isAllowedStreamLeague("Jordan Premier League")).toBe(false);
-    expect(isAllowedStreamLeague("Kazakhstan Premier League")).toBe(false);
   });
 });
 

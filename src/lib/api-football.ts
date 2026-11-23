@@ -100,10 +100,6 @@ const MATCH_BY_ID_TTL_MS = 2 * 60 * 1000;
 const matchByIdCache = new Map<number, { match: Match; expiresAt: number }>();
 const matchByIdInflight = new Map<number, Promise<Match | undefined>>();
 
-const DATE_MATCHES_TTL_MS = 90 * 1000;
-const dateMatchesCache = new Map<string, { matches: Match[]; expiresAt: number }>();
-const dateMatchesInflight = new Map<string, Promise<Match[]>>();
-
 /* ─── API-Football Response Types ─── */
 
 interface APIFixture {
@@ -277,74 +273,6 @@ function anyKeyAvailable(): boolean {
 }
 
 /* ─── Public API Functions ─── */
-
-export async function fetchMatchesByDate(date: string): Promise<Match[]> {
-  const now = Date.now();
-  const cached = dateMatchesCache.get(date);
-  if (cached && now < cached.expiresAt) {
-    return cached.matches;
-  }
-
-  const inflight = dateMatchesInflight.get(date);
-  if (inflight) return inflight;
-
-  if (!anyKeyAvailable()) {
-    console.warn(
-      `[api-football] All keys exhausted — serving stale/empty for date=${date}`
-    );
-    return cached?.matches ?? [];
-  }
-
-  const promise = (async () => {
-    try {
-      const url = new URL("/fixtures", API_FOOTBALL_BASE);
-      url.searchParams.set("date", date);
-      url.searchParams.set("timezone", "America/Argentina/Buenos_Aires");
-
-      const res = await fetchWithKeyRotation(url.toString(), {
-        next: { revalidate: 1800 },
-      });
-
-      const data: APIResponse<APIFixture[]> = await res.json();
-
-      if (data.errors && Object.keys(data.errors).length > 0) {
-        console.warn(`API-Football errors:`, data.errors);
-        return cached?.matches ?? [];
-      }
-
-      if (!data.response || data.response.length === 0) {
-        dateMatchesCache.set(date, { matches: [], expiresAt: Date.now() + DATE_MATCHES_TTL_MS });
-        return [];
-      }
-
-      const supportedIds = new Set(SUPPORTED_LEAGUES.map((l) => l.id));
-      const filtered = data.response.filter((f) => supportedIds.has(f.league.id));
-
-      const allMatches = filtered.map(fixtureToMatch);
-
-      allMatches.sort((a, b) => {
-        const aSupported = supportedIds.has(a.league.id) ? 1 : 0;
-        const bSupported = supportedIds.has(b.league.id) ? 1 : 0;
-        if (aSupported !== bSupported) return bSupported - aSupported;
-        return a.league.name.localeCompare(b.league.name);
-      });
-
-      dateMatchesCache.set(date, {
-        matches: allMatches,
-        expiresAt: Date.now() + DATE_MATCHES_TTL_MS,
-      });
-      return allMatches;
-    } catch (error) {
-      console.error("Failed to fetch from API-Football:", error);
-      return cached?.matches ?? [];
-    } finally {
-      dateMatchesInflight.delete(date);
-    }
-  })();
-
-  dateMatchesInflight.set(date, promise);
-  return promise;
-}
 
 export function fetchLeagues() {
   return SUPPORTED_LEAGUES;

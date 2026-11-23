@@ -395,7 +395,4 @@ export async function findEventStreams(
   return channels;
 }
 
-export function getEventUsage() {
-  const today = new Date().toISOString().slice(0, 10);
-  return { used: 0, limit: 9999, date: today };
-}
+

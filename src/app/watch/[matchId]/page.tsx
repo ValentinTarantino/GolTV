@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
+import RetryImage from "@/components/ui/RetryImage";
 import Link from "next/link";
 import { ArrowLeft, Tv } from "lucide-react";
 import VideoPlayer from "@/components/player/VideoPlayer";
@@ -148,7 +148,7 @@ function WatchPageInner({
               <div className={`relative isolate h-10 w-10 flex-shrink-0 border-2 border-black shadow-brutal-sm sm:h-12 sm:w-12 md:h-14 md:w-14 ${match.league.id === 9901 || match.league.id === 268 || match.league.id === 57 || match.league.id === 1034 ? "bg-black" : "bg-white"}`}>
               {match.league.logo ? (
                 <div className="absolute inset-1">
-                  <Image
+                  <RetryImage
                     src={match.league.logo}
                     alt={match.league.name}
                     fill
