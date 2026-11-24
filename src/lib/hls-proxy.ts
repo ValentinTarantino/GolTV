@@ -6,7 +6,7 @@
  * rewrites playlist and URI references so segments also pass through it.
  */
 
-import { sealLpfUrl } from "./sealed-url";
+import { sealLpfSegmentUrl, sealLpfUrl } from "./sealed-url";
 
 /** Only these hosts (and their subdomains) may be relayed — not an open proxy. */
 const ALLOWED_HOST_SUFFIXES = [".ftlly.com", ".futlivehd.com", ".ebaclofen.org"];
@@ -89,7 +89,23 @@ export function rewritePlaylistToAbsolute(body: string, upstream: URL): string {
 function toRelay(value: string, upstream: URL): string {
   if (/^(data|blob):/i.test(value)) return value;
   try {
-    return toHlsProxyUrl(new URL(value, upstream).toString());
+    const absolute = new URL(value, upstream).toString();
+    // Nested playlists (variant/audio .m3u8) stay on the no-store relay;
+    // media segments, keys and init maps go through the CDN-cacheable
+    // segment relay whose token is deterministic per time bucket.
+    const isPlaylist = /\.m3u8(?:[?#]|$)/i.test(absolute);
+    if (isPlaylist) {
+      try {
+        return `/api/hls?t=${sealLpfUrl(absolute)}`;
+      } catch {
+        return `/api/hls?u=${encodeURIComponent(absolute)}`;
+      }
+    }
+    try {
+      return `/api/hls/seg?t=${sealLpfSegmentUrl(absolute)}`;
+    } catch {
+      return `/api/hls/seg?u=${encodeURIComponent(absolute)}`;
+    }
   } catch {
     return value;
   }

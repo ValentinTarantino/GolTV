@@ -1,4 +1,10 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+} from "node:crypto";
 
 const TOKEN_AAD = Buffer.from("goltv-lpf-relay");
 const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
@@ -41,6 +47,37 @@ export function sealLpfUrl(url: string): string {
   const cipher = createCipheriv("aes-256-gcm", tokenKey(), iv);
   cipher.setAAD(TOKEN_AAD);
   const payload = Buffer.from(JSON.stringify({ u: url, e: Date.now() + TOKEN_TTL_MS }), "utf8");
+  const cipherText = Buffer.concat([cipher.update(payload), cipher.final()]);
+  return Buffer.concat([iv, cipherText, cipher.getAuthTag()]).toString("base64url");
+}
+
+/**
+ * Segment tokens must be identical for every viewer of the same match so a
+ * CDN edge can deduplicate the media requests. The IV is derived from the
+ * URL plus a coarse time bucket, and the expiry is bucket-aligned, so the
+ * same upstream URL seals to the same token for the whole bucket window.
+ * GCM nonce reuse is safe here because a given IV only ever encrypts one
+ * fixed plaintext (same URL, same bucket expiry).
+ */
+const SEGMENT_BUCKET_MS = 15 * 60 * 1000;
+
+export function sealLpfSegmentUrl(url: string): string {
+  const bucket = Math.floor(Date.now() / SEGMENT_BUCKET_MS);
+  const bucketStart = bucket * SEGMENT_BUCKET_MS;
+  const iv = createHmac("sha256", tokenKey())
+    .update(`goltv-seg:${bucket}`)
+    .update(url)
+    .digest()
+    .subarray(0, 12);
+  const cipher = createCipheriv("aes-256-gcm", tokenKey(), iv);
+  cipher.setAAD(TOKEN_AAD);
+  const payload = Buffer.from(
+    JSON.stringify({
+      u: url,
+      e: bucketStart + SEGMENT_BUCKET_MS + TOKEN_TTL_MS,
+    }),
+    "utf8"
+  );
   const cipherText = Buffer.concat([cipher.update(payload), cipher.final()]);
   return Buffer.concat([iv, cipherText, cipher.getAuthTag()]).toString("base64url");
 }

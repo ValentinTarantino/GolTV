@@ -7,8 +7,9 @@ import {
   rewriteHlsPlaylist,
   toHlsProxyUrl,
 } from "@/lib/hls-proxy";
-import { openLpfUrl, sealLpfUrl } from "@/lib/sealed-url";
+import { openLpfUrl, sealLpfSegmentUrl, sealLpfUrl } from "@/lib/sealed-url";
 import { GET } from "@/app/api/hls/route";
+import { GET as GET_SEG } from "@/app/api/hls/seg/route";
 
 const PLAYLIST = [
   "#EXTM3U",
@@ -39,7 +40,7 @@ describe("isAllowedStreamUrl", () => {
   });
 });
 
-const RELAY_TOKEN_RE = /\/api\/hls\?t=([A-Za-z0-9_-]+)/;
+const RELAY_TOKEN_RE = /\/api\/hls(?:\/seg)?\?t=([A-Za-z0-9_-]+)/;
 
 /** Decodes the upstream URL sealed inside a rewritten `/api/hls?t=` reference. */
 function relayTarget(reference: string): string | null {
@@ -55,7 +56,7 @@ describe("rewriteHlsPlaylist", () => {
 
     expect(lines[0]).toBe("#EXTM3U");
     expect(lines[1]).toMatch(
-      /^#EXT-X-KEY:METHOD=AES-128,URI="\/api\/hls\?t=[A-Za-z0-9_-]+",IV=0x9c7db8778570d05c3f9ae7afbafa6423$/
+      /^#EXT-X-KEY:METHOD=AES-128,URI="\/api\/hls\/seg\?t=[A-Za-z0-9_-]+",IV=0x9c7db8778570d05c3f9ae7afbafa6423$/
     );
     const keyUri = lines[1].match(/URI="([^"]+)"/)?.[1] ?? "";
     expect(relayTarget(keyUri)).toBe("https://4.ftlly.com/mls1es/key.bin");
@@ -74,6 +75,34 @@ describe("rewriteHlsPlaylist", () => {
     expect(proxied).toMatch(/^\/api\/hls\?t=[A-Za-z0-9_-]+$/);
     expect(proxied).not.toContain("a.b");
     expect(relayTarget(proxied)).toBe("https://a.b/c?d=e&f=g");
+  });
+
+  it("routes nested .m3u8 URIs through the no-store playlist relay", () => {
+    const upstream = new URL("https://4.ftlly.com/master.m3u8?token=abc");
+    const master = [
+      "#EXTM3U",
+      "#EXT-X-STREAM-INF:BANDWIDTH=1000000",
+      "variant/720p.m3u8?token=v1",
+      "",
+    ].join("\n");
+    const out = rewriteHlsPlaylist(master, upstream);
+    expect(out).toContain("/api/hls?t=");
+    expect(out).not.toContain("/api/hls/seg");
+    expect(out).not.toContain("ftlly.com");
+  });
+});
+
+describe("sealLpfSegmentUrl", () => {
+  it("produces identical tokens for the same URL within a bucket", () => {
+    const url = "https://4.ftlly.com/mls1es/seg.ts?token=s";
+    expect(sealLpfSegmentUrl(url)).toBe(sealLpfSegmentUrl(url));
+    expect(openLpfUrl(sealLpfSegmentUrl(url))).toBe(url);
+  });
+
+  it("produces different tokens for different URLs", () => {
+    const a = sealLpfSegmentUrl("https://4.ftlly.com/a.ts");
+    const b = sealLpfSegmentUrl("https://4.ftlly.com/b.ts");
+    expect(a).not.toBe(b);
   });
 });
 
@@ -123,12 +152,12 @@ describe("/api/hls", () => {
     expect(res.headers.get("content-type")).toBe("application/vnd.apple.mpegurl");
     expect(res.headers.get("cache-control")).toContain("no-store");
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
-    expect(body).toContain("/api/hls?t=");
+    expect(body).toContain("/api/hls/seg?t=");
     // The rewritten playlist seals every segment: no upstream host leaks.
     expect(body).not.toContain("ftlly.com");
     const segTargets = body
       .split("\n")
-      .filter((line) => line.startsWith("/api/hls?t="))
+      .filter((line) => line.startsWith("/api/hls/seg?t="))
       .map(relayTarget);
     expect(segTargets).toContain(
       "https://4.ftlly.com/mls1es/2026/10/29/00/29/40-05405.ts?token=seg1"
@@ -171,5 +200,40 @@ describe("/api/hls", () => {
 
     const res = await GET(makeRequest(proxyUrl(target)));
     expect(res.status).toBe(502);
+  });
+});
+
+describe("/api/hls/seg", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    if (originalFetch) globalThis.fetch = originalFetch;
+    else delete (globalThis as { fetch?: typeof fetch }).fetch;
+  });
+
+  it("serves segments with CDN-cacheable headers", async () => {
+    const target = "https://4.ftlly.com/mls1es/seg.ts?token=s";
+    globalThis.fetch = jest.fn().mockResolvedValue(
+      new Response("TSBYTES", {
+        status: 200,
+        headers: { "Content-Type": "video/MP2T", "Content-Length": "7" },
+      })
+    ) as unknown as typeof fetch;
+
+    const url = `http://localhost/api/hls/seg?t=${sealLpfSegmentUrl(target)}`;
+    const res = await GET_SEG(makeRequest(url));
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("TSBYTES");
+    expect(res.headers.get("cache-control")).toContain("immutable");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  });
+
+  it("rejects playlists and non-allowlisted hosts", async () => {
+    const playlist = `http://localhost/api/hls/seg?t=${sealLpfSegmentUrl(
+      "https://evil.example.com/mono.m3u8"
+    )}`;
+    const res = await GET_SEG(makeRequest(playlist));
+    expect(res.status).toBe(403);
   });
 });
