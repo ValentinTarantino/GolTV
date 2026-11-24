@@ -58,8 +58,11 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
   const url = `${SEG_POPULATE_URL}?kind=${kind}&t=${encodeURIComponent(token)}`;
   const job = () =>
     fetch(url, { method: "GET", cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) console.warn(`[r2-segments] populate ${kind} -> ${res.status}`);
+      .then(async (res) => {
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          console.warn(`[r2-segments] populate ${kind} -> ${res.status} ${detail}`.trim());
+        }
       })
       .catch((error) => {
         console.warn(`[r2-segments] populate ${kind} failed:`, error);
