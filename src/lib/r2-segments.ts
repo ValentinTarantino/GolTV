@@ -14,10 +14,12 @@
 import { createHash } from "node:crypto";
 import { after } from "next/server";
 
-const MEDIA_CDN_BASE = (process.env.MEDIA_CDN_BASE ?? "").replace(/\/+$/, "");
+const MEDIA_CDN_BASE = (process.env.MEDIA_CDN_BASE ?? "").trim().replace(/\/+$/, "");
 const SEG_POPULATE_URL = (
   process.env.SEG_POPULATE_URL || "https://goltv.stream/api/populate"
-).replace(/\/+$/, "");
+)
+  .trim()
+  .replace(/\/+$/, "");
 
 /** True when R2 segment delivery is enabled for this deployment. */
 export function r2SegmentsEnabled(): boolean {
@@ -55,7 +57,7 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
 
   const url = `${SEG_POPULATE_URL}?kind=${kind}&t=${encodeURIComponent(token)}`;
   const job = () =>
-    fetch(url, { method: "GET" })
+    fetch(url, { method: "GET", cache: "no-store" })
       .then((res) => {
         if (!res.ok) console.warn(`[r2-segments] populate ${kind} -> ${res.status}`);
       })
