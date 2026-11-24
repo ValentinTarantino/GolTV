@@ -16,7 +16,10 @@ import { after } from "next/server";
 
 const MEDIA_CDN_BASE = (process.env.MEDIA_CDN_BASE ?? "").trim().replace(/\/+$/, "");
 const SEG_POPULATE_URL = (
-  process.env.SEG_POPULATE_URL || "https://goltv.stream/api/populate"
+  // workers.dev bypasses the zone's bot challenge, which blocks Render's
+  // server-side fetches to goltv.stream/api/populate.
+  process.env.SEG_POPULATE_URL ||
+  "https://goltv-seg-relay.zaheil444.workers.dev/api/populate"
 )
   .trim()
   .replace(/\/+$/, "");
