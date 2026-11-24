@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 
 const MEDIA_CDN_BASE = (process.env.MEDIA_CDN_BASE ?? "").replace(/\/+$/, "");
 const SEG_POPULATE_URL = (
-  process.env.SEG_POPULATE_URL ?? "https://goltv.stream/api/populate"
+  process.env.SEG_POPULATE_URL || "https://goltv.stream/api/populate"
 ).replace(/\/+$/, "");
 
 /** True when R2 segment delivery is enabled for this deployment. */
