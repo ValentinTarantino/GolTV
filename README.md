@@ -1,4 +1,4 @@
-# GolTV Libre
+﻿# GolTV Libre
 
 [Español](#espanol) | [English](#english)
 
@@ -8,7 +8,7 @@
 
 ### Descripcion
 
-GolTV Libre es una plataforma web gratuita para consultar partidos de futbol, abrir sus señales disponibles y participar en el chat de cada encuentro. Incluye secciones de partidos, ligas, Canales y LPF Play, con interfaz adaptable a celulares y escritorio, tema neo-brutalista e idiomas español e inglés.
+GolTV Libre es una plataforma web gratuita para consultar partidos de futbol, boxeo, tenis y NBA, abrir sus señales disponibles y participar en el chat de cada encuentro. Incluye secciones de partidos, ligas, Canales, LPF Play, Boxeo, Tenis y NBA, con interfaz adaptable a celulares y escritorio, tema neo-brutalista e idiomas español e inglés.
 
 ### Funcionalidades
 
@@ -19,6 +19,7 @@ GolTV Libre es una plataforma web gratuita para consultar partidos de futbol, ab
 - Reproductor HLS con selección automática o manual de calidad, recarga y pantalla completa.
 - Canales deportivos en HLS o MPEG-DASH, selector de calidad DASH, reproducción a pantalla completa y controles de señal.
 - LPF Play con partidos seleccionados, escudos, horarios, estados y señales disponibles.
+- Secciones de Boxeo, Tenis y NBA con agenda propia, escudos de equipos, horarios por zona horaria y reproductor HLS.
 - Chat por partido con colores personalizables, respuestas a mensajes, historial persistente y moderación.
 - Contador de presencia del sitio y de espectadores, con panel de administración para moderar el chat y gestionar bloqueos.
 - Diseño de pantalla completa para el reproductor y el chat, optimizado para escritorio y dispositivos móviles.
@@ -45,6 +46,9 @@ GolTV Libre es una plataforma web gratuita para consultar partidos de futbol, ab
 | `/watch/[matchId]` | Partido, reproductores y chat |
 | `/canales` | Canales deportivos en vivo |
 | `/lpf` | Partidos y señales de LPF Play |
+| `/boxeo` | Agenda y señales de boxeo y MMA |
+| `/tennis` | Agenda y señales de tenis |
+| `/nba` | Agenda y señales de NBA y baloncesto |
 
 ### Desarrollo
 
@@ -106,7 +110,7 @@ GitHub Actions ejecuta las verificaciones del proyecto en los flujos configurado
 
 ### Description
 
-GolTV Libre is a free web platform for checking football fixtures, opening available streams, and chatting about each match. It includes Matches, Leagues, Channels, and LPF Play sections, with a responsive neo-brutalist interface in Spanish and English.
+GolTV Libre is a free web platform for checking football, boxing, tennis, and NBA fixtures, opening available streams, and chatting about each match. It includes Matches, Leagues, Channels, LPF Play, Boxing, Tennis, and NBA sections, with a responsive neo-brutalist interface in Spanish and English.
 
 ### Features
 
@@ -117,6 +121,7 @@ GolTV Libre is a free web platform for checking football fixtures, opening avail
 - HLS player with automatic or manual quality selection, reload, and fullscreen.
 - Live sports channels over HLS or MPEG-DASH, DASH quality selection, fullscreen, and channel controls.
 - LPF Play fixtures with team crests, kickoff times, statuses, and available streams.
+- Boxing, Tennis, and NBA sections with their own fixtures, team crests, time-zone-aware schedules, and HLS player.
 - Per-match chat with customizable colors, replies, persistent history, and moderation.
 - Site presence and match viewer counters, with an admin panel for chat moderation and bans.
 - Fullscreen layouts for the player and chat, optimized for desktop and mobile.
@@ -143,6 +148,9 @@ GolTV Libre is a free web platform for checking football fixtures, opening avail
 | `/watch/[matchId]` | Match, players, and chat |
 | `/canales` | Live sports channels |
 | `/lpf` | LPF Play matches and streams |
+| `/boxeo` | Boxing and MMA fixtures and streams |
+| `/tennis` | Tennis fixtures and streams |
+| `/nba` | NBA and basketball fixtures and streams |
 | `/sixseven` | Private admin panel |
 
 ### Development

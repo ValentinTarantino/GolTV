@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     template: "%s | GolTV",
   },
   description:
-    "Mirá fútbol en vivo gratis en GolTV. Partidos de hoy, resultados en tiempo real, tablas de posiciones, ligas de Argentina, Brasil, Uruguay, Chile, Colombia, España, Europa y toda Latinoamérica. Sin registro, sin pagos.",
+    "Mirá deportes en vivo gratis en GolTV. Fútbol, boxeo, tenis y NBA en vivo, con resultados, tablas de posiciones y ligas de Argentina, Brasil, Uruguay, Chile, Colombia, España, Europa y toda Latinoamérica. Sin registro, sin pagos.",
   keywords: [
     "fútbol en vivo",
     "partidos de hoy",
@@ -53,6 +53,11 @@ export const metadata: Metadata = {
     "streaming fútbol gratis",
     "fútbol hoy",
     "partidos en vivo",
+    "boxeo en vivo",
+    "mma en vivo",
+    "tenis en vivo",
+    "nba en vivo",
+    "baloncesto en vivo",
   ],
   alternates: {
     canonical: "/",
@@ -69,8 +74,8 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "GolTV - Fútbol en vivo gratis",
-    description: "Mirá partidos de fútbol en vivo gratis. Liga Argentina, Brasileirão, Copa Libertadores y toda Latinoamérica.",
+    title: "GolTV - Deportes en vivo gratis",
+    description: "Mirá fútbol, boxeo, tenis y NBA en vivo gratis. Liga Argentina, Brasileirão, Copa Libertadores y toda Latinoamérica.",
     type: "website",
     locale: "es_AR",
     siteName: "GolTV",
@@ -85,8 +90,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "GolTV - Fútbol en vivo gratis",
-    description: "Mirá partidos de fútbol en vivo gratis. Liga Argentina, Brasileirão, Copa Libertadores y toda Latinoamérica.",
+    title: "GolTV - Deportes en vivo gratis",
+    description: "Mirá fútbol, boxeo, tenis y NBA en vivo gratis. Liga Argentina, Brasileirão, Copa Libertadores y toda Latinoamérica.",
     images: ["/api/og?home=Boca+Juniors&away=River+Plate&league=Liga+Profesional"],
   },
   icons: {
@@ -110,7 +115,7 @@ const jsonLd = {
       "@id": `${BASE_URL}/#website`,
       url: BASE_URL,
       name: "GolTV",
-      description: "Fútbol en vivo gratis - partidos de hoy, resultados y tablas de posiciones",
+      description: "Deportes en vivo gratis - fútbol, boxeo, tenis y NBA, con resultados y tablas de posiciones",
       inLanguage: "es",
       publisher: { "@id": `${BASE_URL}/#organization` },
     },

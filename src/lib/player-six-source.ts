@@ -13,8 +13,9 @@ const DIGIT = process.env.PLAYER_SIX_DIGIT || "";
 
 // The feed embeds crest URLs on a logo CDN whose domain rotates and dies;
 // the live host is the one published in the site's own page config. Any
-// `/aelogo/` URL on a stale host is rewritten to it.
-const LOGO_CDN = process.env.PLAYER_SIX_LOGO_CDN || "";
+// `/aelogo/` URL on a stale host is rewritten to it. The env var overrides
+// the built-in default when the provider rotates the domain again.
+const LOGO_CDN = process.env.PLAYER_SIX_LOGO_CDN || "logos1.tcpwe138stya.ru";
 function providerLogoUrl(raw: string): string {
   if (!raw || !LOGO_CDN || !raw.includes("/aelogo/")) return raw;
   try {
