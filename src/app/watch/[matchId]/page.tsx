@@ -11,6 +11,7 @@ import ChannelSelector from "@/components/player/ChannelSelector";
 import ChatBox from "@/components/chat/ChatBox";
 import LiveBadge from "@/components/matches/LiveBadge";
 import ViewerBadge from "@/components/matches/ViewerBadge";
+import { withMatchParam } from "@/lib/viewer-id";
 import { PlayerSkeleton } from "@/components/ui/Skeleton";
 import NetworkNotice from "@/components/ui/NetworkNotice";
 import KickoffCountdown from "@/components/ui/KickoffCountdown";
@@ -229,7 +230,7 @@ function WatchPageInner({
             <div className="watch-theater-playback">
             {isLoading ? <PlayerSkeleton /> : activeChannel ? (
               <VideoPlayer
-                url={activeChannel.url}
+                url={withMatchParam(activeChannel.url, matchId)}
                 title={`${match.homeTeam.name} vs ${match.awayTeam.name}`}
                 headers={activeChannel.headers}
                 kind={activeChannel.kind}

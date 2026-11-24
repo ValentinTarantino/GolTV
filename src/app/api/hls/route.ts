@@ -6,6 +6,8 @@ import {
 } from "@/lib/hls-relay";
 import { isAllowedStreamUrl } from "@/lib/hls-proxy";
 import { openLpfUrl } from "@/lib/sealed-url";
+import { touchRequestPresence } from "@/lib/presence";
+import { BANNED_HEADER } from "@/lib/viewer-id";
 
 function getClientIP(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -34,10 +36,16 @@ function getClientIP(request: Request): string {
 export async function GET(request: Request): Promise<Response> {
   const clientIP = getClientIP(request);
   if (await isIPBanned(clientIP)) {
-    return new Response("Access denied", { status: 403 });
+    return new Response("Access denied", {
+      status: 403,
+      headers: { [BANNED_HEADER]: "1" },
+    });
   }
 
   const params = new URL(request.url).searchParams;
+  // Playlist reloads carry ?m=<matchId> (see withMatchParam) — they double
+  // as the per-match presence heartbeat, even with the tab hidden.
+  touchRequestPresence(request, params.get("m"));
   const rawEmbed = params.get("e");
   if (rawEmbed) return relayEmbedPage(rawEmbed);
 

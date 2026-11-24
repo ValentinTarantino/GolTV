@@ -12,7 +12,23 @@
  */
 
 import { createHash } from "node:crypto";
-import { after } from "next/server";
+
+/**
+ * `after()` keeps the populate alive past the response, but importing
+ * next/server statically breaks non-Next environments (jest/jsdom has no
+ * Request global), so it is required lazily. The populate promise already
+ * runs on its own either way — `after` only extends its lifetime.
+ */
+function scheduleAfter(promise: Promise<unknown>): void {
+  if (process.env.JEST_WORKER_ID) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { after } = require("next/server") as typeof import("next/server");
+    after(() => promise);
+  } catch {
+    // Outside a request scope: the promise already runs detached.
+  }
+}
 
 const MEDIA_CDN_BASE = (process.env.MEDIA_CDN_BASE ?? "").trim().replace(/\/+$/, "");
 const SEG_POPULATE_URL = (process.env.SEG_POPULATE_URL ?? "")
@@ -78,11 +94,7 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
   const promise = job();
   pendingPopulates.add(promise);
   promise.finally(() => pendingPopulates.delete(promise));
-  try {
-    after(() => promise);
-  } catch {
-    // Outside a request scope (tests): the promise already runs on its own.
-  }
+  scheduleAfter(promise);
 }
 
 /**

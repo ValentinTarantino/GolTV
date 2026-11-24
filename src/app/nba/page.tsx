@@ -7,6 +7,7 @@ import { useTimeZone } from "@/contexts/TimeZoneContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
+import { withMatchParam } from "@/lib/viewer-id";
 
 interface NbaMatch {
   id: number;
@@ -261,7 +262,7 @@ export default function NbaPage() {
 
               {streamState === "ready" && activeSource && activeMatch ? (
                 <VideoPlayer
-                  url={activeSource.src}
+                  url={withMatchParam(activeSource.src, String(activeMatch.id))}
                   title={`${activeMatch.home} vs ${activeMatch.away}`}
                   kind={activeSource.kind}
                   preferFastStart

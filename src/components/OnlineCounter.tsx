@@ -13,8 +13,8 @@ const POLL_MS = 10_000;
 export default function OnlineCounter() {
   const { t } = useLanguage();
   const [count, setCount] = useState<number | null>(null);
-  // Site-wide presence is only shown to the admin; regular visitors still
-  // heartbeat via SitePresence so the count stays accurate.
+  // Site-wide presence is only shown to the admin; regular visitors are
+  // counted server-side from their ambient API traffic.
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -30,7 +30,11 @@ export default function OnlineCounter() {
     };
   }, []);
 
+  // The counter is admin-only, so only admins pay for the poll; everyone
+  // else's presence is registered server-side from ambient traffic.
   useEffect(() => {
+    if (!isAdmin) return;
+
     let cancelled = false;
 
     const poll = async () => {
@@ -50,7 +54,7 @@ export default function OnlineCounter() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [isAdmin]);
 
   if (!isAdmin || count === null) return null;
 

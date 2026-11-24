@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
+import { withMatchParam } from "@/lib/viewer-id";
 
 interface CombatMatch {
   id: number;
@@ -213,7 +214,7 @@ export default function BoxeoPage() {
 
               {streamState === "ready" && activeSource && activeMatch ? (
                 <VideoPlayer
-                  url={activeSource.src}
+                  url={withMatchParam(activeSource.src, String(activeMatch.id))}
                   title={matchLabel(activeMatch)}
                   kind={activeSource.kind}
                   preferFastStart

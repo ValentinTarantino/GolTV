@@ -3,6 +3,8 @@ import { getChatMessages, addChatMessage, isIPBanned, getDeletedChatMessageIds }
 import { isMongoConfigured } from "@/lib/mongo";
 import { validateQuery, validateBody, createErrorResponse, chatPostSchema } from "@/lib/validators";
 import { isValidAdminSession } from "@/lib/admin-session";
+import { touchRequestPresence } from "@/lib/presence";
+import { BANNED_HEADER } from "@/lib/viewer-id";
 
 function getClientIP(request: Request): string {
   // Try common headers for client IP
@@ -27,13 +29,17 @@ const chatGetSchema = z.object({
 export async function GET(request: Request) {
   const clientIP = getClientIP(request);
   if (await isIPBanned(clientIP)) {
-    return createErrorResponse("Access denied", 403);
+    return Response.json(
+      { error: "Access denied" },
+      { status: 403, headers: { [BANNED_HEADER]: "1" } }
+    );
   }
 
   const validation = await validateQuery(request, chatGetSchema);
   if ("error" in validation) return validation.error;
 
   const { matchId, offset } = validation.data;
+  touchRequestPresence(request, matchId);
   const offsetNum = offset ? parseInt(offset, 10) : 0;
   try {
     const safeOffset = isNaN(offsetNum) ? 0 : offsetNum;
@@ -52,7 +58,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const clientIP = getClientIP(request);
   if (await isIPBanned(clientIP)) {
-    return createErrorResponse("Access denied", 403);
+    return Response.json(
+      { error: "Access denied" },
+      { status: 403, headers: { [BANNED_HEADER]: "1" } }
+    );
   }
 
   const validation = await validateBody(request, chatPostSchema);

@@ -1,40 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-// Keep in sync with VIEWER_HEARTBEAT_MS in src/lib/viewers.ts
-// (duplicated here so the client bundle never pulls in the mongodb driver)
-const HEARTBEAT_MS = 20_000;
-
-const VIEWER_ID_KEY = "goltv-viewer-id";
-
-function getViewerId(): string {
-  let id = localStorage.getItem(VIEWER_ID_KEY);
-  if (!id) {
-    id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(VIEWER_ID_KEY, id);
-  }
-  return id;
-}
+const COUNT_POLL_MS = 15_000;
 
 interface ViewerBadgeProps {
   matchId: string;
-  /** Only track while true (e.g. the match is viewable/live). */
+  /** Only poll while true (e.g. the match is viewable/live). */
   active?: boolean;
 }
 
+/**
+ * Admin-only viewer counter. Viewers are registered server-side from ambient
+ * traffic (chat polls and playlist reloads carrying the viewer cookie), so
+ * this component only reads the count — and only for admins.
+ */
 export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps) {
   const { t } = useLanguage();
   const [count, setCount] = useState<number | null>(null);
-  // Viewer counts are admin-only, but the heartbeat keeps running for every
-  // visitor or the number the admin sees would miss regular viewers.
   const [isAdmin, setIsAdmin] = useState(false);
-  const viewerIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,64 +36,31 @@ export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps
   }, []);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !isAdmin) return;
 
     let cancelled = false;
-    let left = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const heartbeat = async () => {
-      if (cancelled || left) return;
+    const poll = async () => {
       try {
-        if (!viewerIdRef.current) viewerIdRef.current = getViewerId();
-        const res = await fetch("/api/viewers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ matchId, viewerId: viewerIdRef.current }),
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && typeof data.count === "number") setCount(data.count);
+        const res = await fetch(`/api/viewers?matchId=${matchId}`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && typeof data.count === "number") setCount(data.count);
+        }
       } catch {
         // transient network error — keep the last known count
       } finally {
-        if (!cancelled && !left) timer = setTimeout(heartbeat, HEARTBEAT_MS);
+        if (!cancelled) timer = setTimeout(poll, COUNT_POLL_MS);
       }
     };
 
-    const sendLeave = () => {
-      if (left || !viewerIdRef.current) return;
-      left = true;
-      cancelled = true;
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      // keepalive lets the request survive a tab close / page unload
-      void fetch("/api/viewers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          matchId,
-          viewerId: viewerIdRef.current,
-          action: "leave",
-        }),
-        keepalive: true,
-      }).catch(() => {
-        // the 45s active window will expire this viewer anyway
-      });
-    };
-
-    const onPageHide = () => sendLeave();
-
-    heartbeat();
-    window.addEventListener("pagehide", onPageHide);
-
+    void poll();
     return () => {
-      window.removeEventListener("pagehide", onPageHide);
-      sendLeave();
+      cancelled = true;
+      if (timer) clearTimeout(timer);
     };
-  }, [matchId, active]);
+  }, [matchId, active, isAdmin]);
 
   if (!active || !isAdmin || count === null) return null;
 

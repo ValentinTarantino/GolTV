@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
+import { withMatchParam } from "@/lib/viewer-id";
 
 interface LpfMatch {
   id: string;
@@ -260,7 +261,7 @@ export default function LpfPlayPage() {
 
             {streamState === "ready" && activeSource && activeMatch ? (
               <VideoPlayer
-                url={activeSource.src}
+                url={withMatchParam(activeSource.src, chatMatchId(activeMatch.id))}
                 title={`${activeMatch.home} vs ${activeMatch.away}`}
                 kind={activeSource.kind}
                 preferFastStart

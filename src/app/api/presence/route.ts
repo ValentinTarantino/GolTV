@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { heartbeatViewer, getViewerCount, removeViewer } from "@/lib/viewers";
+import { heartbeatViewer, getViewerCount, removeViewer, SITE_PRESENCE_ID } from "@/lib/viewers";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * page they are on, so the admin panel can count how many people are on
  * the site at once (watching a match or not).
  */
-const PRESENCE_ID = "__site__";
+const PRESENCE_ID = SITE_PRESENCE_ID;
 
 const postSchema = z.object({
   viewerId: z.string().min(1).max(128),

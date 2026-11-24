@@ -15,6 +15,8 @@ import { proxyImageUrl, publicChannels } from "@/lib/public-url";
 const getLeagueLogo = (leagueId: number): string => proxyImageUrl(rawLeagueLogo(leagueId));
 import { findAgendaFixtureById } from "@/lib/agenda-fixture";
 import { isIPBanned } from "@/lib/chat";
+import { touchRequestPresence } from "@/lib/presence";
+import { BANNED_HEADER } from "@/lib/viewer-id";
 import type { Match, Channel } from "@/lib/types";
 import { validateParams, validateQuery, createErrorResponse, matchIdParamsSchema, matchIdQuerySchema } from "@/lib/validators";
 
@@ -46,13 +48,17 @@ export async function GET(
 ) {
   const clientIP = getClientIP(request);
   if (await isIPBanned(clientIP)) {
-    return createErrorResponse("Access denied", 403);
+    return Response.json(
+      { error: "Access denied" },
+      { status: 403, headers: { [BANNED_HEADER]: "1" } }
+    );
   }
 
   const paramsValidation = await validateParams(params, matchIdParamsSchema);
   if ("error" in paramsValidation) return paramsValidation.error;
 
   const { matchId } = paramsValidation.data;
+  touchRequestPresence(request, matchId);
   const queryValidation = await validateQuery(request, matchIdQuerySchema);
   if ("error" in queryValidation) return queryValidation.error;
 

@@ -4,6 +4,7 @@ import { incrementCounter } from "@/lib/cache";
 import { getClientIP } from "@/lib/client-ip";
 import { isBlockedNetworkTarget } from "@/lib/url-guard";
 import { openLpfUrl, sealLpfUrl } from "@/lib/sealed-url";
+import { BANNED_HEADER } from "@/lib/viewer-id";
 
 /** Requests allowed per address per minute: the player only needs a handful. */
 const MAX_REQUESTS_PER_MINUTE = 90;
@@ -35,7 +36,10 @@ const isBlockedTarget = isBlockedNetworkTarget;
 async function denyRequest(request: NextRequest): Promise<Response | null> {
   const clientIP = getClientIP(request.headers);
   if (await isIPBanned(clientIP)) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Access denied" },
+      { status: 403, headers: { [BANNED_HEADER]: "1" } }
+    );
   }
   const hits = await incrementCounter(`proxy:${clientIP}`, 60_000);
   if (hits > MAX_REQUESTS_PER_MINUTE) {

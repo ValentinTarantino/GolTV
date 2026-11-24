@@ -1,4 +1,7 @@
 import { settleSegmentPopulates } from "@/lib/r2-segments";
+import { isIPBanned } from "@/lib/chat";
+import { touchRequestPresence } from "@/lib/presence";
+import { BANNED_HEADER } from "@/lib/viewer-id";
 import {
   expandDashTemplate,
   fetchUpstream,
@@ -35,8 +38,27 @@ const MANIFEST_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate",
 };
 
+function getClientIP(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return (
+    request.headers.get("x-real-ip") ??
+    request.headers.get("cf-connecting-ip") ??
+    "unknown"
+  );
+}
+
 export async function GET(request: Request): Promise<Response> {
+  if (await isIPBanned(getClientIP(request))) {
+    return new Response("Access denied", {
+      status: 403,
+      headers: { [BANNED_HEADER]: "1" },
+    });
+  }
+
   const params = new URL(request.url).searchParams;
+  touchRequestPresence(request, params.get("m"));
+
   const token = params.get("t") ?? "";
   const sealed = openCanalToken(token);
   if (!sealed) return new Response("Invalid stream reference", { status: 400 });

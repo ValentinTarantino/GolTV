@@ -16,6 +16,8 @@ import { prefetchImage } from "@/lib/image-cache";
 import { matchTeamsPair } from "@/lib/team-matching";
 import { classifyAgendaLeague, hashSlug } from "@/lib/agenda-fixture";
 import { isIPBanned } from "@/lib/chat";
+import { touchRequestPresence } from "@/lib/presence";
+import { BANNED_HEADER } from "@/lib/viewer-id";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
 
@@ -247,8 +249,12 @@ function inferStatus(dateISO: string): "NS" | "1H" | "FT" {
 export async function GET(request: NextRequest) {
   const clientIP = getClientIP(request);
   if (await isIPBanned(clientIP)) {
-    return Response.json({ error: "Access denied" }, { status: 403 });
+    return Response.json(
+      { error: "Access denied" },
+      { status: 403, headers: { [BANNED_HEADER]: "1" } }
+    );
   }
+  touchRequestPresence(request);
 
   const validation = await validateQuery(request, matchesQuerySchema);
   if ("error" in validation) return validation.error;

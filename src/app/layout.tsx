@@ -4,8 +4,8 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import DesktopBackgroundParallax from "@/components/layout/DesktopBackgroundParallax";
-import BanChecker from "@/components/BanChecker";
-import SitePresence from "@/components/SitePresence";
+import BanGate from "@/components/BanGate";
+import ViewerIdentity from "@/components/ViewerIdentity";
 import OnlineCounter from "@/components/OnlineCounter";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { TimeZoneProvider } from "@/contexts/TimeZoneContext";
@@ -163,8 +163,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col font-sans antialiased">
         <DesktopBackgroundParallax />
-        <BanChecker />
-        <SitePresence />
+        <BanGate />
+        <ViewerIdentity />
         <LanguageProvider>
           <TimeZoneProvider>
             <Header />
