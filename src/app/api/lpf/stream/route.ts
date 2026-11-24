@@ -1,6 +1,7 @@
 import { isLpfStreamHost, openLpfUrl, rewriteLpfPlaylist } from "@/lib/lpf-play";
 import { getHomeRelayUrl } from "@/lib/lpf-home-relay";
 import { settleSegmentPopulates } from "@/lib/r2-segments";
+import { getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 import { isIPBanned } from "@/lib/chat";
 import { touchRequestPresence } from "@/lib/presence";
 import { BANNED_HEADER } from "@/lib/viewer-id";
@@ -79,6 +80,17 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Stream host not allowed", { status: 403 });
   }
 
+  // .m3u8 requests are playlists: repeat viewers of the same channel share
+  // one upstream fetch per 2s window via the shared playlist cache.
+  const maybePlaylist = upstream.pathname.toLowerCase().endsWith(".m3u8");
+  if (maybePlaylist && !request.headers.get("range")) {
+    const cached = getSharedPlaylist(upstream.href);
+    if (cached !== null) {
+      await settleSegmentPopulates();
+      return new Response(cached, { status: 200, headers: PLAYLIST_HEADERS });
+    }
+  }
+
   try {
     const headers: Record<string, string> = { Accept: "*/*" };
     const range = request.headers.get("range");
@@ -129,6 +141,7 @@ export async function GET(request: Request): Promise<Response> {
       // Wait for the populates of the segments just referenced so viewers
       // never hit an R2 object that is not stored yet.
       await settleSegmentPopulates();
+      if (maybePlaylist && !range) setSharedPlaylist(upstream.href, rewritten);
       return new Response(rewritten, {
         status: 200,
         headers: PLAYLIST_HEADERS,

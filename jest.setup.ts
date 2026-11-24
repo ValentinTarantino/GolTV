@@ -1,4 +1,11 @@
 import "@testing-library/jest-dom";
+import { clearPlaylistCache } from "@/lib/playlist-cache";
+
+// The shared playlist cache is module state: reset it between tests so one
+// test's cached playlist can't leak into the next.
+afterEach(() => {
+  clearPlaylistCache();
+});
 
 // Mock @upstash/redis to avoid ESM import issues in tests
 jest.mock("@upstash/redis", () => ({

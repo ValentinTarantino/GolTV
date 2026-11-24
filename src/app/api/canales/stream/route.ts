@@ -1,4 +1,5 @@
 import { settleSegmentPopulates } from "@/lib/r2-segments";
+import { getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 import { isIPBanned } from "@/lib/chat";
 import { touchRequestPresence } from "@/lib/presence";
 import { BANNED_HEADER } from "@/lib/viewer-id";
@@ -86,6 +87,28 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Stream host not allowed", { status: 403 });
   }
 
+  // .m3u8/.mpd requests are manifests: repeat viewers of the same channel
+  // share one upstream fetch per 2s window via the shared playlist cache.
+  const upstreamPath = upstream.pathname.toLowerCase();
+  const maybeManifest =
+    upstreamPath.endsWith(".m3u8") || upstreamPath.endsWith(".mpd");
+  const hasRange = request.headers.get("range") !== null;
+  if (maybeManifest && !hasRange) {
+    const cached = getSharedPlaylist(upstream.href);
+    if (cached !== null) {
+      await settleSegmentPopulates();
+      return new Response(cached, {
+        status: 200,
+        headers: {
+          ...MANIFEST_HEADERS,
+          "Content-Type": upstreamPath.endsWith(".mpd")
+            ? "application/dash+xml"
+            : "application/vnd.apple.mpegurl",
+        },
+      });
+    }
+  }
+
   try {
     const headers: Record<string, string> = { Accept: "*/*" };
     const range = request.headers.get("range");
@@ -127,6 +150,7 @@ export async function GET(request: Request): Promise<Response> {
       // Wait for the populates of the segments just referenced so viewers
       // never hit an R2 object that is not stored yet.
       await settleSegmentPopulates();
+      if (maybeManifest && !hasRange) setSharedPlaylist(upstream.href, rewritten);
       return new Response(rewritten, {
         status: 200,
         headers: {
@@ -139,7 +163,9 @@ export async function GET(request: Request): Promise<Response> {
     if (isManifest) {
       const body = await upstreamRes.text();
       if (!body.trim()) return new Response("Stream unavailable", { status: 503 });
-      return new Response(rewriteCanalManifest(body, finalUrl, options), {
+      const rewritten = rewriteCanalManifest(body, finalUrl, options);
+      if (maybeManifest && !hasRange) setSharedPlaylist(upstream.href, rewritten);
+      return new Response(rewritten, {
         status: 200,
         headers: {
           ...MANIFEST_HEADERS,

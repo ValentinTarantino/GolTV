@@ -4,6 +4,7 @@ import {
   resolveEmbedPlaylist,
 } from "@/lib/embed-resolver";
 import { isAllowedStreamUrl, rewriteHlsPlaylist, rewritePlaylistToAbsolute } from "@/lib/hls-proxy";
+import { getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 import { settleSegmentPopulates } from "@/lib/r2-segments";
 import { isBlockedNetworkTarget } from "@/lib/url-guard";
 
@@ -131,6 +132,19 @@ export async function relayUpstream(
   upstream: URL,
   range: string | null
 ): Promise<Response> {
+  // .m3u8 URLs are playlists before we even fetch them: serve repeat viewers
+  // of the same channel from the shared 2s cache and skip the upstream trip.
+  // Populate waits still run on hits — segments referenced by the cached
+  // body may still be uploading to R2.
+  const maybePlaylist = upstream.pathname.toLowerCase().endsWith(".m3u8");
+  if (maybePlaylist && !range) {
+    const cached = getSharedPlaylist(upstream.href);
+    if (cached !== null) {
+      await settleSegmentPopulates();
+      return new Response(cached, { status: 200, headers: PLAYLIST_HEADERS });
+    }
+  }
+
   try {
     const upstreamRes = await fetchWithMirrorFallback(upstream, range);
 
@@ -141,6 +155,9 @@ export async function relayUpstream(
 
     if (isPlaylist) {
       // Live playlists must never be cached: they change every few seconds.
+      // The shared 2s cache still applies — every viewer of the same channel
+      // asks for the same URL within the same window, so one upstream fetch
+      // serves them all.
       const text = await upstreamRes.text();
       const finalUrl = upstreamRes.url ? new URL(upstreamRes.url) : upstream;
       const rewritten = rewriteHlsPlaylist(text, finalUrl);
@@ -148,6 +165,7 @@ export async function relayUpstream(
       // referenced finish, so viewers never request an object that is not
       // in R2 yet (a 404 would be edge-cached for hours).
       await settleSegmentPopulates();
+      if (!range) setSharedPlaylist(upstream.href, rewritten);
       return new Response(rewritten, {
         status: upstreamRes.status,
         headers: PLAYLIST_HEADERS,
