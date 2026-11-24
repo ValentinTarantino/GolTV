@@ -1,6 +1,27 @@
 import { PROMIEDOS_BADGES, PROMIEDOS_ALIASES } from "./constants";
 import { POPULATED_BADGES } from "./badges-populated";
+import { BASKETBALL_ESPN_BADGES } from "./basketball-espn-badges";
 import { getLocalTeamBadge } from "./local-team-badges";
+
+// Provider basketball feeds use informal/renamed names; map their normalized
+// keys to the canonical ESPN badge-map keys.
+const BASKETBALL_NAME_ALIASES: Record<string, string> = {
+  westpoint: "army",
+  armywestpoint: "army",
+  louisianalafayette: "louisiana",
+  texasarlington: "utarlington",
+  arkansaslittlerock: "littlerock",
+  ncgreensboro: "uncgreensboro",
+  floridaandm: "floridaam",
+  floridaamandm: "floridaam",
+  appalachianstate: "appstate",
+  lakelandmagic: "laketownsquadron",
+  okcblue: "oklahomacityblue",
+  indsouthbend: "iuindianapolis",
+  indianauniversityindianapolis: "iuindianapolis",
+  brighamyoung: "byu",
+  fairleighdickinsonuniversity: "fairleighdickinson",
+};
 
 const SPORTSDB_KEY = "123";
 const SPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json";
@@ -98,6 +119,8 @@ function findBestMatch(teams: SportsDBTeam[], query: string): SportsDBTeam | nul
 }
 
 const DIRECT_TEAM_BADGES: Record<string, string> = {
+  // EuroLeague/Liga U club without a crest on the provider CDN.
+  casademontzaragoza: "https://upload.wikimedia.org/wikipedia/en/b/bc/Casademont_Zaragoza.svg",
   // ESPN team IDs serve stable club crests as transparent PNGs.
   lafc: "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
   losangelesfc: "https://a.espncdn.com/i/teamlogos/soccer/500/18966.png",
@@ -128,6 +151,75 @@ const DIRECT_TEAM_BADGES: Record<string, string> = {
   sportingdehortaleza: "/badges/sporting-hortaleza.png",
   adsportinghortaleza: "/badges/sporting-hortaleza.png",
   adsportingdehortaleza: "/badges/sporting-hortaleza.png",
+  // NBA crests from the league's official CDN (primary logo, SVG).
+  atlannahawks: "https://cdn.nba.com/logos/nba/1610612737/primary/L/logo.svg",
+  bostonceltics: "https://cdn.nba.com/logos/nba/1610612738/primary/L/logo.svg",
+  celtics: "https://cdn.nba.com/logos/nba/1610612738/primary/L/logo.svg",
+  brooklynnets: "https://cdn.nba.com/logos/nba/1610612751/primary/L/logo.svg",
+  nets: "https://cdn.nba.com/logos/nba/1610612751/primary/L/logo.svg",
+  charlottehornets: "https://cdn.nba.com/logos/nba/1610612766/primary/L/logo.svg",
+  hornets: "https://cdn.nba.com/logos/nba/1610612766/primary/L/logo.svg",
+  chicagobulls: "https://cdn.nba.com/logos/nba/1610612741/primary/L/logo.svg",
+  bulls: "https://cdn.nba.com/logos/nba/1610612741/primary/L/logo.svg",
+  clevelandcavaliers: "https://cdn.nba.com/logos/nba/1610612739/primary/L/logo.svg",
+  cavaliers: "https://cdn.nba.com/logos/nba/1610612739/primary/L/logo.svg",
+  cavs: "https://cdn.nba.com/logos/nba/1610612739/primary/L/logo.svg",
+  dallasmavericks: "https://cdn.nba.com/logos/nba/1610612742/primary/L/logo.svg",
+  mavericks: "https://cdn.nba.com/logos/nba/1610612742/primary/L/logo.svg",
+  mavs: "https://cdn.nba.com/logos/nba/1610612742/primary/L/logo.svg",
+  denvernuggets: "https://cdn.nba.com/logos/nba/1610612743/primary/L/logo.svg",
+  nuggets: "https://cdn.nba.com/logos/nba/1610612743/primary/L/logo.svg",
+  detroitpistons: "https://cdn.nba.com/logos/nba/1610612765/primary/L/logo.svg",
+  pistons: "https://cdn.nba.com/logos/nba/1610612765/primary/L/logo.svg",
+  goldenstatewarriors: "https://cdn.nba.com/logos/nba/1610612744/primary/L/logo.svg",
+  warriors: "https://cdn.nba.com/logos/nba/1610612744/primary/L/logo.svg",
+  houstonrockets: "https://cdn.nba.com/logos/nba/1610612745/primary/L/logo.svg",
+  rockets: "https://cdn.nba.com/logos/nba/1610612745/primary/L/logo.svg",
+  indianapacers: "https://cdn.nba.com/logos/nba/1610612754/primary/L/logo.svg",
+  pacers: "https://cdn.nba.com/logos/nba/1610612754/primary/L/logo.svg",
+  losangelesclippers: "https://cdn.nba.com/logos/nba/1610612746/primary/L/logo.svg",
+  lac: "https://cdn.nba.com/logos/nba/1610612746/primary/L/logo.svg",
+  clippers: "https://cdn.nba.com/logos/nba/1610612746/primary/L/logo.svg",
+  losangeleslakers: "https://cdn.nba.com/logos/nba/1610612747/primary/L/logo.svg",
+  lalakers: "https://cdn.nba.com/logos/nba/1610612747/primary/L/logo.svg",
+  lakers: "https://cdn.nba.com/logos/nba/1610612747/primary/L/logo.svg",
+  memphisgrizzlies: "https://cdn.nba.com/logos/nba/1610612763/primary/L/logo.svg",
+  grizzlies: "https://cdn.nba.com/logos/nba/1610612763/primary/L/logo.svg",
+  miamiheat: "https://cdn.nba.com/logos/nba/1610612748/primary/L/logo.svg",
+  heat: "https://cdn.nba.com/logos/nba/1610612748/primary/L/logo.svg",
+  milwaukeebucks: "https://cdn.nba.com/logos/nba/1610612749/primary/L/logo.svg",
+  bucks: "https://cdn.nba.com/logos/nba/1610612749/primary/L/logo.svg",
+  minnesotatimberwolves: "https://cdn.nba.com/logos/nba/1610612750/primary/L/logo.svg",
+  timberwolves: "https://cdn.nba.com/logos/nba/1610612750/primary/L/logo.svg",
+  wolves: "https://cdn.nba.com/logos/nba/1610612750/primary/L/logo.svg",
+  neworleanspelicans: "https://cdn.nba.com/logos/nba/1610612740/primary/L/logo.svg",
+  pelicans: "https://cdn.nba.com/logos/nba/1610612740/primary/L/logo.svg",
+  newyorkknicks: "https://cdn.nba.com/logos/nba/1610612752/primary/L/logo.svg",
+  nyknicks: "https://cdn.nba.com/logos/nba/1610612752/primary/L/logo.svg",
+  knicks: "https://cdn.nba.com/logos/nba/1610612752/primary/L/logo.svg",
+  oklahomacitythunder: "https://cdn.nba.com/logos/nba/1610612760/primary/L/logo.svg",
+  okcthunder: "https://cdn.nba.com/logos/nba/1610612760/primary/L/logo.svg",
+  thunder: "https://cdn.nba.com/logos/nba/1610612760/primary/L/logo.svg",
+  orlandomagic: "https://cdn.nba.com/logos/nba/1610612753/primary/L/logo.svg",
+  magic: "https://cdn.nba.com/logos/nba/1610612753/primary/L/logo.svg",
+  philadelphia76ers: "https://cdn.nba.com/logos/nba/1610612755/primary/L/logo.svg",
+  "76ers": "https://cdn.nba.com/logos/nba/1610612755/primary/L/logo.svg",
+  sixers: "https://cdn.nba.com/logos/nba/1610612755/primary/L/logo.svg",
+  phoenixsuns: "https://cdn.nba.com/logos/nba/1610612756/primary/L/logo.svg",
+  suns: "https://cdn.nba.com/logos/nba/1610612756/primary/L/logo.svg",
+  portlandtrailblazers: "https://cdn.nba.com/logos/nba/1610612757/primary/L/logo.svg",
+  trailblazers: "https://cdn.nba.com/logos/nba/1610612757/primary/L/logo.svg",
+  blazers: "https://cdn.nba.com/logos/nba/1610612757/primary/L/logo.svg",
+  sacramentokings: "https://cdn.nba.com/logos/nba/1610612758/primary/L/logo.svg",
+  kings: "https://cdn.nba.com/logos/nba/1610612758/primary/L/logo.svg",
+  sanantoniospurs: "https://cdn.nba.com/logos/nba/1610612759/primary/L/logo.svg",
+  spurs: "https://cdn.nba.com/logos/nba/1610612759/primary/L/logo.svg",
+  torontoraptors: "https://cdn.nba.com/logos/nba/1610612761/primary/L/logo.svg",
+  raptors: "https://cdn.nba.com/logos/nba/1610612761/primary/L/logo.svg",
+  utahjazz: "https://cdn.nba.com/logos/nba/1610612762/primary/L/logo.svg",
+  jazz: "https://cdn.nba.com/logos/nba/1610612762/primary/L/logo.svg",
+  washingtonwizards: "https://cdn.nba.com/logos/nba/1610612764/primary/L/logo.svg",
+  wizards: "https://cdn.nba.com/logos/nba/1610612764/primary/L/logo.svg",
 };
 const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "celtadevigo": "Celta Vigo",
@@ -628,6 +720,9 @@ export function peekTeamLogo(teamName: string, country?: string): string | null 
 
   const directBadge = DIRECT_TEAM_BADGES[key];
   if (directBadge) return directBadge;
+
+  const espnBadge = BASKETBALL_ESPN_BADGES[BASKETBALL_NAME_ALIASES[key] ?? key];
+  if (espnBadge) return espnBadge;
 
   const aliasKey = PROMIEDOS_ALIASES[key];
   const apiFootballUrl = apiFootballBadge(aliasKey || key);

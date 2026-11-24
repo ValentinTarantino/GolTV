@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X, Search, Trophy, Tv, Play, Swords } from "lucide-react";
+import { Menu, X, Search, Trophy, Tv, Play, Volleyball } from "lucide-react";
+import TennisRacketIcon from "@/components/icons/TennisRacketIcon";
+import BoxingGloveIcon from "@/components/icons/BoxingGloveIcon";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -167,17 +169,45 @@ export default function MobileMenu() {
           </div>
 
           <div className="px-4 py-3 border-b-2 border-white">
-            <Link
-              href="/boxeo"
-              onClick={() => setIsOpen(false)}
-              className={isActive("/boxeo")
-                ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#ef4444] bg-black text-[#ef4444] shadow-[4px_4px_0px_0px_#ef4444] font-black text-sm uppercase"
-                : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#ef4444] hover:border-[#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-colors"}
-              id="mobile-lucha"
-            >
-              <Swords size={16} strokeWidth={3} />
-              <span>{t.combat?.nav || "LUCHA"}</span>
-            </Link>
+            <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white/50">
+              <Volleyball size={13} strokeWidth={3} />
+              {t.header.moreSports}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/nba"
+                onClick={() => setIsOpen(false)}
+                className={isActive("/nba")
+                  ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#f97316] bg-black text-[#f97316] shadow-[4px_4px_0px_0px_#f97316] font-black text-sm uppercase"
+                  : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#f97316] hover:border-[#f97316] hover:shadow-[4px_4px_0px_0px_#f97316] transition-colors"}
+                id="mobile-nba"
+              >
+                <Volleyball size={16} strokeWidth={3} />
+                <span>{t.nba?.nav || "NBA"}</span>
+              </Link>
+              <Link
+                href="/boxeo"
+                onClick={() => setIsOpen(false)}
+                className={isActive("/boxeo")
+                  ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#ef4444] bg-black text-[#ef4444] shadow-[4px_4px_0px_0px_#ef4444] font-black text-sm uppercase"
+                  : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#ef4444] hover:border-[#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-colors"}
+                id="mobile-lucha"
+              >
+                <BoxingGloveIcon size={16} strokeWidth={3} />
+                <span>{t.combat?.nav || "LUCHA"}</span>
+              </Link>
+              <Link
+                href="/tennis"
+                onClick={() => setIsOpen(false)}
+                className={isActive("/tennis")
+                  ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#eab308] bg-black text-[#eab308] shadow-[4px_4px_0px_0px_#eab308] font-black text-sm uppercase"
+                  : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#eab308] hover:border-[#eab308] hover:shadow-[4px_4px_0px_0px_#eab308] transition-colors"}
+                id="mobile-tennis"
+              >
+                <TennisRacketIcon size={16} strokeWidth={3} />
+                <span>{t.tennis?.nav || "TENIS"}</span>
+              </Link>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">

@@ -6,8 +6,27 @@ import type { Channel } from "./types";
 const API = process.env.PLAYER_SIX_API_URL || "";
 const REFERER = process.env.PLAYER_SIX_REFERER || "";
 const SPORT_TYPE = 1; // football
+const BASKETBALL_SPORT_TYPE = 2; // basketball
+const TENNIS_SPORT_TYPE = 3; // tennis/padel
 const FIGHTING_SPORT_TYPE = 14; // fighting events
 const DIGIT = process.env.PLAYER_SIX_DIGIT || "";
+
+// The feed embeds crest URLs on a logo CDN whose domain rotates and dies;
+// the live host is the one published in the site's own page config. Any
+// `/aelogo/` URL on a stale host is rewritten to it.
+const LOGO_CDN = process.env.PLAYER_SIX_LOGO_CDN || "";
+function providerLogoUrl(raw: string): string {
+  if (!raw || !LOGO_CDN || !raw.includes("/aelogo/")) return raw;
+  try {
+    const u = new URL(raw);
+    if (u.hostname === LOGO_CDN) return raw;
+    u.hostname = LOGO_CDN;
+    u.protocol = "https:";
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
 const PARAM_ORDER = ["matchId", "leagueId", "seasonId", "sportType", "language", "stream"];
 
 const UA =
@@ -356,6 +375,135 @@ export async function listFightingEvents(): Promise<FightingEvent[]> {
   events.sort((a, b) => a.matchDate - b.matchDate);
   await setCache(cacheKey, events, 30_000);
   return events;
+}
+
+// ---------- basketball matches ----------
+
+export interface BasketballMatch {
+  matchId: number;
+  league: string;
+  leagueLogo: string;
+  country: string;
+  home: string;
+  away: string;
+  homeLogo: string;
+  awayLogo: string;
+  kickoffMs: number;
+}
+
+interface BasketballTeam {
+  name: string;
+  logo: string;
+}
+
+/** f30 entries carry either the "Home vs Away" title (f2) or a team block.
+ *  Basketball wraps teams in f10, tennis/padel in f20. */
+function parseSportTeams(
+  matchMsg: Buffer,
+  wrapField: number
+): { title: string; teams: BasketballTeam[] } {
+  let title = "";
+  const teams: BasketballTeam[] = [];
+  for (const entry of pbSubMsgs(matchMsg, 30)) {
+    const direct = pbFieldString(entry, 2);
+    if (direct && direct.includes(" vs ")) {
+      title = direct;
+      continue;
+    }
+    const wrap = pbSubMsgs(entry, wrapField)[0];
+    if (!wrap) continue;
+    const nameMsg = pbFields(wrap).find((e) => e.f === 3 && e.d);
+    const name = nameMsg?.d ? pbFieldString(nameMsg.d, 2) : null;
+    if (!name) continue;
+    teams.push({ name, logo: pbFieldString(wrap, 4) ?? "" });
+  }
+  return { title, teams };
+}
+
+async function listSportMatches(
+  sportType: number,
+  fallbackLeague: string,
+  cacheTag: string,
+  wrapField = 10
+): Promise<BasketballMatch[]> {
+  if (!API || !REFERER) return [];
+  const cacheKey = `feed-${cacheTag}-live`;
+  const cached = await getCache<BasketballMatch[]>(cacheKey);
+  if (cached) return cached;
+  const buf = await signedGet(
+    "match/live",
+    100,
+    { sportType, stream: true },
+    {},
+    sportType
+  );
+  const data = pbData(buf);
+  const matches: BasketballMatch[] = [];
+  for (const m of pbSubMsgs(data, 1)) {
+    const matchId = pbVarint(m, 1);
+    if (!matchId) continue;
+
+    const leagueMsg = pbSubMsgs(m, 10)[0];
+    const leagueNameMsg = leagueMsg ? pbSubMsgs(leagueMsg, 3)[0] : undefined;
+    const countryMsg = leagueMsg ? pbSubMsgs(leagueMsg, 80)[0] : undefined;
+    const countryNameMsg = countryMsg ? pbSubMsgs(countryMsg, 3)[0] : undefined;
+
+    const { title, teams } = parseSportTeams(m, wrapField);
+    // Team blocks arrive home-first; the title is the fallback disambiguator.
+    let home = teams[0];
+    let away = teams[1];
+    if (title) {
+      const [tHome, tAway] = title.split(/\s+vs\s+/i);
+      const find = (n?: string) =>
+        n ? teams.find((tm) => tm.name.toLowerCase() === n.trim().toLowerCase()) : undefined;
+      home = find(tHome) ?? home;
+      away = find(tAway) ?? away;
+    }
+    if (!home || !away) continue;
+
+    matches.push({
+      matchId,
+      league: (leagueNameMsg && pbFieldString(leagueNameMsg, 2)) || fallbackLeague,
+      leagueLogo: providerLogoUrl((leagueMsg && pbFieldString(leagueMsg, 4)) || ""),
+      country: (countryNameMsg && pbFieldString(countryNameMsg, 2)) || "",
+      home: home.name,
+      away: away.name,
+      homeLogo: providerLogoUrl(home.logo),
+      awayLogo: providerLogoUrl(away.logo),
+      kickoffMs: pbVarint(m, 3) ?? 0,
+    });
+  }
+  matches.sort((a, b) => a.kickoffMs - b.kickoffMs);
+  await setCache(cacheKey, matches, 30_000);
+  return matches;
+}
+
+export function listBasketballMatches(): Promise<BasketballMatch[]> {
+  return listSportMatches(BASKETBALL_SPORT_TYPE, "Basketball", "basketball");
+}
+
+export function listTennisMatches(): Promise<BasketballMatch[]> {
+  return listSportMatches(TENNIS_SPORT_TYPE, "Tennis", "tennis", 20);
+}
+
+export async function findTennisStreams(matchId: number): Promise<Channel[]> {
+  if (!API || !REFERER || !DIGIT) return [];
+  try {
+    return await channelsForMatch(matchId, TENNIS_SPORT_TYPE);
+  } catch (e) {
+    console.error("[feed] findTennisStreams failed:", e);
+    return [];
+  }
+}
+
+export async function findBasketballStreams(matchId: number): Promise<Channel[]> {
+  if (!API || !REFERER || !DIGIT) return [];
+  try {
+    return await channelsForMatch(matchId, BASKETBALL_SPORT_TYPE);
+  } catch (e) {
+    console.error("[feed] findBasketballStreams failed:", e);
+    return [];
+  }
 }
 
 // ---------- public API ----------

@@ -32,6 +32,9 @@ const PROXIED_IMAGE_HOSTS = new Set([
   "i.pinimg.com",
   "www.footylogos.com",
   "images.football-live-stream.online",
+  "logos1.tcrbg61levl.cfd",
+  "logos1.tcpwe138stya.ru",
+  "cdn.nba.com",
 ]);
 
 export function isProxiedImageHost(url: string): boolean {
