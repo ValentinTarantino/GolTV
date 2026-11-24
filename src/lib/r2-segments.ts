@@ -15,18 +15,17 @@ import { createHash } from "node:crypto";
 import { after } from "next/server";
 
 const MEDIA_CDN_BASE = (process.env.MEDIA_CDN_BASE ?? "").trim().replace(/\/+$/, "");
-const SEG_POPULATE_URL = (
-  // workers.dev bypasses the zone's bot challenge, which blocks Render's
-  // server-side fetches to goltv.stream/api/populate.
-  process.env.SEG_POPULATE_URL ||
-  "https://goltv-seg-relay.zaheil444.workers.dev/api/populate"
-)
+const SEG_POPULATE_URL = (process.env.SEG_POPULATE_URL ?? "")
   .trim()
   .replace(/\/+$/, "");
 
-/** True when R2 segment delivery is enabled for this deployment. */
+/**
+ * True when R2 segment delivery is enabled. Both variables are required:
+ * without the populate URL the bucket would never fill and every segment
+ * would 404, so the feature stays off until both are configured.
+ */
 export function r2SegmentsEnabled(): boolean {
-  return MEDIA_CDN_BASE.length > 0;
+  return MEDIA_CDN_BASE.length > 0 && SEG_POPULATE_URL.length > 0;
 }
 
 /** Public URL of a segment object inside the R2 bucket. */
