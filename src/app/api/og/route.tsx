@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 
-export const runtime = "edge";
+// No edge runtime: on Cloudflare Workers every route already runs on workerd,
+// and OpenNext requires edge functions to live in a separate bundle.
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

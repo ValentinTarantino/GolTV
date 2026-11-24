@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // sharp is a native binary (badge optimizer) and mongodb manages its own
+  // connection pool — both must stay external so edge bundles don't inline
+  // platform-specific code. On Workers they degrade gracefully at runtime.
+  serverExternalPackages: ["sharp", "mongodb"],
   images: {
     // Badge widths at 1x, 2x and 3x pixel density, including 48px desktop cards.
     imageSizes: [32, 40, 48, 64, 80, 96, 128, 144, 192, 256, 384],

@@ -16,7 +16,10 @@
     "validate": "npm run lint && tsc --noEmit && npm test && npm run build",
     "docker:build": "docker build -t goltv-libre .",
     "docker:run": "docker run -p 3000:3000 goltv-libre",
-    "docker:compose": "docker-compose up --build"
+    "docker:compose": "docker-compose up --build",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.2.0",
@@ -33,6 +36,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.19.11",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -49,6 +53,7 @@
     "tailwindcss": "^4",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.168.0"
   }
 }

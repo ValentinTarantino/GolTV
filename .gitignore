@@ -52,3 +52,7 @@ next-env.d.ts
 
 # local dev server log
 devserver.log
+worker-secrets.json
+.open-next
+.dev.vars
+.wrangler/

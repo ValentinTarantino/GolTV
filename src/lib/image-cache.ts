@@ -7,8 +7,6 @@
  * same promise instead of issuing two upstream requests.
  */
 
-import sharp from "sharp";
-
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const MAX_CACHE_ENTRIES = 500;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -36,6 +34,9 @@ export function getCachedImage(key: string): ImageEntry | null {
 /**
  * Downscales and re-encodes raster badges as WebP. SVGs and decode failures
  * pass through untouched so a bad upstream can never blank a crest.
+ *
+ * `sharp` is a native module: on runtimes without it (Cloudflare Workers)
+ * the dynamic import fails and the original bytes are served as-is.
  */
 async function optimizeBadge(
   bytes: ArrayBuffer,
@@ -45,6 +46,7 @@ async function optimizeBadge(
     return { bytes, contentType };
   }
   try {
+    const { default: sharp } = await import("sharp");
     const out = await sharp(Buffer.from(bytes))
       .rotate()
       .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: "inside", withoutEnlargement: true })

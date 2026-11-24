@@ -1,0 +1,17 @@
+name = "goltv-seg-relay"
+main = "src/index.ts"
+compatibility_date = "2026-11-20"
+compatibility_flags = ["nodejs_compat"]
+
+# Only the CDN-cacheable segment paths. Everything else falls through to the
+# app server (Render), which owns pages, playlists, chat and APIs.
+routes = [
+  { pattern = "goltv.stream/api/hls/seg*", zone_name = "goltv.stream" },
+  { pattern = "goltv.stream/api/canales/seg*", zone_name = "goltv.stream" },
+  { pattern = "www.goltv.stream/api/hls/seg*", zone_name = "goltv.stream" },
+  { pattern = "www.goltv.stream/api/canales/seg*", zone_name = "goltv.stream" },
+]
+
+# Vars and secrets live in Cloudflare (Workers > goltv-seg-relay > Settings):
+#   CANALES_STREAM_HOSTS, PLAYER_SIX_REFERER, LPF_PROXY_SECRET, CANALES_PROXY_SECRET
+# They are stored as secret_text bindings so they survive `wrangler deploy`.

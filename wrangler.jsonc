@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "goltv-libre",
+  "compatibility_date": "2026-11-20",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "goltv-libre"
+    }
+  ],
+  // Hybrid architecture: this worker is kept as a backup deployment on
+  // *.workers.dev only. Production goltv.stream traffic falls through to the
+  // Render origin; only /api/*/seg* is routed to the goltv-seg-relay worker
+  // (relay-worker/wrangler.toml) so video bytes get unlimited CF bandwidth.
+  //
+  // Vars and secrets are managed in the Cloudflare dashboard
+  // (Workers > goltv-libre > Settings > Variables and Secrets), NOT here.
+}
