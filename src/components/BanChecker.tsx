@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const BAN_CHECK_INTERVAL = 5000; // Check every 5 seconds
+const BAN_CHECK_INTERVAL = 30_000; // Check every 30 seconds
 
 export default function BanChecker() {
   const [isBanned, setIsBanned] = useState(false);

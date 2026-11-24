@@ -60,10 +60,11 @@ export function sealLpfUrl(url: string): string {
  * fixed plaintext (same URL, same bucket expiry).
  */
 const SEGMENT_BUCKET_MS = 15 * 60 * 1000;
+const IMAGE_BUCKET_MS = 24 * 60 * 60 * 1000;
 
-export function sealLpfSegmentUrl(url: string): string {
-  const bucket = Math.floor(Date.now() / SEGMENT_BUCKET_MS);
-  const bucketStart = bucket * SEGMENT_BUCKET_MS;
+function sealLpfBucketedUrl(url: string, bucketMs: number): string {
+  const bucket = Math.floor(Date.now() / bucketMs);
+  const bucketStart = bucket * bucketMs;
   const iv = createHmac("sha256", tokenKey())
     .update(`goltv-seg:${bucket}`)
     .update(url)
@@ -74,12 +75,25 @@ export function sealLpfSegmentUrl(url: string): string {
   const payload = Buffer.from(
     JSON.stringify({
       u: url,
-      e: bucketStart + SEGMENT_BUCKET_MS + TOKEN_TTL_MS,
+      e: bucketStart + bucketMs + TOKEN_TTL_MS,
     }),
     "utf8"
   );
   const cipherText = Buffer.concat([cipher.update(payload), cipher.final()]);
   return Buffer.concat([iv, cipherText, cipher.getAuthTag()]).toString("base64url");
+}
+
+export function sealLpfSegmentUrl(url: string): string {
+  return sealLpfBucketedUrl(url, SEGMENT_BUCKET_MS);
+}
+
+/**
+ * Image tokens must be identical for a whole day so the browser can reuse
+ * its HTTP cache: a random-IV token per response would change the URL on
+ * every poll and defeat the `immutable` cache headers.
+ */
+export function sealLpfDailyUrl(url: string): string {
+  return sealLpfBucketedUrl(url, IMAGE_BUCKET_MS);
 }
 
 /** Opens a token minted by `sealLpfUrl`; null when tampered, expired or non-https. */

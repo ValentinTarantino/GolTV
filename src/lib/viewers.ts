@@ -1,7 +1,7 @@
 import { getViewersCollection } from "./mongo";
 
-const ACTIVE_WINDOW_MS = 45_000; // viewer counted if heartbeat < 45s ago
-const HEARTBEAT_INTERVAL_MS = 5_000;
+const ACTIVE_WINDOW_MS = 60_000; // viewer counted if heartbeat < 60s ago
+const HEARTBEAT_INTERVAL_MS = 20_000;
 
 // In-memory fallback (no MONGODB_URI): matchId:viewerId -> lastSeen
 const memoryViewers = new Map<string, number>();

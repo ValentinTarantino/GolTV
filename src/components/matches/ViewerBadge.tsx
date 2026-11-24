@@ -6,7 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 // Keep in sync with VIEWER_HEARTBEAT_MS in src/lib/viewers.ts
 // (duplicated here so the client bundle never pulls in the mongodb driver)
-const HEARTBEAT_MS = 5_000;
+const HEARTBEAT_MS = 20_000;
 
 const VIEWER_ID_KEY = "goltv-viewer-id";
 

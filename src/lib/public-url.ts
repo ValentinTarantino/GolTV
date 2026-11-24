@@ -1,4 +1,4 @@
-import { openLpfUrl, sealLpfUrl } from "./sealed-url";
+import { openLpfUrl, sealLpfDailyUrl, sealLpfUrl } from "./sealed-url";
 import type { Channel } from "./types";
 
 /**
@@ -48,7 +48,7 @@ export function isProxiedImageHost(url: string): boolean {
 export function proxyImageUrl(url: string): string {
   if (!url || !url.startsWith("http") || !isProxiedImageHost(url)) return url;
   try {
-    return `/api/img?t=${sealLpfUrl(url)}`;
+    return `/api/img?t=${sealLpfDailyUrl(url)}`;
   } catch {
     return "";
   }

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 // Keep in sync with VIEWER_HEARTBEAT_MS in src/lib/viewers.ts
-const HEARTBEAT_MS = 5_000;
+const HEARTBEAT_MS = 20_000;
 
 const VIEWER_ID_KEY = "goltv-viewer-id";
 
