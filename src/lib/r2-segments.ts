@@ -12,6 +12,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { after } from "next/server";
 
 const MEDIA_CDN_BASE = (process.env.MEDIA_CDN_BASE ?? "").replace(/\/+$/, "");
 const SEG_POPULATE_URL = (
@@ -53,11 +54,17 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
   triggered.set(dedupKey, now);
 
   const url = `${SEG_POPULATE_URL}?kind=${kind}&t=${encodeURIComponent(token)}`;
-  void fetch(url, { method: "GET" })
-    .then((res) => {
-      if (!res.ok) console.warn(`[r2-segments] populate ${kind} -> ${res.status}`);
-    })
-    .catch((error) => {
-      console.warn(`[r2-segments] populate ${kind} failed:`, error);
-    });
+  const job = () =>
+    fetch(url, { method: "GET" })
+      .then((res) => {
+        if (!res.ok) console.warn(`[r2-segments] populate ${kind} -> ${res.status}`);
+      })
+      .catch((error) => {
+        console.warn(`[r2-segments] populate ${kind} failed:`, error);
+      });
+  try {
+    after(job);
+  } catch {
+    void job();
+  }
 }
