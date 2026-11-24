@@ -42,8 +42,8 @@ function WatchPageInner({
   // fixture cards set it via _preferredPlayer, this covers shared/direct URLs.
   const leagueParam = (searchParams.get("league") ?? "").trim().toLowerCase();
   const isPrimeraNacional = /^(primera (b )?nacional|liga de reserva)$/.test(leagueParam);
-  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4" | "5" | "6" | "7">(
-    playerParam === "1" || playerParam === "2" || playerParam === "3" || playerParam === "4" || playerParam === "5" || playerParam === "6" || playerParam === "7"
+  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4" | "5" | "6" | "7" | "8">(
+    playerParam === "1" || playerParam === "2" || playerParam === "3" || playerParam === "4" || playerParam === "5" || playerParam === "6" || playerParam === "7" || playerParam === "8"
       ? playerParam
       : isPrimeraNacional
         ? "5"
@@ -199,6 +199,7 @@ function WatchPageInner({
                 { mode: "3", label: t.player.playerThree },
                 { mode: "4", label: t.player.playerFour },
                 { mode: "5", label: t.player.playerFive },
+                { mode: "8", label: t.player.playerSix },
                 // RBTV (mode "7") stays reachable via ?player=7 but is hidden
                 // from the selector: its CDN/P2P delivery is unreliable.
               ] as const).map(({ mode, label }) => (

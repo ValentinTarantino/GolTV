@@ -7,6 +7,7 @@ import { findEventStreams } from "@/lib/event-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findSportplusStreams } from "@/lib/sportplus-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
+import { findPlayerSixStreams } from "@/lib/player-six-source";
 import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo as rawLeagueLogo } from "@/lib/constants";
 import { proxyImageUrl, publicChannels } from "@/lib/public-url";
 
@@ -57,7 +58,7 @@ export async function GET(
 
   const { streamId, eventSlug, eventSources, player } = queryValidation.data;
   let { home, away, league } = queryValidation.data;
-  const playerMode = player === "1" || player === "3" || player === "4" || player === "5" || player === "6" || player === "7" ? player : "2";
+  const playerMode = player === "1" || player === "3" || player === "4" || player === "5" || player === "6" || player === "7" || player === "8" ? player : "2";
   const id = parseInt(matchId, 10);
 
   if (isNaN(id) && !streamId) {
@@ -84,6 +85,8 @@ export async function GET(
       channels.push(...await findEventStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (playerMode === "5") {
       channels.push(...await findPlayerFiveStreams(match.homeTeam.name, match.awayTeam.name));
+    } else if (playerMode === "8") {
+      channels.push(...await findPlayerSixStreams(match.homeTeam.name, match.awayTeam.name));
     } else if (eventSlug && eventSources) {
       try {
         const sources = JSON.parse(eventSources) as { id: string; name: string; embedIframe: string }[];
@@ -220,6 +223,31 @@ export async function GET(
 
   if (playerMode === "5" && home && away) {
     const channels = await findPlayerFiveStreams(homeTeam, awayTeam);
+    const leagueId = getLeagueIdByName(leagueName);
+    const syntheticMatch: Match = {
+      id: id || 0,
+      league: {
+        id: leagueId,
+        name: leagueName,
+        country: "Internacional",
+        logo: getLeagueLogo(leagueId),
+        flag: "",
+        slug: leagueName.toLowerCase().replace(/\s+/g, "-"),
+      },
+      homeTeam: { id: 0, name: homeTeam, logo: "" },
+      awayTeam: { id: 0, name: awayTeam, logo: "" },
+      date: fixtureDateISO ?? new Date().toISOString(),
+      timestamp: fixtureTimestamp,
+      status: { short: "LIVE", long: "En Juego", elapsed: null },
+      score: { home: 0, away: 0 },
+      channels,
+    };
+
+    return respond(syntheticMatch);
+  }
+
+  if (playerMode === "8" && home && away) {
+    const channels = await findPlayerSixStreams(homeTeam, awayTeam);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,

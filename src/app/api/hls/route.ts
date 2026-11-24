@@ -10,6 +10,7 @@ import {
 } from "@/lib/embed-resolver";
 import { isIPBanned } from "@/lib/chat";
 import { openLpfUrl } from "@/lib/sealed-url";
+import { isBlockedNetworkTarget } from "@/lib/url-guard";
 
 function getClientIP(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -52,6 +53,54 @@ const PLAYLIST_HEADERS = {
   "Content-Type": "application/vnd.apple.mpegurl",
   "Cache-Control": "no-store, no-cache, must-revalidate",
 };
+
+/**
+ * Rotating-CDN smart-link: segment URLs carry `_ctump`/`_ctuph` params holding
+ * an encrypted backup host+path (ROT13 over base64, 8-char prefix stripped).
+ * The primary edge 302s segments to dead nodes, so the backup host is the URL
+ * that actually serves bytes — and it only answers requests whose Referer is
+ * a play domain.
+ */
+const EDGE_REFERER = process.env.PLAYER_SIX_REFERER || "";
+const EDGE_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+function rot13(value: string): string {
+  return value.replace(/[a-zA-Z]/g, (c) => {
+    const base = c <= "Z" ? 65 : 97;
+    return String.fromCharCode(base + ((c.charCodeAt(0) - base + 13) % 26));
+  });
+}
+
+function decodeMirrorParam(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    return atob(rot13(decodeURIComponent(raw.slice(8))));
+  } catch {
+    return null;
+  }
+}
+
+/** Backup CDN URL embedded in a smart-link segment URL, when present. */
+function mirrorBackupUrl(upstream: URL): URL | null {
+  const rawQuery = upstream.search;
+  if (!rawQuery.includes("_ctuph=") || !rawQuery.includes("_ctump=")) return null;
+  const pick = (key: string): string | null => {
+    const m = rawQuery.match(new RegExp(`[?&]${key}=([^&]*)`));
+    return m ? m[1] : null;
+  };
+  const path = decodeMirrorParam(pick("_ctuph"));
+  const mirror = decodeMirrorParam(pick("_ctump"));
+  if (!path || !mirror) return null;
+  const host = mirror.split("@").pop();
+  if (!host) return null;
+  try {
+    const url = new URL(`https://${host}${path}`);
+    return url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(request: Request): Promise<Response> {
   const clientIP = getClientIP(request);
@@ -107,15 +156,39 @@ export async function GET(request: Request): Promise<Response> {
 
 async function relayUpstream(upstream: URL, request: Request): Promise<Response> {
   try {
+    const isEdgeCdn = upstream.hostname.startsWith("fhlsport");
     const headers: Record<string, string> = { Accept: "*/*" };
     const range = request.headers.get("range");
     if (range) headers.Range = range;
+    if (isEdgeCdn) {
+      headers["User-Agent"] = EDGE_UA;
+      if (EDGE_REFERER) headers["Referer"] = EDGE_REFERER;
+    }
 
-    const upstreamRes = await fetch(upstream, {
-      headers,
-      redirect: "follow",
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    });
+    // Smart-link segments carry an encrypted backup host+path; the primary
+    // edge 302s them to nodes that reset the connection, so try backup first.
+    const candidates: URL[] = [];
+    const backup = mirrorBackupUrl(upstream);
+    if (backup && backup.hostname !== upstream.hostname && !isBlockedNetworkTarget(backup)) {
+      candidates.push(backup);
+    }
+    candidates.push(upstream);
+
+    let upstreamRes: Response | null = null;
+    for (const candidate of candidates) {
+      try {
+        const res = await fetch(candidate, {
+          headers,
+          redirect: "follow",
+          signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        });
+        upstreamRes = res;
+        if (res.ok || res.status === 206 || candidate === candidates[candidates.length - 1]) break;
+      } catch {
+        // try the next candidate
+      }
+    }
+    if (!upstreamRes) throw new Error("all upstream candidates failed");
 
     const contentType = upstreamRes.headers.get("content-type") ?? "";
     const isPlaylist =
