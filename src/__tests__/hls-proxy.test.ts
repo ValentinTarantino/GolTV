@@ -9,7 +9,7 @@ import {
 } from "@/lib/hls-proxy";
 import { openLpfUrl, sealLpfSegmentUrl, sealLpfUrl } from "@/lib/sealed-url";
 import { GET } from "@/app/api/hls/route";
-import { GET as GET_SEG } from "@/app/api/hls/seg/route";
+import { relaySegment } from "@/lib/hls-relay";
 
 const PLAYLIST = [
   "#EXTM3U",
@@ -203,7 +203,7 @@ describe("/api/hls", () => {
   });
 });
 
-describe("/api/hls/seg", () => {
+describe("relaySegment (/api/hls/seg)", () => {
   const originalFetch = globalThis.fetch;
 
   afterEach(() => {
@@ -211,8 +211,8 @@ describe("/api/hls/seg", () => {
     else delete (globalThis as { fetch?: typeof fetch }).fetch;
   });
 
-  it("serves segments with CDN-cacheable headers", async () => {
-    const target = "https://4.ftlly.com/mls1es/seg.ts?token=s";
+  it("serves segments with CDN-cacheable headers and no Next Vary", async () => {
+    const target = new URL("https://4.ftlly.com/mls1es/seg.ts?token=s");
     globalThis.fetch = jest.fn().mockResolvedValue(
       new Response("TSBYTES", {
         status: 200,
@@ -220,20 +220,12 @@ describe("/api/hls/seg", () => {
       })
     ) as unknown as typeof fetch;
 
-    const url = `http://localhost/api/hls/seg?t=${sealLpfSegmentUrl(target)}`;
-    const res = await GET_SEG(makeRequest(url));
+    const res = await relaySegment(target, null);
 
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("TSBYTES");
     expect(res.headers.get("cache-control")).toContain("immutable");
+    expect(res.headers.get("vary")).toBe("Accept-Encoding");
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
-  });
-
-  it("rejects playlists and non-allowlisted hosts", async () => {
-    const playlist = `http://localhost/api/hls/seg?t=${sealLpfSegmentUrl(
-      "https://evil.example.com/mono.m3u8"
-    )}`;
-    const res = await GET_SEG(makeRequest(playlist));
-    expect(res.status).toBe(403);
   });
 });

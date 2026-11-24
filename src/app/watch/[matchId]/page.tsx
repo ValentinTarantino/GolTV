@@ -19,13 +19,15 @@ import type { Match, Channel } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translateLeague } from "@/i18n/dictionaries";
 
+const EMPTY_SEARCH_PARAMS = new URLSearchParams();
+
 function WatchPageInner({
   params,
 }: {
   params: Promise<{ matchId: string }>;
 }) {
   const { matchId } = use(params);
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams() ?? EMPTY_SEARCH_PARAMS;
   const { t, language } = useLanguage();
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState(true);

@@ -65,7 +65,7 @@ export async function GET(request: Request): Promise<Response> {
     if (!isAllowedStreamUrl(tokenUrl)) {
       return new Response("Stream host not allowed", { status: 403 });
     }
-    return relayUpstream(tokenUrl, request);
+    return relayUpstream(tokenUrl, request.headers.get("range"));
   }
 
   const rawTarget = params.get("u");
@@ -80,5 +80,5 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Stream host not allowed", { status: 403 });
   }
 
-  return relayUpstream(upstream, request);
+  return relayUpstream(upstream, request.headers.get("range"));
 }

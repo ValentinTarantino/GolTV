@@ -81,10 +81,9 @@ async function fetchUpstream(
   });
 }
 
-function upstreamHeaders(upstream: URL, request: Request): Record<string, string> {
+function upstreamHeaders(upstream: URL, range: string | null): Record<string, string> {
   const isEdgeCdn = upstream.hostname.startsWith("fhlsport");
   const headers: Record<string, string> = { Accept: "*/*" };
-  const range = request.headers.get("range");
   if (range) headers.Range = range;
   if (isEdgeCdn) {
     headers["User-Agent"] = EDGE_UA;
@@ -99,9 +98,9 @@ function upstreamHeaders(upstream: URL, request: Request): Record<string, string
  */
 async function fetchWithMirrorFallback(
   upstream: URL,
-  request: Request
+  range: string | null
 ): Promise<Response> {
-  const headers = upstreamHeaders(upstream, request);
+  const headers = upstreamHeaders(upstream, range);
   const candidates: URL[] = [];
   const backup = mirrorBackupUrl(upstream);
   if (backup && backup.hostname !== upstream.hostname && !isBlockedNetworkTarget(backup)) {
@@ -127,9 +126,12 @@ async function fetchWithMirrorFallback(
  * Relay a playlist or segment through the app server. Playlists are rewritten
  * so their child URIs also point at the relay; segments pass through as-is.
  */
-export async function relayUpstream(upstream: URL, request: Request): Promise<Response> {
+export async function relayUpstream(
+  upstream: URL,
+  range: string | null
+): Promise<Response> {
   try {
-    const upstreamRes = await fetchWithMirrorFallback(upstream, request);
+    const upstreamRes = await fetchWithMirrorFallback(upstream, range);
 
     const contentType = upstreamRes.headers.get("content-type") ?? "";
     const isPlaylist =
@@ -170,9 +172,12 @@ export async function relayUpstream(upstream: URL, request: Request): Promise<Re
  * is immutable, so it is served with long-lived public cache headers — a CDN
  * edge can then answer repeat viewers without touching this server.
  */
-export async function relaySegment(upstream: URL, request: Request): Promise<Response> {
+export async function relaySegment(
+  upstream: URL,
+  range: string | null
+): Promise<Response> {
   try {
-    const upstreamRes = await fetchWithMirrorFallback(upstream, request);
+    const upstreamRes = await fetchWithMirrorFallback(upstream, range);
 
     const contentType = upstreamRes.headers.get("content-type") ?? "";
     const isPlaylist =
@@ -187,6 +192,10 @@ export async function relaySegment(upstream: URL, request: Request): Promise<Res
     outHeaders["Cache-Control"] = isPlaylist
       ? "no-store"
       : "public, max-age=86400, immutable";
+    // Next.js stamps every response with `Vary: rsc, next-router-*`, which
+    // makes CDN edges refuse to cache. Claim Vary ourselves so the segment
+    // stays cacheable; Accept-Encoding is the only variation that matters.
+    if (!isPlaylist) outHeaders["Vary"] = "Accept-Encoding";
 
     return new Response(upstreamRes.body, {
       status: upstreamRes.status,
