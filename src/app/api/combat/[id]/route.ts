@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { findCombatMatch } from "@/lib/combat-source";
-import { resolveCombatFrames, resolveCombatSources } from "@/lib/combat-sources";
+import { resolveCombatSources } from "@/lib/combat-sources";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -21,16 +21,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
 
-    // The provider flags the event as live before it provisions the signal
-    // (the kora `?_json=1` probe still answers `ready:false`), so the framed
-    // player is always appended: it keeps polling and starts playing on its
-    // own once the signal goes up. Raw wrapper embeds are never returned —
-    // their inner frame is refused by CSP and only paints a black box.
-    const [sources, frames] = await Promise.all([
-      resolveCombatSources(match),
-      resolveCombatFrames(match),
-    ]);
-    const finalSources = [...sources, ...frames].slice(0, 4);
+    // Only real signals are returned: an event without a provisioned
+    // broadcast yields an empty list and the page shows its pending state.
+    const finalSources = (await resolveCombatSources(match)).slice(0, 4);
 
     return NextResponse.json({
       src: finalSources[0]?.src ?? null,

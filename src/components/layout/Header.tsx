@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Trophy, Tv, Play } from "lucide-react";
+import { Trophy, Tv, Play, Swords } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LpfPlayMark from "@/components/lpf/LpfPlayMark";
 import SearchBar from "@/components/search/SearchBar";
@@ -88,6 +88,16 @@ export default function Header() {
             >
               <Play size={14} strokeWidth={3} fill="currentColor" />
               <span>{t.lpf?.nav || "LPF PLAY"}</span>
+            </Link>
+            <Link
+              href="/boxeo"
+              className={isActive("/boxeo")
+                ? "flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#ef4444] bg-black shadow-[4px_4px_0px_0px_#ef4444] font-black text-xs sm:text-sm text-[#ef4444] uppercase"
+                : "flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm text-white hover:text-[#ef4444] hover:border-[#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-colors uppercase"}
+              id="header-lucha"
+            >
+              <Swords size={14} strokeWidth={3} />
+              <span>{t.combat?.nav || "LUCHA"}</span>
             </Link>
             <TimeZoneSelect />
             <div className="flex items-center border-2 border-[#a3e635] bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm">

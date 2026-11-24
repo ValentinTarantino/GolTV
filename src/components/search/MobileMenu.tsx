@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X, Search, Trophy, Tv, Play } from "lucide-react";
+import { Menu, X, Search, Trophy, Tv, Play, Swords } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -163,6 +163,20 @@ export default function MobileMenu() {
             >
               <Play size={16} strokeWidth={3} fill="currentColor" />
               <span>{t.lpf?.nav || "LPF PLAY"}</span>
+            </Link>
+          </div>
+
+          <div className="px-4 py-3 border-b-2 border-white">
+            <Link
+              href="/boxeo"
+              onClick={() => setIsOpen(false)}
+              className={isActive("/boxeo")
+                ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#ef4444] bg-black text-[#ef4444] shadow-[4px_4px_0px_0px_#ef4444] font-black text-sm uppercase"
+                : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#ef4444] hover:border-[#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-colors"}
+              id="mobile-lucha"
+            >
+              <Swords size={16} strokeWidth={3} />
+              <span>{t.combat?.nav || "LUCHA"}</span>
             </Link>
           </div>
 

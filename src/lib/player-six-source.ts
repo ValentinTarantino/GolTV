@@ -6,6 +6,7 @@ import type { Channel } from "./types";
 const API = process.env.PLAYER_SIX_API_URL || "";
 const REFERER = process.env.PLAYER_SIX_REFERER || "";
 const SPORT_TYPE = 1; // football
+const FIGHTING_SPORT_TYPE = 14; // fighting events
 const DIGIT = process.env.PLAYER_SIX_DIGIT || "";
 const PARAM_ORDER = ["matchId", "leagueId", "seasonId", "sportType", "language", "stream"];
 
@@ -148,8 +149,8 @@ function parseBsKv(buf: Buffer): Map<number, string> {
   return kv;
 }
 
-async function getBsTokens(codes: number[], extra: Record<string, unknown> = {}): Promise<Map<number, string>> {
-  const cacheKey = `feed-bs-${codes.join(",")}-${JSON.stringify(extra)}`;
+async function getBsTokens(codes: number[], extra: Record<string, unknown> = {}, sportType = SPORT_TYPE): Promise<Map<number, string>> {
+  const cacheKey = `feed-bs-${codes.join(",")}-${sportType}-${JSON.stringify(extra)}`;
   const cached = await getCache<Map<number, string>>(cacheKey);
   if (cached) {
     const m = new Map<number, string>(Object.entries(cached).map(([k, v]) => [Number(k), v as string]));
@@ -162,7 +163,7 @@ async function getBsTokens(codes: number[], extra: Record<string, unknown> = {})
   const q =
     codes.map((c) => `code=${c}`).join("&") +
     "&stream=true&sportType=" +
-    SPORT_TYPE +
+    sportType +
     (extraQ ? "&" + extraQ : "");
   const r = await fetch(`${API}/api/common/bs?${q}`, { headers: headers() });
   if (!r.ok) throw new Error(`feed bs ${r.status}`);
@@ -172,8 +173,8 @@ async function getBsTokens(codes: number[], extra: Record<string, unknown> = {})
   return kv;
 }
 
-async function signedGet(endpoint: string, code: number, params: Record<string, unknown>, bsExtra: Record<string, unknown> = {}): Promise<Buffer> {
-  const kv = await getBsTokens([code], bsExtra);
+async function signedGet(endpoint: string, code: number, params: Record<string, unknown>, bsExtra: Record<string, unknown> = {}, sportType = SPORT_TYPE): Promise<Buffer> {
+  const kv = await getBsTokens([code], bsExtra, sportType);
   const token = kv.get(code);
   if (!token) throw new Error(`feed bs token missing for ${code}`);
   const p = sortParams(params);
@@ -251,11 +252,11 @@ async function findFeedMatchId(home: string, away: string): Promise<number | nul
 
 type FeedStream = { streamId: number; name: string; siteType: number };
 
-async function getMatchStreams(matchId: number): Promise<FeedStream[]> {
-  const cacheKey = `feed-streams-${matchId}`;
+async function getMatchStreams(matchId: number, sportType = SPORT_TYPE): Promise<FeedStream[]> {
+  const cacheKey = `feed-streams-${sportType}-${matchId}`;
   const cached = await getCache<FeedStream[]>(cacheKey);
   if (cached) return cached;
-  const buf = await signedGet("match/detail", 102, { matchId, sportType: SPORT_TYPE, stream: true }, { matchId });
+  const buf = await signedGet("match/detail", 102, { matchId, sportType, stream: true }, { matchId }, sportType);
   const data = pbData(buf);
   const streams: FeedStream[] = [];
   for (const s of pbSubMsgs(data, 2)) {
@@ -271,7 +272,7 @@ async function getMatchStreams(matchId: number): Promise<FeedStream[]> {
   return streams;
 }
 
-async function resolveStreamUrl(stream: FeedStream, matchId: number): Promise<string | null> {
+async function resolveStreamUrl(stream: FeedStream, matchId: number, sportType = SPORT_TYPE): Promise<string | null> {
   const params: Record<string, unknown> = {
     streamId: stream.streamId,
     siteType: stream.siteType,
@@ -280,7 +281,7 @@ async function resolveStreamUrl(stream: FeedStream, matchId: number): Promise<st
     country: "AR",
     digit: DIGIT,
     matchId,
-    sportType: SPORT_TYPE,
+    sportType,
   };
   const url = `${API}/api/stream/detail?${qs(params)}`;
   const r = await fetch(url, { headers: headers() });
@@ -311,37 +312,96 @@ async function resolveStreamUrl(stream: FeedStream, matchId: number): Promise<st
   return null;
 }
 
+// ---------- fighting events ----------
+
+export interface FightingEvent {
+  matchId: number;
+  title: string;
+  matchDate: number; // epoch ms
+}
+
+function pbFieldString(msg: Buffer, field: number): string | null {
+  for (const e of pbFields(msg)) {
+    if (e.f === field && e.d) {
+      const s = e.d.toString("utf8");
+      if (/^[\x20-\x7e]+$/.test(s)) return s;
+    }
+  }
+  return null;
+}
+
+export async function listFightingEvents(): Promise<FightingEvent[]> {
+  if (!API || !REFERER) return [];
+  const cacheKey = "feed-fighting-live";
+  const cached = await getCache<FightingEvent[]>(cacheKey);
+  if (cached) return cached;
+  const buf = await signedGet(
+    "match/live",
+    100,
+    { sportType: FIGHTING_SPORT_TYPE, stream: true },
+    {},
+    FIGHTING_SPORT_TYPE
+  );
+  const data = pbData(buf);
+  const events: FightingEvent[] = [];
+  for (const m of pbSubMsgs(data, 1)) {
+    const matchId = pbVarint(m, 1);
+    if (!matchId) continue;
+    const matchDate = pbVarint(m, 3) ?? 0;
+    const titleWrap = pbSubMsgs(m, 30)[0];
+    const title = (titleWrap && pbFieldString(titleWrap, 2)) || "";
+    if (!title) continue;
+    events.push({ matchId, title, matchDate });
+  }
+  events.sort((a, b) => a.matchDate - b.matchDate);
+  await setCache(cacheKey, events, 30_000);
+  return events;
+}
+
 // ---------- public API ----------
+
+async function channelsForMatch(matchId: number, sportType: number): Promise<Channel[]> {
+  const streams = await getMatchStreams(matchId, sportType);
+  if (!streams.length) return [];
+  const channels: Channel[] = [];
+  for (const s of streams.slice(0, 4)) {
+    try {
+      const url = await resolveStreamUrl(s, matchId, sportType);
+      if (!url) continue;
+      const isHls = /\.m3u8/i.test(url) || url.includes("m3u8");
+      channels.push({
+        id: `feed-${sportType}-${matchId}-${s.streamId}`,
+        name: s.name || `Stream ${channels.length + 1}`,
+        url: isHls ? toHlsProxyUrl(url) : url,
+        kind: isHls ? "hls" : "iframe",
+        provider: "primary-feed",
+        streamId: s.streamId,
+        siteType: s.siteType,
+      });
+    } catch {
+    }
+  }
+  return channels;
+}
 
 export async function findPlayerSixStreams(homeTeam: string, awayTeam: string): Promise<Channel[]> {
   if (!API || !REFERER || !DIGIT) return [];
   try {
     const matchId = await findFeedMatchId(homeTeam, awayTeam);
     if (!matchId) return [];
-    const streams = await getMatchStreams(matchId);
-    if (!streams.length) return [];
-    const channels: Channel[] = [];
-    for (const s of streams.slice(0, 4)) {
-      try {
-        const url = await resolveStreamUrl(s, matchId);
-        if (!url) continue;
-        const isHls = /\.m3u8/i.test(url) || url.includes("m3u8");
-        channels.push({
-          id: `feed-${matchId}-${s.streamId}`,
-          name: s.name || `Stream ${channels.length + 1}`,
-          url: isHls ? toHlsProxyUrl(url) : url,
-          kind: isHls ? "hls" : "iframe",
-          provider: "primary-feed",
-          streamId: s.streamId,
-          siteType: s.siteType,
-        });
-      } catch {
-        // skip broken stream
-      }
-    }
-    return channels;
+    return await channelsForMatch(matchId, SPORT_TYPE);
   } catch (e) {
     console.error("[feed] findPlayerSixStreams failed:", e);
+    return [];
+  }
+}
+
+export async function findFightingStreams(matchId: number): Promise<Channel[]> {
+  if (!API || !REFERER || !DIGIT) return [];
+  try {
+    return await channelsForMatch(matchId, FIGHTING_SPORT_TYPE);
+  } catch (e) {
+    console.error("[feed] findFightingStreams failed:", e);
     return [];
   }
 }

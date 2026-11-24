@@ -195,13 +195,13 @@ function WatchPageInner({
               {/* Display numbers are independent of the existing provider IDs. */}
               {([
                 { mode: "6", label: t.player.playerTwoB },
+                { mode: "8", label: t.player.playerSix },
                 { mode: "2", label: t.player.playerTwo },
                 { mode: "3", label: t.player.playerThree },
-                { mode: "4", label: t.player.playerFour },
                 { mode: "5", label: t.player.playerFive },
-                { mode: "8", label: t.player.playerSix },
-                // RBTV (mode "7") stays reachable via ?player=7 but is hidden
-                // from the selector: its CDN/P2P delivery is unreliable.
+                // Player 4 stays reachable via ?player=4 but is hidden from the
+                // selector; RBTV (mode "7") is hidden for the same reason —
+                // its CDN/P2P delivery is unreliable.
               ] as const).map(({ mode, label }) => (
                 <button
                   key={mode}
