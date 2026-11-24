@@ -7,10 +7,15 @@
  * same promise instead of issuing two upstream requests.
  */
 
+import sharp from "sharp";
+
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const MAX_CACHE_ENTRIES = 500;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_BYTES = 2 * 1024 * 1024;
+// Badges render at ~28-48px; 128px covers 3x DPR with headroom. Anything
+// larger is wasted bytes through the relay.
+const MAX_DIMENSION = 128;
 
 interface ImageEntry {
   bytes: ArrayBuffer;
@@ -26,6 +31,30 @@ export function getCachedImage(key: string): ImageEntry | null {
   if (entry && Date.now() < entry.expiresAt) return entry;
   if (entry) imageCache.delete(key);
   return null;
+}
+
+/**
+ * Downscales and re-encodes raster badges as WebP. SVGs and decode failures
+ * pass through untouched so a bad upstream can never blank a crest.
+ */
+async function optimizeBadge(
+  bytes: ArrayBuffer,
+  contentType: string
+): Promise<{ bytes: ArrayBuffer; contentType: string }> {
+  if (!contentType.startsWith("image/") || contentType.includes("svg")) {
+    return { bytes, contentType };
+  }
+  try {
+    const out = await sharp(Buffer.from(bytes))
+      .rotate()
+      .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    const ab = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer;
+    return { bytes: ab, contentType: "image/webp" };
+  } catch {
+    return { bytes, contentType };
+  }
 }
 
 async function fetchUpstream(target: string): Promise<ImageEntry | null> {
@@ -46,9 +75,12 @@ async function fetchUpstream(target: string): Promise<ImageEntry | null> {
       const bytes = await upstream.arrayBuffer();
       if (bytes.byteLength > MAX_BYTES) return null;
 
+      const contentType = upstream.headers.get("content-type") ?? "image/png";
+      const optimized = await optimizeBadge(bytes, contentType);
+
       return {
-        bytes,
-        contentType: upstream.headers.get("content-type") ?? "image/png",
+        bytes: optimized.bytes,
+        contentType: optimized.contentType,
         expiresAt: Date.now() + CACHE_TTL_MS,
       };
     } catch {

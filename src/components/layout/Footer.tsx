@@ -17,7 +17,7 @@ export default function Footer() {
           <div className="flex flex-col gap-3 sm:gap-4 md:col-span-1">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 sm:gap-3 bg-yellow-400 border-4 border-black px-3 sm:px-4 py-1.5 sm:py-2 shadow-brutal-white w-max transform transition-transform hover:-translate-y-1 hover:rotate-1"
+              className="inline-flex items-center gap-2 sm:gap-3 bg-accent-primary border-4 border-black px-3 sm:px-4 py-1.5 sm:py-2 shadow-brutal-white w-max transform transition-transform hover:-translate-y-1 hover:rotate-1"
             >
               <Image src="/icon.svg" alt="GolTV" width={34} height={34} className="h-8 w-8 object-contain" />
               <span className="text-xl sm:text-2xl font-black text-black uppercase tracking-tighter">

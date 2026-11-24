@@ -336,24 +336,24 @@ export default function BoxeoPage() {
                         data-match={match.id}
                         onClick={() => selectMatch(match.id)}
                         title={matchLabel(match)}
-                        className={`flex w-full min-w-0 flex-col gap-1.5 border-4 px-2.5 py-2 text-left transition-transform hover:-translate-y-0.5 sm:w-52 sm:shrink-0 sm:px-3 sm:py-2.5 md:w-64 ${
+                        className={`flex w-full min-w-0 flex-col gap-2 border-4 px-3 py-3 text-left transition-transform hover:-translate-y-0.5 sm:w-64 sm:shrink-0 sm:px-4 sm:py-3.5 md:w-80 ${
                           isActive
                             ? "border-accent-red bg-accent-red text-white shadow-brutal"
                             : "border-white bg-black text-white shadow-brutal"
                         }`}
                       >
-                        <span className="text-center text-[10px] font-black uppercase leading-tight sm:text-left">
+                        <span className="text-left text-xs font-black uppercase leading-tight sm:text-sm">
                           {matchLabel(match)}
                         </span>
                         <span className="flex items-center justify-between gap-1">
-                          <span className="text-[9px] font-bold uppercase sm:text-[10px]">{formatTime(match.startsAt)}</span>
+                          <span className="text-[10px] font-bold uppercase sm:text-xs">{formatTime(match.startsAt)}</span>
                           {match.live ? (
-                            <span className="flex shrink-0 items-center gap-1 text-[9px] font-black uppercase">
+                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-black uppercase sm:text-xs">
                               <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
                               {copy.live}
                             </span>
                           ) : (
-                            <span className="shrink-0 text-[9px] font-black uppercase">
+                            <span className="shrink-0 text-[10px] font-black uppercase sm:text-xs">
                               {statusLabel(match)}
                             </span>
                           )}

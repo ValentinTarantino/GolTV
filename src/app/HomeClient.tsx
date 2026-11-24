@@ -8,6 +8,7 @@ import NetworkNotice from "@/components/ui/NetworkNotice";
 import { LIVE_STATUSES } from "@/lib/constants";
 import type { Match } from "@/lib/types";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { WHISTLE_DATA_URI } from "@/lib/whistle";
 
 function subscribeToHydration() {
   return () => {};
@@ -170,7 +171,7 @@ export default function HomeClient() {
               {/* Whistle icon — image without border or shadow */}
               <div className="grid h-14 w-14 shrink-0 place-items-center bg-black sm:h-20 sm:w-20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/whistle.png" alt="Silbato" className="h-[48px] w-[48px] object-contain sm:h-[72px] sm:w-[72px]" />
+                <img src={WHISTLE_DATA_URI} alt="Silbato" className="h-[48px] w-[48px] object-contain sm:h-[72px] sm:w-[72px]" />
               </div>
 
               {/* Title + date */}
