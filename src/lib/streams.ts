@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 import { load } from "cheerio/slim";
 import { getCache, setCache } from "./cache";
 
@@ -23,7 +23,14 @@ const STREAM_TTL = 5 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_SITEMAP_PAGES = 8;
 const RELAY_PATH = "/api/canales/stream";
+/**
+ * CDN-cacheable segment relay (Pages Router — see src/pages/api/canales/seg.ts).
+ * Media segments are immutable, so edges can serve repeat viewers; playlists
+ * and manifests stay on RELAY_PATH with no-store.
+ */
+const SEGMENT_RELAY_PATH = "/api/canales/seg";
 const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
+const SEGMENT_BUCKET_MS = 15 * 60 * 1000;
 /** The channel catalog of the embed app changes rarely; ten minutes is safe. */
 const EMBED_TTL = 10 * 60 * 1000;
 /** Catalog published by the embed app when its own URL does not name a repo. */
@@ -961,6 +968,38 @@ export function sealCanalUrl(url: string, options: CanalSealOptions = {}): strin
   return Buffer.concat([iv, cipherText, cipher.getAuthTag()]).toString("base64url");
 }
 
+/**
+ * Deterministic segment token: identical for every viewer of the same channel
+ * within a time bucket, so CDN edges can deduplicate media requests. Same
+ * payload shape as `sealCanalUrl`, so `openCanalToken` opens both.
+ */
+export function sealCanalSegmentUrl(url: string, options: CanalSealOptions = {}): string {
+  const bucket = Math.floor(Date.now() / SEGMENT_BUCKET_MS);
+  const bucketStart = bucket * SEGMENT_BUCKET_MS;
+  const iv = createHmac("sha256", tokenKey())
+    .update(`goltv-canales-seg:${bucket}`)
+    .update(url)
+    .digest()
+    .subarray(0, 12);
+  const cipher = createCipheriv("aes-256-gcm", tokenKey(), iv);
+  cipher.setAAD(TOKEN_AAD);
+  const payload = Buffer.from(
+    JSON.stringify({
+      u: url,
+      e: bucketStart + SEGMENT_BUCKET_MS + TOKEN_TTL_MS,
+      k: options.encrypted ? 1 : 0,
+    }),
+    "utf8"
+  );
+  const cipherText = Buffer.concat([cipher.update(payload), cipher.final()]);
+  return Buffer.concat([iv, cipherText, cipher.getAuthTag()]).toString("base64url");
+}
+
+/** Client-facing relay URL for a media segment (CDN-cacheable path). */
+export function canalSegmentRelayUrl(url: string, options: CanalSealOptions = {}): string {
+  return `${SEGMENT_RELAY_PATH}?t=${sealCanalSegmentUrl(url, options)}`;
+}
+
 /** Opens a token minted by `sealCanalUrl`; null when tampered or expired. */
 export function openCanalToken(token: string): CanalToken | null {
   try {
@@ -1016,12 +1055,18 @@ export function rewriteCanalPlaylist(
   const seal = (value: string): string => {
     if (/^(data|blob):/i.test(value)) return value;
     try {
-      return canalRelayUrl(new URL(value, upstream).toString(), options);
+      const absolute = new URL(value, upstream).toString();
+      // Nested playlists stay on the no-store relay; media segments go to the
+      // CDN-cacheable path so repeat viewers share edge copies.
+      const relay = /\.m3u8($|[?#])/i.test(absolute) ? canalRelayUrl : canalSegmentRelayUrl;
+      return relay(absolute, options);
     } catch {
       // Some playlists carry values with stray spaces; they still point to a
       // segment, so they are encoded instead of dropped.
       try {
-        return canalRelayUrl(new URL(value.trim().replace(/\s+/g, "%20"), upstream).toString(), options);
+        const absolute = new URL(value.trim().replace(/\s+/g, "%20"), upstream).toString();
+        const relay = /\.m3u8($|[?#])/i.test(absolute) ? canalRelayUrl : canalSegmentRelayUrl;
+        return relay(absolute, options);
       } catch {
         return value;
       }
@@ -1097,6 +1142,16 @@ export function rewriteCanalManifest(
     }
   };
 
+  // Init segments are immutable media too; they go to the cacheable path.
+  const sealSegment = (value: string): string => {
+    if (/^(data|blob):/i.test(value)) return value;
+    try {
+      return canalSegmentRelayUrl(new URL(value, upstream).toString(), options);
+    } catch {
+      return value;
+    }
+  };
+
   const sealTemplate = (value: string): string => {
     if (/^(data|blob):/i.test(value)) return value;
     // The template carries XML entities (`&amp;`) that the manifest parser
@@ -1108,11 +1163,11 @@ export function rewriteCanalManifest(
     } catch {
       return value;
     }
-    const parts = [`t=${sealCanalUrl(absolute, options)}`];
+    const parts = [`t=${sealCanalSegmentUrl(absolute, options)}`];
     for (const [placeholder, name] of DASH_PLACEHOLDERS) {
       if (absolute.includes(placeholder)) parts.push(`${name}=${placeholder}`);
     }
-    return `${RELAY_PATH}?${parts.join("&")}`;
+    return `${SEGMENT_RELAY_PATH}?${parts.join("&")}`;
   };
 
   const resolved = resolveRepresentationIds(body).replace(
@@ -1122,7 +1177,7 @@ export function rewriteCanalManifest(
 
   return resolved
     .replace(/<BaseURL>([^<]+)<\/BaseURL>/g, (_match, url: string) => `<BaseURL>${seal(url)}</BaseURL>`)
-    .replace(/initialization="([^"]+)"/g, (_match, url: string) => `initialization="${seal(url)}"`)
+    .replace(/initialization="([^"]+)"/g, (_match, url: string) => `initialization="${sealSegment(url)}"`)
     .replace(/media="([^"]+)"/g, (_match, url: string) => `media="${sealTemplate(url)}"`);
 }
 

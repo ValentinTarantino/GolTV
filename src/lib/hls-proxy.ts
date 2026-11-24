@@ -8,6 +8,14 @@
 
 import { sealLpfSegmentUrl, sealLpfUrl } from "./sealed-url";
 
+/**
+ * Optional external segment relay (e.g. a Cloudflare Tunnel to a home/office
+ * machine). When set, media segments are served from there instead of
+ * `/api/hls/seg`, moving ~95% of the site's bandwidth off the app server.
+ * Playlists always stay on the app server — they are tiny and must stay fresh.
+ */
+const SEG_RELAY_BASE = (process.env.HLS_SEG_RELAY_BASE ?? "").replace(/\/+$/, "");
+
 /** Only these hosts (and their subdomains) may be relayed — not an open proxy. */
 const ALLOWED_HOST_SUFFIXES = [".ftlly.com", ".futlivehd.com", ".ebaclofen.org"];
 
@@ -102,9 +110,14 @@ function toRelay(value: string, upstream: URL): string {
       }
     }
     try {
-      return `/api/hls/seg?t=${sealLpfSegmentUrl(absolute)}`;
+      const token = sealLpfSegmentUrl(absolute);
+      return SEG_RELAY_BASE
+        ? `${SEG_RELAY_BASE}/seg?t=${token}`
+        : `/api/hls/seg?t=${token}`;
     } catch {
-      return `/api/hls/seg?u=${encodeURIComponent(absolute)}`;
+      return SEG_RELAY_BASE
+        ? `${SEG_RELAY_BASE}/seg?u=${encodeURIComponent(absolute)}`
+        : `/api/hls/seg?u=${encodeURIComponent(absolute)}`;
     }
   } catch {
     return value;

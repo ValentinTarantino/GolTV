@@ -3,10 +3,12 @@
  */
 import {
   canalRelayUrl,
+  canalSegmentRelayUrl,
   channelId,
   extractDashSource,
   extractStreamUrl,
   neutralizeDrmBoxes,
+  openCanalToken,
   openCanalUrl,
   resolveRepresentationIds,
   rewriteCanalManifest,
@@ -41,6 +43,19 @@ describe("canales source", () => {
       expect(relay.startsWith("/api/canales/stream?t=")).toBe(true);
       expect(relay).not.toContain("trapemn");
     });
+
+    it("seals segments on the cacheable path with a deterministic token", () => {
+      const segment = "https://cdn-zapster-ros.trapemn.tv:1936/live/chunk-1.ts";
+      const relay = canalSegmentRelayUrl(segment);
+      expect(relay.startsWith("/api/canales/seg?t=")).toBe(true);
+      expect(relay).not.toContain("trapemn");
+      expect(openCanalToken(relay.split("?t=")[1])).toEqual({
+        url: segment,
+        encrypted: false,
+      });
+      // Same URL and same bucket mint the same token for every viewer.
+      expect(canalSegmentRelayUrl(segment)).toBe(relay);
+    });
   });
 
   describe("rewriteCanalPlaylist", () => {
@@ -57,8 +72,10 @@ describe("canales source", () => {
       );
 
       expect(rewritten).not.toContain("trapemn.tv");
-      expect(rewritten).toContain("/api/canales/stream?t=");
-      expect(rewritten.match(/\/api\/canales\/stream\?t=/g)?.length).toBe(2);
+      // Nested playlists stay on the no-store relay; media segments go to the
+      // CDN-cacheable path.
+      expect(rewritten.match(/\/api\/canales\/stream\?t=/g)?.length).toBe(1);
+      expect(rewritten.match(/\/api\/canales\/seg\?t=/g)?.length).toBe(1);
     });
   });
 
@@ -98,10 +115,14 @@ describe("canales source", () => {
 
       expect(rewritten).not.toContain("akamaized.net");
       expect(rewritten).not.toContain("ContentProtection");
-      const tokens = [...rewritten.matchAll(/\/api\/canales\/stream\?t=([A-Za-z0-9_-]+)/g)].map(
-        (match) => match[1]
-      );
+      const tokens = [
+        ...rewritten.matchAll(/\/api\/canales\/(?:stream|seg)\?t=([A-Za-z0-9_-]+)/g),
+      ].map((match) => match[1]);
       expect(tokens).toHaveLength(3);
+      // BaseURL stays on the no-store relay; init and media are cacheable.
+      expect(rewritten.match(/<BaseURL>\/api\/canales\/stream\?t=/)).not.toBeNull();
+      expect(rewritten.match(/initialization="\/api\/canales\/seg\?t=/)).not.toBeNull();
+      expect(rewritten.match(/media="\/api\/canales\/seg\?t=/)).not.toBeNull();
     });
   });
 
