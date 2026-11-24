@@ -2,6 +2,9 @@ name = "goltv-seg-relay"
 main = "src/index.ts"
 compatibility_date = "2026-11-20"
 compatibility_flags = ["nodejs_compat"]
+# Render reaches /api/populate through workers.dev to bypass the zone's bot
+# challenge; keep it enabled across deploys.
+workers_dev = true
 
 # Only the CDN-cacheable segment paths. Everything else falls through to the
 # app server (Render), which owns pages, playlists, chat and APIs.
