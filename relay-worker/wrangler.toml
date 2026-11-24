@@ -24,5 +24,5 @@ bucket_name = "goltv-segments"
 enabled = true
 
 # Vars and secrets live in Cloudflare (Workers > goltv-seg-relay > Settings):
-#   CANALES_STREAM_HOSTS, PLAYER_SIX_REFERER, LPF_PROXY_SECRET, CANALES_PROXY_SECRET
+#   CANALES_STREAM_HOSTS, PLAYER_SIX_REFERER, LPF_PROXY_SECRET, CANALES_PROXY_SECRET, LPF_STREAM_HOSTS
 # They are stored as secret_text bindings so they survive `wrangler deploy`.

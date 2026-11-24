@@ -1,4 +1,5 @@
-import { openLpfUrl, sealLpfUrl } from "./sealed-url";
+import { openLpfUrl, sealLpfSegmentUrl, sealLpfUrl } from "./sealed-url";
+import { r2SegmentUrl, r2SegmentsEnabled, triggerSegmentPopulate } from "./r2-segments";
 
 export { openLpfUrl, sealLpfUrl };
 
@@ -20,12 +21,24 @@ export function lpfRelayUrl(url: string): string {
   return `${RELAY_PATH}?t=${sealLpfUrl(url)}`;
 }
 
-/** Rewrites every URI of an LPF playlist to a sealed relay URL. */
+/**
+ * Rewrites every URI of an LPF playlist. Sub-playlists stay on the relay
+ * (they must stay fresh); media segments, keys and init maps go to the R2
+ * CDN when `MEDIA_CDN_BASE` + `SEG_POPULATE_URL` are configured — the
+ * segment token is bucket-aligned so every viewer shares one object.
+ */
 export function rewriteLpfPlaylist(body: string, upstream: URL): string {
   const seal = (value: string): string => {
     if (/^(data|blob):/i.test(value)) return value;
     try {
-      return lpfRelayUrl(new URL(value, upstream).toString());
+      const absolute = new URL(value, upstream).toString();
+      if (/\.m3u8(?:[?#]|$)/i.test(absolute)) return lpfRelayUrl(absolute);
+      const token = sealLpfSegmentUrl(absolute);
+      if (r2SegmentsEnabled()) {
+        triggerSegmentPopulate("lpf", token);
+        return r2SegmentUrl("lpf", token);
+      }
+      return `${RELAY_PATH}?t=${token}`;
     } catch {
       return value;
     }

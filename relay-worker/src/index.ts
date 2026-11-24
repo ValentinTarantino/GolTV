@@ -151,6 +151,25 @@ function isAllowedStreamUrl(url: URL): boolean {
   );
 }
 
+/**
+ * LPF playlist hosts configured on the app (`LPF_STREAM_HOSTS`). The populate
+ * endpoint fetches these on behalf of Render, so the worker needs the same
+ * allowlist or every LPF segment populate would 403.
+ */
+function isLpfStreamHostAllowed(url: URL, env: Env): boolean {
+  if (url.protocol !== "https:") return false;
+  const host = url.hostname.toLowerCase();
+  return (env.LPF_STREAM_HOSTS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean)
+    .some(
+      (suffix) =>
+        host === suffix.replace(/^\./, "") ||
+        host.endsWith(suffix.startsWith(".") ? suffix : `.${suffix}`)
+    );
+}
+
 const PLAYER_DOMAINS = ["kora-plus.mov", "kora-plus.li", "kora-plus.app"];
 const PLAYER_PAGE_PATH_RE = /\/(?:framelatin|framestream)\.php$/i;
 
@@ -583,7 +602,9 @@ async function populateLpf(env: Env, url: URL): Promise<PopulateResult> {
   }
   if (upstream.protocol !== "https:") return { status: 403, body: "Segment URL not allowed" };
   if (isEmbedPlayerPage(upstream, env)) return { status: 400, body: "Player pages are not segments" };
-  if (!isAllowedStreamUrl(upstream)) return { status: 403, body: "Stream host not allowed" };
+  if (!isAllowedStreamUrl(upstream) && !isLpfStreamHostAllowed(upstream, env)) {
+    return { status: 403, body: `Stream host not allowed: ${upstream.hostname}` };
+  }
 
   const tokenForKey = rawToken ?? upstream.toString();
   if (await r2HasSegment(env, "lpf", tokenForKey)) {
@@ -678,6 +699,7 @@ async function handlePopulate(request: Request, env: Env, url: URL): Promise<Res
 
 interface Env {
   LPF_PROXY_SECRET?: string;
+  LPF_STREAM_HOSTS?: string;
   CANALES_PROXY_SECRET?: string;
   CANALES_STREAM_HOSTS?: string;
   PLAYER_SIX_REFERER?: string;

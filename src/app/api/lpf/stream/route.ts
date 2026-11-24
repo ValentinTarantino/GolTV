@@ -1,5 +1,6 @@
 import { isLpfStreamHost, openLpfUrl, rewriteLpfPlaylist } from "@/lib/lpf-play";
 import { getHomeRelayUrl } from "@/lib/lpf-home-relay";
+import { settleSegmentPopulates } from "@/lib/r2-segments";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -101,7 +102,11 @@ export async function GET(request: Request): Promise<Response> {
       // Through the home relay the response URL is the tunnel's, so relative
       // URIs must resolve against the original CDN URL instead.
       const finalUrl = !viaHomeRelay && upstreamRes.url ? new URL(upstreamRes.url) : upstream;
-      return new Response(rewriteLpfPlaylist(body, finalUrl), {
+      const rewritten = rewriteLpfPlaylist(body, finalUrl);
+      // Wait for the populates of the segments just referenced so viewers
+      // never hit an R2 object that is not stored yet.
+      await settleSegmentPopulates();
+      return new Response(rewritten, {
         status: 200,
         headers: PLAYLIST_HEADERS,
       });
