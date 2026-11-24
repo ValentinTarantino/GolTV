@@ -509,6 +509,168 @@ async function handleCanalSeg(request: Request, env: Env, url: URL): Promise<Res
 }
 
 /* ------------------------------------------------------------------ *
+ * R2 populate — pre-fetch segments into the bucket so viewers are
+ * served by the CDN/R2 layer instead of this worker.
+ * ------------------------------------------------------------------ */
+
+/** Minimal R2Bucket surface used here (avoids a workers-types dependency). */
+interface R2BucketLike {
+  head(key: string): Promise<unknown>;
+  put(
+    key: string,
+    value: ArrayBuffer | Uint8Array,
+    options?: { httpMetadata?: { contentType?: string; cacheControl?: string } }
+  ): Promise<unknown>;
+}
+
+function r2SegmentKey(kind: string, token: string): string {
+  const hex = createHash("sha256").update(token).digest("hex");
+  return `v1/${kind}/${hex.slice(0, 48)}`;
+}
+
+async function r2PutSegment(
+  env: Env,
+  kind: string,
+  token: string,
+  body: ArrayBuffer | Uint8Array,
+  contentType: string
+): Promise<string> {
+  const bucket = env.SEGMENTS_BUCKET;
+  if (!bucket) throw new Error("SEGMENTS_BUCKET binding missing");
+  const key = r2SegmentKey(kind, token);
+  await bucket.put(key, body, {
+    httpMetadata: {
+      contentType: contentType || "application/octet-stream",
+      cacheControl: "public, max-age=86400, immutable",
+    },
+  });
+  return key;
+}
+
+async function r2HasSegment(env: Env, kind: string, token: string): Promise<boolean> {
+  const bucket = env.SEGMENTS_BUCKET;
+  if (!bucket) return false;
+  return (await bucket.head(r2SegmentKey(kind, token))) !== null;
+}
+
+interface PopulateResult {
+  status: number;
+  body: string;
+}
+
+/** Fetches one LPF segment upstream and stores it in R2. */
+async function populateLpf(env: Env, url: URL): Promise<PopulateResult> {
+  const rawToken = url.searchParams.get("t");
+  const rawPlain = url.searchParams.get("u");
+
+  let target: string | null = null;
+  if (rawToken) {
+    try {
+      target = openLpfUrl(rawToken, env);
+    } catch {
+      target = null;
+    }
+    if (!target) return { status: 400, body: "Invalid or expired stream token" };
+  } else {
+    target = rawPlain;
+  }
+
+  let upstream: URL;
+  try {
+    upstream = new URL(target ?? "");
+  } catch {
+    return { status: 400, body: "Missing or invalid segment URL" };
+  }
+  if (upstream.protocol !== "https:") return { status: 403, body: "Segment URL not allowed" };
+  if (isEmbedPlayerPage(upstream, env)) return { status: 400, body: "Player pages are not segments" };
+  if (!isAllowedStreamUrl(upstream)) return { status: 403, body: "Stream host not allowed" };
+
+  const tokenForKey = rawToken ?? upstream.toString();
+  if (await r2HasSegment(env, "lpf", tokenForKey)) {
+    return { status: 200, body: "exists" };
+  }
+
+  const upstreamRes = await fetchWithMirrorFallback(upstream, null, env);
+  if (!upstreamRes.ok) return { status: 502, body: `upstream ${upstreamRes.status}` };
+
+  const contentType = upstreamRes.headers.get("content-type") ?? "";
+  const isPlaylist =
+    upstream.pathname.toLowerCase().endsWith(".m3u8") || contentType.includes("mpegurl");
+  if (isPlaylist) return { status: 200, body: "skip-playlist" };
+
+  const body = await upstreamRes.arrayBuffer();
+  await r2PutSegment(env, "lpf", tokenForKey, body, contentType);
+  return { status: 200, body: "stored" };
+}
+
+/** Fetches one canal HLS segment upstream and stores it in R2. */
+async function populateCanal(env: Env, url: URL): Promise<PopulateResult> {
+  const rawToken = url.searchParams.get("t");
+  const sealed = rawToken ? openCanalToken(rawToken, env) : null;
+  if (!sealed || !rawToken) return { status: 400, body: "Invalid stream reference" };
+
+  let target = expandDashTemplate(sealed.url, url.searchParams);
+  const partParams = new URLSearchParams();
+  for (const name of ["_HLS_msn", "_HLS_part", "_HLS_skip"]) {
+    const value = url.searchParams.get(name);
+    if (value !== null) partParams.set(name, value);
+  }
+  if ([...partParams.keys()].length > 0) {
+    const withParts = new URL(target);
+    for (const [name, value] of partParams) withParts.searchParams.set(name, value);
+    target = withParts.toString();
+  }
+
+  let upstream: URL;
+  try {
+    upstream = new URL(target);
+  } catch {
+    return { status: 400, body: "Missing or invalid segment URL" };
+  }
+  if (!isCanalStreamHost(upstream, env)) return { status: 403, body: "Stream host not allowed" };
+
+  if (await r2HasSegment(env, "canal", rawToken)) {
+    return { status: 200, body: "exists" };
+  }
+
+  const headers: Record<string, string> = { Accept: "*/*" };
+  const upstreamRes = await canalFetchUpstream(upstream, headers);
+  if (!upstreamRes.ok) return { status: 502, body: `upstream ${upstreamRes.status}` };
+
+  const contentType = upstreamRes.headers.get("content-type") ?? "";
+  const isPlaylist =
+    upstream.pathname.toLowerCase().endsWith(".m3u8") || contentType.includes("mpegurl");
+  const isManifest =
+    upstream.pathname.toLowerCase().endsWith(".mpd") || contentType.includes("dash");
+  if (isPlaylist || isManifest) return { status: 200, body: "skip-playlist" };
+
+  const body = Buffer.from(await upstreamRes.arrayBuffer());
+  const isInit = upstream.pathname.toLowerCase().includes("-init.");
+  const finalBody = isInit && !sealed.encrypted ? neutralizeDrmBoxes(body) : body;
+
+  await r2PutSegment(env, "canal", rawToken, finalBody, contentType);
+  return { status: 200, body: "stored" };
+}
+
+async function handlePopulate(request: Request, env: Env, url: URL): Promise<Response> {
+  if (request.method !== "GET" && request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, POST" } });
+  }
+  const kind = url.searchParams.get("kind");
+  try {
+    const result =
+      kind === "canal" ? await populateCanal(env, url) : await populateLpf(env, url);
+    return new Response(result.body, {
+      status: result.status,
+      headers: { "Content-Type": "text/plain", ...CORS_HEADERS },
+    });
+  } catch (error) {
+    console.warn("[seg-relay] populate failed:", error);
+    return new Response("Populate failed", { status: 502 });
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Entry point
  * ------------------------------------------------------------------ */
 
@@ -518,6 +680,7 @@ interface Env {
   CANALES_STREAM_HOSTS?: string;
   PLAYER_SIX_REFERER?: string;
   EMBED_PLAYER_DOMAINS?: string;
+  SEGMENTS_BUCKET?: R2BucketLike;
 }
 
 export default {
@@ -529,6 +692,9 @@ export default {
     }
     if (url.pathname === "/api/canales/seg" || url.pathname.startsWith("/api/canales/seg/")) {
       return handleCanalSeg(request, env, url);
+    }
+    if (url.pathname === "/api/populate" || url.pathname.startsWith("/api/populate/")) {
+      return handlePopulate(request, env, url);
     }
     return new Response("Not found", { status: 404 });
   },

@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 import { load } from "cheerio/slim";
 import { getCache, setCache } from "./cache";
+import { r2SegmentUrl, r2SegmentsEnabled, triggerSegmentPopulate } from "./r2-segments";
 
 /**
  * Source of the "Canales" section.
@@ -997,7 +998,12 @@ export function sealCanalSegmentUrl(url: string, options: CanalSealOptions = {})
 
 /** Client-facing relay URL for a media segment (CDN-cacheable path). */
 export function canalSegmentRelayUrl(url: string, options: CanalSealOptions = {}): string {
-  return `${SEGMENT_RELAY_PATH}?t=${sealCanalSegmentUrl(url, options)}`;
+  const token = sealCanalSegmentUrl(url, options);
+  if (r2SegmentsEnabled()) {
+    triggerSegmentPopulate("canal", token);
+    return r2SegmentUrl("canal", token);
+  }
+  return `${SEGMENT_RELAY_PATH}?t=${token}`;
 }
 
 /** Opens a token minted by `sealCanalUrl`; null when tampered or expired. */

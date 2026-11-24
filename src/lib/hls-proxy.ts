@@ -7,6 +7,7 @@
  */
 
 import { sealLpfSegmentUrl, sealLpfUrl } from "./sealed-url";
+import { r2SegmentUrl, r2SegmentsEnabled, triggerSegmentPopulate } from "./r2-segments";
 
 /**
  * Optional external segment relay (e.g. a Cloudflare Tunnel to a home/office
@@ -111,6 +112,10 @@ function toRelay(value: string, upstream: URL): string {
     }
     try {
       const token = sealLpfSegmentUrl(absolute);
+      if (r2SegmentsEnabled()) {
+        triggerSegmentPopulate("lpf", token);
+        return r2SegmentUrl("lpf", token);
+      }
       return SEG_RELAY_BASE
         ? `${SEG_RELAY_BASE}/seg?t=${token}`
         : `/api/hls/seg?t=${token}`;

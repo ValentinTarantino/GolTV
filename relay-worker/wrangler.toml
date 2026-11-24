@@ -8,9 +8,20 @@ compatibility_flags = ["nodejs_compat"]
 routes = [
   { pattern = "goltv.stream/api/hls/seg*", zone_name = "goltv.stream" },
   { pattern = "goltv.stream/api/canales/seg*", zone_name = "goltv.stream" },
+  { pattern = "goltv.stream/api/populate*", zone_name = "goltv.stream" },
   { pattern = "www.goltv.stream/api/hls/seg*", zone_name = "goltv.stream" },
   { pattern = "www.goltv.stream/api/canales/seg*", zone_name = "goltv.stream" },
+  { pattern = "www.goltv.stream/api/populate*", zone_name = "goltv.stream" },
 ]
+
+[[r2_buckets]]
+binding = "SEGMENTS_BUCKET"
+bucket_name = "goltv-segments"
+
+# Workers Cache: serves repeat segment requests from the edge without running
+# the worker. Responses carry `Cache-Control: public, max-age=86400, immutable`.
+[cache]
+enabled = true
 
 # Vars and secrets live in Cloudflare (Workers > goltv-seg-relay > Settings):
 #   CANALES_STREAM_HOSTS, PLAYER_SIX_REFERER, LPF_PROXY_SECRET, CANALES_PROXY_SECRET
