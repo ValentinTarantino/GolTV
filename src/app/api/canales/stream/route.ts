@@ -1,3 +1,4 @@
+import { settleSegmentPopulates } from "@/lib/r2-segments";
 import {
   expandDashTemplate,
   fetchUpstream,
@@ -100,7 +101,11 @@ export async function GET(request: Request): Promise<Response> {
       if (!trimmed.startsWith("#EXTM3U")) {
         return new Response("Stream unavailable", { status: 503 });
       }
-      return new Response(rewriteCanalPlaylist(body, finalUrl, options), {
+      const rewritten = rewriteCanalPlaylist(body, finalUrl, options);
+      // Wait for the populates of the segments just referenced so viewers
+      // never hit an R2 object that is not stored yet.
+      await settleSegmentPopulates();
+      return new Response(rewritten, {
         status: 200,
         headers: {
           ...MANIFEST_HEADERS,

@@ -4,6 +4,7 @@ import {
   resolveEmbedPlaylist,
 } from "@/lib/embed-resolver";
 import { isAllowedStreamUrl, rewriteHlsPlaylist, rewritePlaylistToAbsolute } from "@/lib/hls-proxy";
+import { settleSegmentPopulates } from "@/lib/r2-segments";
 import { isBlockedNetworkTarget } from "@/lib/url-guard";
 
 export const UPSTREAM_TIMEOUT_MS = 45_000;
@@ -142,7 +143,12 @@ export async function relayUpstream(
       // Live playlists must never be cached: they change every few seconds.
       const text = await upstreamRes.text();
       const finalUrl = upstreamRes.url ? new URL(upstreamRes.url) : upstream;
-      return new Response(rewriteHlsPlaylist(text, finalUrl), {
+      const rewritten = rewriteHlsPlaylist(text, finalUrl);
+      // Hold the response until the populates for the segments we just
+      // referenced finish, so viewers never request an object that is not
+      // in R2 yet (a 404 would be edge-cached for hours).
+      await settleSegmentPopulates();
+      return new Response(rewritten, {
         status: upstreamRes.status,
         headers: PLAYLIST_HEADERS,
       });

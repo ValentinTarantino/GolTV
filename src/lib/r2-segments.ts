@@ -42,11 +42,15 @@ const triggered = new Map<string, number>();
 const TRIGGER_TTL_MS = 10 * 60 * 1000;
 const TRIGGER_MAP_MAX = 5000;
 
+/** Populate calls in flight — playlist routes await them before responding. */
+const pendingPopulates = new Set<Promise<void>>();
+
 /**
  * Asks the relay worker to fetch the segment upstream and store it in R2.
- * Fire-and-forget: failures are logged but never break playlist rewriting —
- * the worst case is the viewer hitting a not-yet-populated object and hls.js
- * retrying a moment later.
+ * The returned promise resolves once the worker answered; playlist routes
+ * await `settleSegmentPopulates` so viewers never receive an R2 URL for an
+ * object that is not stored yet. Failures clear the dedup entry so the next
+ * playlist poll retries the populate.
  */
 export function triggerSegmentPopulate(kind: string, token: string): void {
   if (!SEG_POPULATE_URL || !MEDIA_CDN_BASE) return;
@@ -59,19 +63,41 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
 
   const url = `${SEG_POPULATE_URL}?kind=${kind}&t=${encodeURIComponent(token)}`;
   const job = () =>
-    fetch(url, { method: "GET", cache: "no-store" })
+    fetch(url, { method: "GET", cache: "no-store", signal: AbortSignal.timeout(20_000) })
       .then(async (res) => {
         if (!res.ok) {
           const detail = await res.text().catch(() => "");
           console.warn(`[r2-segments] populate ${kind} -> ${res.status} ${detail}`.trim());
+          triggered.delete(dedupKey);
         }
       })
       .catch((error) => {
         console.warn(`[r2-segments] populate ${kind} failed:`, error);
+        triggered.delete(dedupKey);
       });
+  const promise = job();
+  pendingPopulates.add(promise);
+  promise.finally(() => pendingPopulates.delete(promise));
   try {
-    after(job);
+    after(() => promise);
   } catch {
-    void job();
+    // Outside a request scope (tests): the promise already runs on its own.
   }
+}
+
+/**
+ * Waits for in-flight populates, bounded by `timeoutMs`. Playlist routes call
+ * this after rewriting so the emitted R2 URLs point at stored objects; on
+ * timeout the populate still finishes via `after()` and later polls retry.
+ */
+export async function settleSegmentPopulates(timeoutMs = 3500): Promise<void> {
+  if (pendingPopulates.size === 0) return;
+  const snapshot = [...pendingPopulates];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    Promise.allSettled(snapshot),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, timeoutMs);
+    }),
+  ]).finally(() => clearTimeout(timer));
 }

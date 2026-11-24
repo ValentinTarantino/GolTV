@@ -627,7 +627,9 @@ async function populateCanal(env: Env, url: URL): Promise<PopulateResult> {
   } catch {
     return { status: 400, body: "Missing or invalid segment URL" };
   }
-  if (!isCanalStreamHost(upstream, env)) return { status: 403, body: "Stream host not allowed" };
+  if (!isCanalStreamHost(upstream, env)) {
+    return { status: 403, body: `Stream host not allowed: ${upstream.hostname}` };
+  }
 
   if (await r2HasSegment(env, "canal", rawToken)) {
     return { status: 200, body: "exists" };
