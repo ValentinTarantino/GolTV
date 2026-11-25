@@ -18,6 +18,7 @@ import { classifyAgendaLeague, hashSlug } from "@/lib/agenda-fixture";
 import { isIPBanned } from "@/lib/chat";
 import { touchRequestPresence } from "@/lib/presence";
 import { BANNED_HEADER } from "@/lib/viewer-id";
+import { settleImagePopulates } from "@/lib/r2-segments";
 import type { Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
 
@@ -530,6 +531,12 @@ export async function GET(request: NextRequest) {
       }
     }
   }
+
+  // proxyImageUrl emits R2 badge URLs and fires their populates; hold the
+  // response until those objects exist so the browser never 404s on a badge
+  // that the edge then caches as missing. Scoped to images so live-match
+  // segment uploads never slow this route down. Bounded internally.
+  await settleImagePopulates();
 
   return Response.json({ matches, date }, { 
     headers: { 

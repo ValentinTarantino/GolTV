@@ -1,4 +1,5 @@
 import { openLpfUrl, sealLpfDailyUrl, sealLpfUrl } from "./sealed-url";
+import { r2SegmentUrl, r2SegmentsEnabled, triggerSegmentPopulate } from "./r2-segments";
 import type { Channel } from "./types";
 
 /**
@@ -48,7 +49,16 @@ export function isProxiedImageHost(url: string): boolean {
 export function proxyImageUrl(url: string): string {
   if (!url || !url.startsWith("http") || !isProxiedImageHost(url)) return url;
   try {
-    return `/api/img?t=${sealLpfDailyUrl(url)}`;
+    const token = sealLpfDailyUrl(url);
+    // Badges are tiny and heavily repeated: when R2 delivery is enabled they
+    // are served from the CDN like video segments, so a new visitor anywhere
+    // gets an edge HIT instead of waiting on this server or the upstream CDN.
+    // The daily-bucket token keeps the object key stable for ~a day.
+    if (r2SegmentsEnabled()) {
+      triggerSegmentPopulate("img", token);
+      return r2SegmentUrl("img", token);
+    }
+    return `/api/img?t=${token}`;
   } catch {
     return "";
   }

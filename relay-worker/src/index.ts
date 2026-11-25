@@ -675,6 +675,87 @@ async function populateCanal(env: Env, url: URL): Promise<PopulateResult> {
   return { status: 200, body: "stored" };
 }
 
+/**
+ * Badge/logo hosts — mirrors PROXIED_IMAGE_HOSTS in src/lib/public-url.ts.
+ * Image populate opens the same daily-bucket sealed tokens the app seals,
+ * so without this list the endpoint could fetch arbitrary https URLs.
+ */
+const IMG_ALLOWED_HOSTS = new Set([
+  "r2.thesportsdb.com",
+  "www.thesportsdb.com",
+  "media.api-sports.io",
+  "a.espncdn.com",
+  "www.messicup.com",
+  "cdn.freebiesupply.com",
+  "upload.wikimedia.org",
+  "api.promiedos.com.ar",
+  "www.promiedos.com.ar",
+  "flagcdn.com",
+  "encrypted-tbn0.gstatic.com",
+  "www.countryflags.com",
+  "football-logos.cc",
+  "assets.football-logos.cc",
+  "i.pinimg.com",
+  "www.footylogos.com",
+  "images.football-live-stream.online",
+  "logos1.tcrbg61levl.cfd",
+  "logos1.tcpwe138stya.ru",
+  "cdn.nba.com",
+]);
+
+const IMG_MAX_BYTES = 8 * 1024 * 1024;
+const IMG_FETCH_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+/** Fetches one badge/logo upstream and stores it in R2 for edge serving. */
+async function populateImg(env: Env, url: URL): Promise<PopulateResult> {
+  const rawToken = url.searchParams.get("t");
+  if (!rawToken) return { status: 400, body: "Missing or invalid image token" };
+
+  const target = openLpfUrl(rawToken, env);
+  if (!target) return { status: 400, body: "Invalid or expired image token" };
+
+  let upstream: URL;
+  try {
+    upstream = new URL(target);
+  } catch {
+    return { status: 400, body: "Missing or invalid image URL" };
+  }
+  if (upstream.protocol !== "https:") {
+    return { status: 403, body: "Image URL not allowed" };
+  }
+  if (!IMG_ALLOWED_HOSTS.has(upstream.hostname.toLowerCase())) {
+    return { status: 403, body: `Image host not allowed: ${upstream.hostname}` };
+  }
+
+  if (await r2HasSegment(env, "img", rawToken)) {
+    return { status: 200, body: "exists" };
+  }
+
+  const upstreamRes = await fetch(upstream, {
+    headers: {
+      "User-Agent": IMG_FETCH_UA,
+      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    },
+    redirect: "follow",
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!upstreamRes.ok) return { status: 502, body: `upstream ${upstreamRes.status}` };
+
+  const contentType = upstreamRes.headers.get("content-type") ?? "";
+  // A badge CDN answering HTML/text means the image is gone — storing it
+  // would serve a broken badge from the edge for a day.
+  if (contentType && !contentType.startsWith("image/") && contentType !== "application/octet-stream") {
+    return { status: 200, body: "skip-nonimage" };
+  }
+
+  const body = await upstreamRes.arrayBuffer();
+  if (body.byteLength > IMG_MAX_BYTES) return { status: 200, body: "too-large" };
+
+  await r2PutSegment(env, "img", rawToken, body, contentType || "image/png");
+  return { status: 200, body: "stored" };
+}
+
 async function handlePopulate(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method !== "GET" && request.method !== "POST") {
     return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, POST" } });
@@ -682,7 +763,11 @@ async function handlePopulate(request: Request, env: Env, url: URL): Promise<Res
   const kind = url.searchParams.get("kind");
   try {
     const result =
-      kind === "canal" ? await populateCanal(env, url) : await populateLpf(env, url);
+      kind === "canal"
+        ? await populateCanal(env, url)
+        : kind === "img"
+          ? await populateImg(env, url)
+          : await populateLpf(env, url);
     return new Response(result.body, {
       status: result.status,
       headers: { "Content-Type": "text/plain", ...CORS_HEADERS },

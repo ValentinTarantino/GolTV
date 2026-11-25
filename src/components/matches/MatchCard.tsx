@@ -50,10 +50,12 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
     sessionStorage.setItem("home-scroll", String(window.scrollY));
   };
 
-  // Badges already sealed behind /api/img are tiny static files: skip the
-  // /_next/image optimizer hop so the prefetch below warms the exact URL the
-  // <img> will request, and the browser serves it straight from cache.
-  const directBadge = (logo: string) => logo.startsWith("/api/img");
+  // Badges already sealed behind /api/img (or served from the R2 image
+  // prefix) are tiny static files: skip the /_next/image optimizer hop so
+  // the prefetch below warms the exact URL the <img> will request, and the
+  // browser serves it straight from cache.
+  const directBadge = (logo: string) =>
+    logo.startsWith("/api/img") || logo.includes("/v1/img/");
 
   // Warm the browser cache for this fixture's crests as soon as the card is
   // visible, so the watch page renders them instantly instead of fetching

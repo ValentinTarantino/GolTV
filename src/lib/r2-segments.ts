@@ -60,6 +60,9 @@ const TRIGGER_MAP_MAX = 5000;
 
 /** Populate calls in flight — playlist routes await them before responding. */
 const pendingPopulates = new Set<Promise<void>>();
+/** Image populates tracked separately: badge routes only wait for these, so
+ * a busy live match's segment uploads never slow down /api/matches. */
+const pendingImagePopulates = new Set<Promise<void>>();
 
 /**
  * Asks the relay worker to fetch the segment upstream and store it in R2.
@@ -92,8 +95,9 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
         triggered.delete(dedupKey);
       });
   const promise = job();
-  pendingPopulates.add(promise);
-  promise.finally(() => pendingPopulates.delete(promise));
+  const pending = kind === "img" ? pendingImagePopulates : pendingPopulates;
+  pending.add(promise);
+  promise.finally(() => pending.delete(promise));
   scheduleAfter(promise);
 }
 
@@ -105,6 +109,19 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
 export async function settleSegmentPopulates(timeoutMs = 3500): Promise<void> {
   if (pendingPopulates.size === 0) return;
   const snapshot = [...pendingPopulates];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    Promise.allSettled(snapshot),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, timeoutMs);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+/** Same bounded wait, scoped to image populates only (badges are tiny). */
+export async function settleImagePopulates(timeoutMs = 3500): Promise<void> {
+  if (pendingImagePopulates.size === 0) return;
+  const snapshot = [...pendingImagePopulates];
   let timer: ReturnType<typeof setTimeout> | undefined;
   await Promise.race([
     Promise.allSettled(snapshot),
