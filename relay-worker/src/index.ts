@@ -478,9 +478,21 @@ async function handleCanalSeg(request: Request, env: Env, url: URL): Promise<Res
     return new Response("Stream host not allowed", { status: 403 });
   }
 
+  const range = request.headers.get("range");
+  // Concrete segment URL keys R2: repeat viewers are served from the bucket
+  // instead of fetching upstream again. Range requests bypass the bucket —
+  // slicing stored bodies is not worth it for a rare path.
+  const r2Key =
+    env.SEGMENTS_BUCKET && request.method === "GET" && !range
+      ? canalDashR2Key(upstream)
+      : null;
+  if (r2Key && env.SEGMENTS_BUCKET) {
+    const stored = await r2ServeSegment(env.SEGMENTS_BUCKET, r2Key);
+    if (stored) return stored;
+  }
+
   try {
     const headers: Record<string, string> = { Accept: "*/*" };
-    const range = request.headers.get("range");
     if (range) headers.Range = range;
 
     const upstreamRes = await canalFetchUpstream(upstream, headers);
@@ -516,6 +528,19 @@ async function handleCanalSeg(request: Request, env: Env, url: URL): Promise<Res
     const isInit = upstream.pathname.toLowerCase().includes("-init.");
     const finalBody = isInit && !sealed.encrypted ? neutralizeDrmBoxes(body) : body;
 
+    // Populate-on-miss: the first viewer of this segment seeds R2 so the
+    // rest of the audience is served from the bucket/edge. A failed put
+    // must not break playback, so it is swallowed.
+    if (r2Key && env.SEGMENTS_BUCKET) {
+      await r2PutSegment(
+        env,
+        "canal-dash",
+        upstream.href,
+        finalBody,
+        contentType || "application/octet-stream"
+      ).catch(() => {});
+    }
+
     return new Response(new Uint8Array(finalBody), {
       status: upstreamRes.status,
       statusText: upstreamRes.statusText,
@@ -533,8 +558,15 @@ async function handleCanalSeg(request: Request, env: Env, url: URL): Promise<Res
  * ------------------------------------------------------------------ */
 
 /** Minimal R2Bucket surface used here (avoids a workers-types dependency). */
+interface R2ObjectLike {
+  size?: number;
+  arrayBuffer?(): Promise<ArrayBuffer>;
+  httpMetadata?: { contentType?: string };
+}
+
 interface R2BucketLike {
-  head(key: string): Promise<unknown>;
+  head(key: string): Promise<R2ObjectLike | null>;
+  get(key: string): Promise<R2ObjectLike | null>;
   put(
     key: string,
     value: ArrayBuffer | Uint8Array,
@@ -570,6 +602,30 @@ async function r2HasSegment(env: Env, kind: string, token: string): Promise<bool
   const bucket = env.SEGMENTS_BUCKET;
   if (!bucket) return false;
   return (await bucket.head(r2SegmentKey(kind, token))) !== null;
+}
+
+/**
+ * DASH media templates seal the URL *before* the player expands `$Number$`,
+ * so one token maps to many concrete segments and cannot key R2 directly.
+ * The expanded upstream URL is deterministic per segment, so it keys the
+ * object instead: first viewer populates, everyone else hits R2.
+ */
+function canalDashR2Key(upstream: URL): string {
+  return r2SegmentKey("canal-dash", upstream.href);
+}
+
+/** Serves a stored segment body, or null when the object is absent. */
+async function r2ServeSegment(
+  bucket: R2BucketLike,
+  key: string
+): Promise<Response | null> {
+  const obj = await bucket.get(key).catch(() => null);
+  if (!obj || !obj.arrayBuffer) return null;
+  const body = await obj.arrayBuffer();
+  const headers = new Headers(SEGMENT_HEADERS);
+  headers.set("Content-Type", obj.httpMetadata?.contentType || "application/octet-stream");
+  headers.set("Content-Length", String(obj.size ?? body.byteLength));
+  return new Response(body, { status: 200, headers });
 }
 
 interface PopulateResult {
