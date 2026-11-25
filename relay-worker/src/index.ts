@@ -310,7 +310,44 @@ async function handleLpfSeg(request: Request, env: Env, url: URL): Promise<Respo
   }
 
   const range = request.headers.get("range");
+  const bucket = env.SEGMENTS_BUCKET;
 
+  // Populate-on-miss: try R2 first, populate if missing (no Range requests)
+  if (bucket && !range) {
+    const tokenForKey = rawToken ?? upstream.toString();
+    const key = r2SegmentKey("lpf", tokenForKey);
+    const fromR2 = await r2ServeSegment(bucket, key);
+    if (fromR2) return fromR2;
+
+    // Populate and serve
+    try {
+      const upstreamRes = await fetchWithMirrorFallback(upstream, null, env, POPULATE_TIMEOUT_MS);
+      if (!upstreamRes.ok) throw new Error(`upstream ${upstreamRes.status}`);
+
+      const contentType = upstreamRes.headers.get("content-type") ?? "";
+      const isPlaylist =
+        upstream.pathname.toLowerCase().endsWith(".m3u8") || contentType.includes("mpegurl");
+      if (isPlaylist) {
+        // Playlists must never be cached — relay without R2 populate.
+        return new Response(upstreamRes.body, {
+          status: upstreamRes.status,
+          headers: withPassthrough(upstreamRes, NO_STORE_HEADERS),
+        });
+      }
+
+      const body = await upstreamRes.arrayBuffer();
+      await r2PutSegment(env, "lpf", tokenForKey, body, contentType || "video/mp2t");
+      return new Response(body, {
+        status: 200,
+        headers: { ...SEGMENT_HEADERS, "Content-Type": contentType || "video/mp2t" },
+      });
+    } catch (error) {
+      console.warn("[seg-relay] lpf populate-on-miss failed:", error);
+      // Fall through to upstream fetch as backup
+    }
+  }
+
+  // Passthrough to upstream (Range requests or R2 disabled)
   try {
     const upstreamRes = await fetchWithMirrorFallback(upstream, range, env);
 
@@ -319,7 +356,6 @@ async function handleLpfSeg(request: Request, env: Env, url: URL): Promise<Respo
       upstream.pathname.toLowerCase().endsWith(".m3u8") || contentType.includes("mpegurl");
 
     if (isPlaylist) {
-      // Playlists must never be cached — relay without cache headers.
       return new Response(upstreamRes.body, {
         status: upstreamRes.status,
         headers: withPassthrough(upstreamRes, NO_STORE_HEADERS),

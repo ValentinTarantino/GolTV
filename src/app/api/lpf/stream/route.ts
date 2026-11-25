@@ -88,9 +88,9 @@ async function fetchViaHomeRelay(
 }
 
 /**
- * Last-resort fallback: the segment-relay worker fetches the same sealed
- * token from its own egress. Datacenter IPs are blocked for some providers,
- * but the worker reaches hosts Render cannot (and vice versa).
+ * Segment relay via worker: fetches from /api/hls/seg which does
+ * populate-on-miss to R2. This avoids Render->worker Bot Fight issues
+ * while keeping R2 populated automatically.
  */
 async function fetchViaWorkerSeg(
   token: string,
@@ -149,30 +149,39 @@ export async function GET(request: Request): Promise<Response> {
     const range = request.headers.get("range");
     if (range) headers.Range = range;
 
-    // Direct fetch first; on a thrown error (timeout, DNS, reset) or a
-    // non-OK status, walk the fallback chain. The old code only fell back
-    // on !ok, so connect timeouts — the usual datacenter block — skipped
-    // the residential relay entirely and went straight to a 502.
+    // For segments (not playlists), use worker by default when configured:
+    // it does populate-on-miss to R2 and avoids Bot Fight issues.
+    const isSegment = !upstream.pathname.toLowerCase().endsWith(".m3u8");
+    const workerOnly = isSegment && process.env.SEG_POPULATE_URL;
+
     let upstreamRes: Response | null = null;
     let viaFallback = false;
-    try {
-      upstreamRes = await fetch(upstream, {
-        headers,
-        redirect: "follow",
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-        cache: "no-store",
-      });
-    } catch {
-      upstreamRes = null;
-    }
 
-    if (!upstreamRes?.ok) {
-      const fallback =
-        (await fetchViaHomeRelay(upstream, headers)) ??
-        (await fetchViaWorkerSeg(token, headers));
-      if (fallback) {
-        upstreamRes = fallback;
-        viaFallback = true;
+    if (workerOnly) {
+      // Always use worker for segments when configured
+      upstreamRes = await fetchViaWorkerSeg(token, headers);
+      if (upstreamRes) viaFallback = true;
+    } else {
+      // Playlist or worker disabled: direct fetch with fallback chain
+      try {
+        upstreamRes = await fetch(upstream, {
+          headers,
+          redirect: "follow",
+          signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+          cache: "no-store",
+        });
+      } catch {
+        upstreamRes = null;
+      }
+
+      if (!upstreamRes?.ok) {
+        const fallback =
+          (await fetchViaHomeRelay(upstream, headers)) ??
+          (await fetchViaWorkerSeg(token, headers));
+        if (fallback) {
+          upstreamRes = fallback;
+          viaFallback = true;
+        }
       }
     }
 
