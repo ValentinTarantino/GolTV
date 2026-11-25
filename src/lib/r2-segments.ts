@@ -106,7 +106,7 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
  * this after rewriting so the emitted R2 URLs point at stored objects; on
  * timeout the populate still finishes via `after()` and later polls retry.
  */
-export async function settleSegmentPopulates(timeoutMs = 3500): Promise<void> {
+export async function settleSegmentPopulates(timeoutMs = 8000): Promise<void> {
   if (pendingPopulates.size === 0) return;
   const snapshot = [...pendingPopulates];
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -119,7 +119,7 @@ export async function settleSegmentPopulates(timeoutMs = 3500): Promise<void> {
 }
 
 /** Same bounded wait, scoped to image populates only (badges are tiny). */
-export async function settleImagePopulates(timeoutMs = 3500): Promise<void> {
+export async function settleImagePopulates(timeoutMs = 5000): Promise<void> {
   if (pendingImagePopulates.size === 0) return;
   const snapshot = [...pendingImagePopulates];
   let timer: ReturnType<typeof setTimeout> | undefined;

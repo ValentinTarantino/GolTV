@@ -13,6 +13,9 @@ import { Buffer } from "node:buffer";
 import { createDecipheriv, createHash } from "node:crypto";
 
 const UPSTREAM_TIMEOUT_MS = 30_000;
+/** Populate fetches fail fast: Render re-triggers on the next playlist poll,
+ * so a slow upstream should not hold a worker request for 30-90s. */
+const POPULATE_TIMEOUT_MS = 12_000;
 
 const PASSTHROUGH_HEADERS = [
   "content-type",
@@ -239,7 +242,8 @@ function upstreamHeaders(upstream: URL, range: string | null, env: Env): Record<
 async function fetchWithMirrorFallback(
   upstream: URL,
   range: string | null,
-  env: Env
+  env: Env,
+  timeoutMs = UPSTREAM_TIMEOUT_MS
 ): Promise<Response> {
   const headers = upstreamHeaders(upstream, range, env);
   const candidates: URL[] = [];
@@ -255,7 +259,7 @@ async function fetchWithMirrorFallback(
       const res = await fetch(candidate, {
         headers,
         redirect: "follow",
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.ok || res.status === 206 || candidate === candidates[candidates.length - 1]) {
         return res;
@@ -667,7 +671,7 @@ async function populateLpf(env: Env, url: URL): Promise<PopulateResult> {
     return { status: 200, body: "exists" };
   }
 
-  const upstreamRes = await fetchWithMirrorFallback(upstream, null, env);
+  const upstreamRes = await fetchWithMirrorFallback(upstream, null, env, POPULATE_TIMEOUT_MS);
   if (!upstreamRes.ok) return { status: 502, body: `upstream ${upstreamRes.status}` };
 
   const contentType = upstreamRes.headers.get("content-type") ?? "";
@@ -713,7 +717,15 @@ async function populateCanal(env: Env, url: URL): Promise<PopulateResult> {
   }
 
   const headers: Record<string, string> = { Accept: "*/*" };
-  const upstreamRes = await canalFetchUpstream(upstream, headers);
+  // Single attempt: a dead or slow segment fails fast and Render's next
+  // playlist poll re-triggers the populate (the dedup entry is cleared on
+  // failure), instead of burning ~90s in retries inside the worker.
+  const upstreamRes = await fetch(upstream, {
+    headers,
+    redirect: "follow",
+    signal: AbortSignal.timeout(POPULATE_TIMEOUT_MS),
+    cache: "no-store",
+  });
   if (!upstreamRes.ok) return { status: 502, body: `upstream ${upstreamRes.status}` };
 
   const contentType = upstreamRes.headers.get("content-type") ?? "";
