@@ -4,6 +4,7 @@ import {
   r2SegmentUrl,
   r2SegmentsEnabled,
   triggerSegmentPopulate,
+  workerSegFallbackUrl,
   type DeferredSegmentUrl,
 } from "./r2-segments";
 
@@ -45,10 +46,11 @@ export function rewriteLpfPlaylist(
       if (/\.m3u8(?:[?#]|$)/i.test(absolute)) return lpfRelayUrl(absolute);
       const token = sealLpfSegmentUrl(absolute);
       if (r2SegmentsEnabled()) {
-        // Deferred fallback is /api/seg on Render (upstream passthrough with
-        // edge-cacheable headers), not the worker, so no Worker quota is spent.
+        // Deferred fallback is the worker segment relay: Cloudflare edge
+        // bandwidth for the bytes, no Render egress — one Worker request
+        // per failed segment is the unavoidable price.
         if (defer) {
-          return deferSegmentUrl("lpf", token, `/api/seg?t=${token}`, defer);
+          return deferSegmentUrl("lpf", token, workerSegFallbackUrl(token), defer);
         }
         triggerSegmentPopulate("lpf", token);
         return r2SegmentUrl("lpf", token);

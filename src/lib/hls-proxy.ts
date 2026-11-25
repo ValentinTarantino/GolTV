@@ -12,6 +12,7 @@ import {
   r2SegmentUrl,
   r2SegmentsEnabled,
   triggerSegmentPopulate,
+  workerSegFallbackUrl,
   type DeferredSegmentUrl,
 } from "./r2-segments";
 
@@ -123,11 +124,12 @@ function toRelay(
     try {
       const token = sealLpfSegmentUrl(absolute);
       if (r2SegmentsEnabled()) {
-        // Deferred fallback is /api/seg on Render: it serves the segment from
-        // upstream with immutable cache headers and spends no Worker quota.
+        // Deferred fallback is the worker segment relay: it is the only path
+        // that serves upstream bytes with Cloudflare edge bandwidth (no
+        // Render egress), at the cost of one Worker request per segment.
         const fallback = SEG_RELAY_BASE
           ? `${SEG_RELAY_BASE}/seg?t=${token}`
-          : `/api/seg?t=${token}`;
+          : workerSegFallbackUrl(token);
         if (defer) return deferSegmentUrl("lpf", token, fallback, defer);
         triggerSegmentPopulate("lpf", token);
         return r2SegmentUrl("lpf", token);

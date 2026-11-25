@@ -127,6 +127,19 @@ export function resolveDeferredSegmentUrls(
 }
 
 /**
+ * Absolute worker segment-relay URL used as the deferred fallback. Going
+ * through the zone route (goltv.stream/api/hls/seg) instead of workers.dev
+ * keeps browser and datacenter fetches on the normal pipeline; the worker
+ * serves the segment from upstream or R2 with Cloudflare edge bandwidth.
+ */
+export function workerSegFallbackUrl(token: string): string {
+  const base = (process.env.NEXT_PUBLIC_BASE_URL ?? "https://goltv.stream")
+    .trim()
+    .replace(/\/+$/, "");
+  return `${base}/api/hls/seg?t=${encodeURIComponent(token)}`;
+}
+
+/**
  * Recently triggered populate keys, so playlist refreshes (every few seconds
  * per viewer) only fire one populate call per unique segment.
  */
