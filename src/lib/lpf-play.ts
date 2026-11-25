@@ -45,8 +45,11 @@ export function rewriteLpfPlaylist(
       if (/\.m3u8(?:[?#]|$)/i.test(absolute)) return lpfRelayUrl(absolute);
       const token = sealLpfSegmentUrl(absolute);
       if (r2SegmentsEnabled()) {
-        const fallback = `${RELAY_PATH}?t=${token}`;
-        if (defer) return deferSegmentUrl("lpf", token, fallback, defer);
+        // Deferred fallback is /api/seg on Render (upstream passthrough with
+        // edge-cacheable headers), not the worker, so no Worker quota is spent.
+        if (defer) {
+          return deferSegmentUrl("lpf", token, `/api/seg?t=${token}`, defer);
+        }
         triggerSegmentPopulate("lpf", token);
         return r2SegmentUrl("lpf", token);
       }

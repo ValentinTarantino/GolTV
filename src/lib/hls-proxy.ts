@@ -123,12 +123,11 @@ function toRelay(
     try {
       const token = sealLpfSegmentUrl(absolute);
       if (r2SegmentsEnabled()) {
+        // Deferred fallback is /api/seg on Render: it serves the segment from
+        // upstream with immutable cache headers and spends no Worker quota.
         const fallback = SEG_RELAY_BASE
           ? `${SEG_RELAY_BASE}/seg?t=${token}`
-          : `/api/hls/seg?t=${token}`;
-        // Deferred mode: emit a marker resolved after the populate settles,
-        // so failed populates fall back to the worker relay instead of a
-        // 404 that the edge would cache for hours.
+          : `/api/seg?t=${token}`;
         if (defer) return deferSegmentUrl("lpf", token, fallback, defer);
         triggerSegmentPopulate("lpf", token);
         return r2SegmentUrl("lpf", token);
