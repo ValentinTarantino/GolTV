@@ -32,6 +32,8 @@ export default function OnlineCounter() {
 
   // The counter is admin-only, so only admins pay for the poll; everyone
   // else's presence is registered server-side from ambient traffic.
+  // TEMPORARILY DISABLED to reduce request spam during investigation
+  /*
   useEffect(() => {
     if (!isAdmin) return;
 
@@ -55,6 +57,7 @@ export default function OnlineCounter() {
       clearInterval(timer);
     };
   }, [isAdmin]);
+  */
 
   if (!isAdmin || count === null) return null;
 
