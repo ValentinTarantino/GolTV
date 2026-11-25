@@ -174,13 +174,56 @@ export async function deleteChatMessage(matchId: string, messageId: string): Pro
   return true;
 }
 
+// Banned IPs persist in Mongo (`config` collection) so a redeploy does not
+// silently lift every ban. The in-memory cache keeps the hot path cheap:
+// at most one Mongo read per BANNED_CACHE_TTL_MS per instance.
+const BANNED_CONFIG_KEY = "banned_ips";
+const BANNED_CACHE_TTL_MS = 15_000;
+
+interface BannedDoc {
+  key?: string;
+  ips?: unknown;
+}
+
+async function readBannedIPsFromDb(): Promise<string[] | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const doc = await db.collection<BannedDoc>("config").findOne({ key: BANNED_CONFIG_KEY });
+    if (!doc || !Array.isArray(doc.ips)) return doc ? [] : null;
+    return doc.ips.filter((ip): ip is string => typeof ip === "string");
+  } catch {
+    return null;
+  }
+}
+
+async function writeBannedIPsToDb(ips: Set<string>): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    await db
+      .collection("config")
+      .updateOne({ key: BANNED_CONFIG_KEY }, { $set: { ips: Array.from(ips) } }, { upsert: true });
+  } catch {
+    // Memory cache still holds the list for this instance.
+  }
+}
+
 async function getBannedIPs(): Promise<Set<string>> {
   const cached = await getCache<string[]>(BANNED_IPS_KEY);
-  return new Set(cached ?? []);
+  if (cached) return new Set(cached);
+
+  const fromDb = await readBannedIPsFromDb();
+  const ips = fromDb ?? [];
+  await setCache(BANNED_IPS_KEY, ips, BANNED_CACHE_TTL_MS);
+  return new Set(ips);
 }
 
 async function saveBannedIPs(ips: Set<string>): Promise<void> {
-  await setCache(BANNED_IPS_KEY, Array.from(ips), 24 * 60 * 60 * 1000);
+  await Promise.all([
+    setCache(BANNED_IPS_KEY, Array.from(ips), 24 * 60 * 60 * 1000),
+    writeBannedIPsToDb(ips),
+  ]);
 }
 
 export async function isIPBanned(ip: string): Promise<boolean> {
