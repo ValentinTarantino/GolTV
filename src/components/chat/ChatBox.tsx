@@ -15,7 +15,10 @@ interface ChatBoxProps {
 const NICK_KEY = "goltv-chat-nick";
 const NICK_COLOR_KEY = "goltv-chat-nick-color";
 const TEXT_COLOR_KEY = "goltv-chat-text-color";
-const POLL_INTERVAL = 3000;
+const POLL_FAST_MS = 3000;
+const POLL_SLOW_MS = 15000;
+/** Poll fast for this long after the last chat activity, then back off. */
+const ACTIVE_WINDOW_MS = 60_000;
 
 function readPreference(key: string): string | null {
   try { return typeof window === "undefined" ? null : localStorage.getItem(key); }
@@ -58,6 +61,10 @@ function ChatSession({ matchId }: ChatBoxProps) {
   // deleted message (an in-flight request, or a read that raced the delete),
   // so without this it reappears until the page is reloaded.
   const deletedIdsRef = useRef<Set<string>>(new Set());
+  // Last time the chat produced activity (new messages seen or own post
+  // accepted). Drives the adaptive poll: fast while the conversation is
+  // warm, slow when it goes quiet so idle viewers stop hammering the API.
+  const lastActivityRef = useRef(Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
   const nickInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -133,6 +140,9 @@ function ChatSession({ matchId }: ChatBoxProps) {
         });
       }
       if (data.messages?.length) {
+        // The offset query only returns messages newer than what we hold,
+        // so a non-empty page always means fresh chat activity.
+        lastActivityRef.current = Date.now();
         setMessages(prev => {
           const ids = new Set(prev.map(message => message.id));
           const incoming = data.messages.filter((message: ChatMessage) =>
@@ -151,20 +161,33 @@ function ChatSession({ matchId }: ChatBoxProps) {
   }, [matchId, t.chat.loadError, t.chat.storageUnavailable]);
 
   useEffect(() => {
-    // Reading is public; a nickname is required only when sending.
-    let poll: ReturnType<typeof setInterval> | undefined;
-    const stop = () => { if (poll) clearInterval(poll); poll = undefined; };
-    const start = () => {
-      stop();
-      void fetchMessages();
-      if (!document.hidden) poll = setInterval(fetchMessages, POLL_INTERVAL);
+    // Reading is public; a nickname is required only when sending. The poll
+    // self-schedules: 3s while the chat saw activity in the last minute,
+    // 15s once it goes quiet — same freshness when it matters, far fewer
+    // requests when nobody is talking.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clear = () => {
+      if (timer) clearTimeout(timer);
+      timer = undefined;
     };
-    const initialFetch = window.setTimeout(start, 0);
-    const handleVisibility = () => { if (document.hidden) stop(); else start(); };
+    const tick = async () => {
+      clear();
+      await fetchMessages();
+      if (!document.hidden) {
+        const delay = Date.now() - lastActivityRef.current < ACTIVE_WINDOW_MS
+          ? POLL_FAST_MS
+          : POLL_SLOW_MS;
+        timer = setTimeout(tick, delay);
+      }
+    };
+    const handleVisibility = () => {
+      if (document.hidden) clear();
+      else void tick();
+    };
+    void tick();
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
-      clearTimeout(initialFetch);
-      stop();
+      clear();
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [fetchMessages]);
@@ -302,6 +325,7 @@ function ChatSession({ matchId }: ChatBoxProps) {
         setInput(text);
       } else {
         setReplyingTo(null);
+        lastActivityRef.current = Date.now();
         await fetchMessages();
       }
     } catch {
