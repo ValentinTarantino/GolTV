@@ -12,6 +12,9 @@
  */
 
 import { createHash } from "node:crypto";
+import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { openLpfUrl } from "./sealed-url";
+import { openCanalToken } from "./streams";
 
 /**
  * `after()` keeps the populate alive past the response, but importing
@@ -42,6 +45,26 @@ const SEG_POPULATE_FALLBACK_URL = `${(
 )
   .trim()
   .replace(/\/+$/, "")}/api/populate`;
+
+/** R2 direct access (Render -> R2, bypassing worker). */
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID?.trim();
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY?.trim();
+const R2_ENDPOINT = process.env.R2_ENDPOINT?.trim();
+
+let s3Client: S3Client | null = null;
+function getS3Client(): S3Client | null {
+  if (s3Client) return s3Client;
+  if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT) return null;
+  s3Client = new S3Client({
+    endpoint: R2_ENDPOINT,
+    region: "auto",
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+    },
+  });
+  return s3Client;
+}
 
 /**
  * True when R2 segment delivery is enabled. Both variables are required:
@@ -84,13 +107,14 @@ const pendingImagePopulates = new Set<Promise<void>>();
 
 /**
  * Asks the relay worker to fetch the segment upstream and store it in R2.
- * The returned promise resolves once the worker answered; playlist routes
+ * If R2 credentials are available, Render fetches and writes directly instead.
+ * The returned promise resolves once the object is stored; playlist routes
  * await `settleSegmentPopulates` so viewers never receive an R2 URL for an
  * object that is not stored yet. Failures clear the dedup entry so the next
  * playlist poll retries the populate.
  */
 export function triggerSegmentPopulate(kind: string, token: string): void {
-  if (!SEG_POPULATE_URL || !MEDIA_CDN_BASE) return;
+  if (!MEDIA_CDN_BASE) return;
   const dedupKey = `${kind}:${token}`;
   const now = Date.now();
   const last = triggered.get(dedupKey);
@@ -99,6 +123,64 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
   triggered.set(dedupKey, now);
 
   const job = async () => {
+    const s3 = getS3Client();
+    const hex = createHash("sha256").update(token).digest("hex").slice(0, 48);
+    const key = `v1/${kind}/${hex}`;
+
+    // If R2 direct access is available, try writing directly
+    if (s3) {
+      try {
+        // Check if already exists
+        try {
+          await s3.send(new HeadObjectCommand({ Bucket: "goltv-segments", Key: key }));
+          return; // Already exists
+        } catch (e: any) {
+          if (e.$metadata?.httpStatusCode !== 404) throw e;
+        }
+
+        // Open token to get upstream URL, fetch, and put to R2
+        let upstreamUrl: string | null = null;
+        try {
+          if (kind === "canal") {
+            const canalToken = openCanalToken(token);
+            upstreamUrl = canalToken?.url ?? null;
+          } else {
+            upstreamUrl = openLpfUrl(token);
+          }
+        } catch {
+          upstreamUrl = null;
+        }
+        if (!upstreamUrl) throw new Error("Invalid token");
+
+        const upstreamRes = await fetch(upstreamUrl, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!upstreamRes.ok) throw new Error(`Upstream ${upstreamRes.status}`);
+        const body = await upstreamRes.arrayBuffer();
+
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: "goltv-segments",
+            Key: key,
+            Body: new Uint8Array(body),
+            ContentType: kind === "img" ? "image/jpeg" : "video/mp2t",
+            CacheControl: "public, max-age=86400, immutable",
+          })
+        );
+        return;
+      } catch (error) {
+        console.warn(`[r2-segments] direct R2 populate ${kind} failed:`, error);
+        // Fall through to worker populate as backup
+      }
+    }
+
+    // Fallback: populate via worker (if URL configured)
+    if (!SEG_POPULATE_URL) {
+      triggered.delete(dedupKey);
+      return;
+    }
+
     let lastError: unknown = null;
     for (const url of populateUrls(kind, token)) {
       try {

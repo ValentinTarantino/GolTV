@@ -900,9 +900,44 @@ interface Env {
   SEGMENTS_BUCKET?: R2BucketLike;
 }
 
+/** Serves R2 objects for media.goltv.stream with CORS headers. */
+async function handleMediaR2(request: Request, env: Env, url: URL): Promise<Response> {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
+  }
+  const bucket = env.SEGMENTS_BUCKET;
+  if (!bucket) return new Response("R2 not configured", { status: 500 });
+
+  // Path: /v1/<kind>/<hex>
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  if (pathParts.length !== 3 || pathParts[0] !== "v1") {
+    return new Response("Not found", { status: 404 });
+  }
+  const [, kind, hex] = pathParts;
+  const key = `v1/${kind}/${hex}`;
+
+  const obj = await bucket.get(key).catch(() => null);
+  if (!obj || !obj.arrayBuffer) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  const body = await obj.arrayBuffer();
+  const headers = new Headers(SEGMENT_HEADERS);
+  headers.set("Content-Type", obj.httpMetadata?.contentType || "application/octet-stream");
+  headers.set("Content-Length", String(obj.size ?? body.byteLength));
+  headers.set("Access-Control-Allow-Origin", "*");
+
+  return new Response(body, { status: 200, headers });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // media.goltv.stream serves R2 objects with CORS
+    if (url.hostname === "media.goltv.stream") {
+      return handleMediaR2(request, env, url);
+    }
 
     if (url.pathname === "/api/hls/seg" || url.pathname.startsWith("/api/hls/seg/")) {
       return handleLpfSeg(request, env, url);
