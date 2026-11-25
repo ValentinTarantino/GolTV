@@ -541,6 +541,17 @@ export const TEAM_DISPLAY_NAMES: Record<string, string> = {
   "fc internazionale": "Inter Milan",
   "oud-heverlee leuven": "OH Leuven",
   "oud heverlee leuven": "OH Leuven",
+  // A provider renders Colón de Santa Fe as "Deportivo Colonia"; the card
+  // should show the club's real name either way.
+  "deportivo colonia": "Colón",
+  "club atletico colon": "Colón",
+  // Same Lisbon club under provider spellings.
+  "sporting de lisboa": "Sporting CP",
+  "sporting lisboa": "Sporting CP",
+  "sporting clube de portugal": "Sporting CP",
+  "manchester utd": "Man Utd",
+  "man utd": "Man Utd",
+  "man united": "Man Utd",
 };
 
 export function shortenTeamName(name: string): string {

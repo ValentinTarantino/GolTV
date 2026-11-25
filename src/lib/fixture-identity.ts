@@ -78,6 +78,16 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   ublebrijana: "lebrijana",
   cusco: "cusco",
   cuscofc: "cusco",
+  // A provider mangles one club into "Deportivo Colonia"/"Club Atlético Colón"
+  // variants for the same fixture (same opponent, same kickoff), which used to
+  // render as a second card. The legal-name spellings key differently because
+  // teamKey strips "Club" but not "Atletico".
+  deportivocolonia: "colon",
+  deportivocolon: "colon",
+  clubatleticocolon: "colon",
+  clubatleticocolonia: "colon",
+  atleticocolon: "colon",
+  atleticocolonia: "colon",
   // Bundesliga feeds alternate the short and the full club name, which used to
   // render the same fixture twice: "Greuther Fürth" / "SpVgg Greuther Fürth"
   // and "Bochum" / "VfL Bochum".
@@ -111,6 +121,16 @@ const TEAM_DEDUP_ALIASES: Record<string, string> = {
   rbbragantino: "redbullbragantino",
   redbullbragantino: "redbullbragantino",
   bragantino: "redbullbragantino",
+  // Providers alternate "Sporting CP" and "Sporting de Lisboa" for the same
+  // Lisbon club; bare "sporting" stays unmapped (Sporting Gijón exists).
+  // "Man Utd" spellings all resolve through the "Man Utd" display identity,
+  // so they canonicalize to "manutd", not "manchesterunited".
+  sportingdelisboa: "sportingcp",
+  sportinglisboa: "sportingcp",
+  sportingclubedeportugal: "sportingcp",
+  sportingportugal: "sportingcp",
+  manunited: "manutd",
+  manchesterutd: "manutd",
   // National-team feeds use both the Spanish abbreviation and full country name.
   eeuu: "unitedstates",
   estadosunidos: "unitedstates",

@@ -41,6 +41,12 @@ describe("fixture identity", () => {
     [332, "SJ Earthquakes", "San Jose Earthquakes"],
     [332, "Earthquakes", "San Jose Earthquakes"],
     [332, "San Jose", "San Jose Earthquakes"],
+    [2, "Sporting CP", "Sporting de Lisboa"],
+    [2, "Sporting CP", "Sporting Lisboa"],
+    [2, "Manchester United", "Man Utd"],
+    [2, "Manchester United", "Man United"],
+    [141, "Colón", "Deportivo Colonia"],
+    [141, "Colón", "Club Atlético Colón"],
   ])("canonicalizes provider names in league %s: %s / %s", (league, first, second) => {
     expect(canonicalTeamForDedup(first, league)).toBe(canonicalTeamForDedup(second, league));
   });
@@ -52,6 +58,8 @@ describe("fixture identity", () => {
     [265, "Santiago Wanderers", "Montevideo Wanderers"],
     [128, "Racing Club", "Racing de Montevideo"],
     [39, "Arsenal", "Arsenal Academy"],
+    [2, "Sporting CP", "Sporting Gijón"],
+    [141, "Colón", "Plaza Colonia"],
   ])("preserves distinct teams in league %s: %s / %s", (league, first, second) => {
     expect(canonicalTeamForDedup(first, league)).not.toBe(canonicalTeamForDedup(second, league));
   });
