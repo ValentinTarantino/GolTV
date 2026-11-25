@@ -1,5 +1,4 @@
 import { openLpfUrl, sealLpfSegmentUrl, sealLpfUrl } from "./sealed-url";
-import { r2SegmentUrl, r2SegmentsEnabled, triggerSegmentPopulate } from "./r2-segments";
 
 export { openLpfUrl, sealLpfUrl };
 
@@ -34,10 +33,8 @@ export function rewriteLpfPlaylist(body: string, upstream: URL): string {
       const absolute = new URL(value, upstream).toString();
       if (/\.m3u8(?:[?#]|$)/i.test(absolute)) return lpfRelayUrl(absolute);
       const token = sealLpfSegmentUrl(absolute);
-      if (r2SegmentsEnabled()) {
-        triggerSegmentPopulate("lpf", token);
-        return r2SegmentUrl("lpf", token);
-      }
+      // R2 disabled for LPF: populate fails via Bot Fight Mode. Segments
+      // use the direct relay until populate-on-miss is fully working.
       return `${RELAY_PATH}?t=${token}`;
     } catch {
       return value;
