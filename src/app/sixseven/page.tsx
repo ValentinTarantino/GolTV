@@ -1,7 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getAdminSession, setAdminFlag, clearAdminFlag, logoutAdmin } from "@/lib/admin";
+
+interface LiveViewer {
+  matchId: string;
+  viewerId: string;
+  nick: string | null;
+  lastSeen: number;
+}
+
+// Presence doc id for "on the site but not on a specific match". Mirrors
+// SITE_PRESENCE_ID in src/lib/viewers.ts (kept literal: that module is
+// server-only and cannot be imported here).
+const SITE_SCOPE = "__site__";
 
 export default function AdminPage() {
   const [secret, setSecret] = useState("");
@@ -10,6 +22,8 @@ export default function AdminPage() {
   const [bannedIPs, setBannedIPs] = useState<string[]>([]);
   const [ipInfoMap, setIpInfoMap] = useState<Record<string, { country?: string; city?: string; region?: string; isp?: string }>>({});
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
+  const [liveViewers, setLiveViewers] = useState<LiveViewer[] | null>(null);
+  const [matchLabels, setMatchLabels] = useState<Record<string, string>>({});
 
   // Poll the site-wide presence counter while the admin panel is open.
   useEffect(() => {
@@ -34,6 +48,96 @@ export default function AdminPage() {
       clearInterval(timer);
     };
   }, [admin.isAdmin]);
+
+  // Live viewer list: who is on the site and which match each one watches.
+  // Match labels come from the public fixture endpoints (cached server-side),
+  // refreshed once a minute alongside the viewer poll.
+  useEffect(() => {
+    if (!admin.isAdmin) return;
+    let cancelled = false;
+
+    const loadLabels = async () => {
+      const labels: Record<string, string> = {};
+      const put = (list: unknown, label: (m: Record<string, unknown>) => string) => {
+        if (!Array.isArray(list)) return;
+        for (const m of list) {
+          const rec = m as Record<string, unknown> & { id?: number | string };
+          if (rec.id == null) continue;
+          labels[String(rec.id)] = label(rec);
+        }
+      };
+      const pair = (home: unknown, away: unknown, comp: unknown) =>
+        `${String(home ?? "")} vs ${String(away ?? "")}${comp ? ` · ${String(comp)}` : ""}`;
+      try {
+        const [agenda, nba, tennis, combat, lpf] = await Promise.all([
+          fetch("/api/matches").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/nba/matches").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/tennis/matches").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/combat/matches").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/lpf/matches").then((r) => (r.ok ? r.json() : null)),
+        ]);
+        put(agenda?.matches, (m) => {
+          const ht = m.homeTeam as { name?: string } | undefined;
+          const at = m.awayTeam as { name?: string } | undefined;
+          const lg = m.league as { name?: string } | undefined;
+          return pair(ht?.name, at?.name, lg?.name);
+        });
+        put(nba?.matches, (m) => pair(m.home, m.away, m.competition));
+        put(tennis?.matches, (m) => pair(m.home, m.away, m.competition));
+        put(combat?.matches, (m) => {
+          const h = m.home as string | undefined;
+          const a = m.away as string | undefined;
+          return h && a ? pair(h, a, m.sportName) : String(m.title ?? `#${m.id}`);
+        });
+        put(lpf?.matches, (m) => pair(m.home, m.away, m.competition));
+      } catch {
+        // labels are cosmetic — the raw ids still render
+      }
+      if (!cancelled) setMatchLabels(labels);
+    };
+
+    const pollViewers = async () => {
+      try {
+        const res = await fetch("/api/admin/viewers", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && Array.isArray(data.viewers)) setLiveViewers(data.viewers);
+        }
+      } catch {
+        // transient error — keep the last list
+      }
+    };
+
+    void loadLabels();
+    void pollViewers();
+    const viewersTimer = setInterval(pollViewers, 15_000);
+    const labelsTimer = setInterval(loadLabels, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(viewersTimer);
+      clearInterval(labelsTimer);
+    };
+  }, [admin.isAdmin]);
+
+  // One row per person: a viewer produces a site doc plus one doc per match
+  // they opened, so group by viewerId before rendering.
+  const viewerGroups = useMemo(() => {
+    const map = new Map<
+      string,
+      { nick: string | null; site: boolean; matches: string[]; lastSeen: number }
+    >();
+    for (const v of liveViewers ?? []) {
+      const g = map.get(v.viewerId) ?? { nick: null, site: false, matches: [], lastSeen: 0 };
+      if (v.nick && !g.nick) g.nick = v.nick;
+      if (v.matchId === SITE_SCOPE) g.site = true;
+      else if (!g.matches.includes(v.matchId)) g.matches.push(v.matchId);
+      g.lastSeen = Math.max(g.lastSeen, v.lastSeen);
+      map.set(v.viewerId, g);
+    }
+    return [...map.entries()].sort((a, b) => b[1].lastSeen - a[1].lastSeen);
+  }, [liveViewers]);
+
+  const viewerMatchLabel = (matchId: string) => matchLabels[matchId] ?? `#${matchId}`;
 
   const fetchBannedIPs = async () => {
     try {
@@ -170,6 +274,40 @@ export default function AdminPage() {
             <span className="font-bold text-accent-primary">{onlineCount ?? "—"}</span>{" "}
             personas en el sitio ahora
           </p>
+        </div>
+
+        <div className="p-4 border-2 border-white bg-black mb-6">
+          <h2 className="text-white font-bold mb-1">Viewers en vivo</h2>
+          <p className="text-gray-500 text-xs mb-3">
+            Se actualiza cada 15s. El nick aparece cuando el viewer escribe en el chat.
+          </p>
+          {liveViewers === null ? (
+            <p className="text-gray-400 text-sm">Cargando…</p>
+          ) : viewerGroups.length === 0 ? (
+            <p className="text-gray-400 text-sm">No hay viewers activos</p>
+          ) : (
+            <div className="space-y-1.5 max-h-80 overflow-y-auto">
+              {viewerGroups.map(([viewerId, g]) => (
+                <div key={viewerId} className="flex items-center justify-between gap-3 border border-white/20 px-2.5 py-1.5">
+                  <div className="min-w-0">
+                    <span className="text-white text-sm font-bold">
+                      {g.nick ?? `viewer ${viewerId.slice(0, 8)}`}
+                    </span>
+                    <div className="text-xs text-gray-400 truncate">
+                      {g.matches.length > 0
+                        ? g.matches.map(viewerMatchLabel).join("  ·  ")
+                        : g.site
+                          ? "Navegando el sitio"
+                          : "—"}
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-[10px] font-bold uppercase text-gray-500">
+                    {Math.max(0, Math.round((Date.now() - g.lastSeen) / 1000))}s
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="p-4 border-2 border-white bg-black">

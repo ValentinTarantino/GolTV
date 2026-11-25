@@ -13,30 +13,17 @@ interface ViewerBadgeProps {
 }
 
 /**
- * Admin-only viewer counter. Viewers are registered server-side from ambient
- * traffic (chat polls and playlist reloads carrying the viewer cookie), so
- * this component only reads the count — and only for admins.
+ * Live viewer counter for a match. Viewers are registered server-side from
+ * ambient traffic (chat polls and playlist reloads carrying the viewer
+ * cookie), so this component only reads the count — for everyone, not just
+ * admins.
  */
 export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps) {
   const { t } = useLanguage();
   const [count, setCount] = useState<number | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/admin/session")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { isAdmin?: boolean } | null) => {
-        if (!cancelled && data?.isAdmin) setIsAdmin(true);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!active || !isAdmin) return;
+    if (!active) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -60,9 +47,9 @@ export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [matchId, active, isAdmin]);
+  }, [matchId, active]);
 
-  if (!active || !isAdmin || count === null) return null;
+  if (!active || count === null || count === 0) return null;
 
   return (
     <span

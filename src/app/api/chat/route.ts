@@ -3,7 +3,8 @@ import { getChatMessages, addChatMessage, isIPBanned, getDeletedChatMessageIds }
 import { isMongoConfigured } from "@/lib/mongo";
 import { validateQuery, validateBody, createErrorResponse, chatPostSchema } from "@/lib/validators";
 import { isValidAdminSession } from "@/lib/admin-session";
-import { touchRequestPresence } from "@/lib/presence";
+import { touchRequestPresence, viewerIdFromRequest } from "@/lib/presence";
+import { touchViewer, SITE_PRESENCE_ID } from "@/lib/viewers";
 import { BANNED_HEADER } from "@/lib/viewer-id";
 import { deleteSharedPlaylist, getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 
@@ -98,6 +99,14 @@ export async function POST(request: Request) {
   if (!result.ok) {
     const status = result.error === "Rate limited" ? 429 : 400;
     return createErrorResponse(result.error!, status);
+  }
+
+  // Speaking reveals who the viewer is: attach the nick to their presence
+  // doc so the admin panel can list names instead of bare viewer ids.
+  const viewerId = viewerIdFromRequest(request);
+  if (viewerId) {
+    void touchViewer(matchId, viewerId, nick);
+    void touchViewer(SITE_PRESENCE_ID, viewerId, nick);
   }
 
   // Drop the cached latest-messages payload so the new post shows up on the

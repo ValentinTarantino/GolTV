@@ -18,6 +18,8 @@ export interface ViewerDoc {
   matchId: string;
   viewerId: string;
   lastSeen: number;
+  /** Chat nickname, attached once the viewer speaks (admin panel only). */
+  nick?: string;
 }
 
 interface CachedClient {
