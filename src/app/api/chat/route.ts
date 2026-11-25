@@ -5,6 +5,7 @@ import { validateQuery, validateBody, createErrorResponse, chatPostSchema } from
 import { isValidAdminSession } from "@/lib/admin-session";
 import { touchRequestPresence } from "@/lib/presence";
 import { BANNED_HEADER } from "@/lib/viewer-id";
+import { deleteSharedPlaylist, getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 
 function getClientIP(request: Request): string {
   // Try common headers for client IP
@@ -43,13 +44,24 @@ export async function GET(request: Request) {
   const offsetNum = offset ? parseInt(offset, 10) : 0;
   try {
     const safeOffset = isNaN(offsetNum) ? 0 : offsetNum;
+    // Every viewer of the same match polls the same latest messages every
+    // 3s — share one Mongo read per 2s window across all of them. History
+    // fetches (offset > 0) stay uncached: they are rare and per-user.
+    const cacheKey = `chat:${matchId}:${safeOffset}`;
+    if (safeOffset === 0) {
+      const cached = getSharedPlaylist(cacheKey);
+      if (cached !== null) {
+        return Response.json(JSON.parse(cached), {
+          headers: { "Cache-Control": "no-store" },
+        });
+      }
+    }
     const messages = await getChatMessages(matchId, safeOffset);
     // Only a client that already holds history needs the tombstones.
     const deleted = safeOffset > 0 ? await getDeletedChatMessageIds(matchId) : [];
-    return Response.json(
-      { messages, persistent: isMongoConfigured(), deleted },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    const payload = { messages, persistent: isMongoConfigured(), deleted };
+    if (safeOffset === 0) setSharedPlaylist(cacheKey, JSON.stringify(payload));
+    return Response.json(payload, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return createErrorResponse("Chat unavailable", 503);
   }
@@ -87,6 +99,10 @@ export async function POST(request: Request) {
     const status = result.error === "Rate limited" ? 429 : 400;
     return createErrorResponse(result.error!, status);
   }
+
+  // Drop the cached latest-messages payload so the new post shows up on the
+  // next poll instead of waiting out the TTL.
+  deleteSharedPlaylist(`chat:${matchId}:0`);
 
   return Response.json({ ok: true, persistent: result.persistent });
 }

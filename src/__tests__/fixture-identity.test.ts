@@ -38,6 +38,9 @@ describe("fixture identity", () => {
     [265, "U. Católica", "Universidad Católica"],
     [265, "La Serena", "Deportes La Serena"],
     [39, "Vitória", "Vitoria"],
+    [332, "SJ Earthquakes", "San Jose Earthquakes"],
+    [332, "Earthquakes", "San Jose Earthquakes"],
+    [332, "San Jose", "San Jose Earthquakes"],
   ])("canonicalizes provider names in league %s: %s / %s", (league, first, second) => {
     expect(canonicalTeamForDedup(first, league)).toBe(canonicalTeamForDedup(second, league));
   });

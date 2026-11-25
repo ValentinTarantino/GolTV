@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteChatMessage } from "@/lib/chat";
 import { isAdminRequest } from "@/lib/admin-session";
+import { deleteSharedPlaylist } from "@/lib/playlist-cache";
 
 /**
  * Deletes one chat message for everybody. The deletion also stores a
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
     if (!deleted) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
+    deleteSharedPlaylist(`chat:${matchId}:0`);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

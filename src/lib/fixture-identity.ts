@@ -177,7 +177,16 @@ const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
     olympiacos: "olympiacos", olympiakos: "olympiacos",
     olympiakospiraeus: "olympiacos", olympiacospiraeus: "olympiacos",
   },
-  332: { newengland: "newenglandrevolution" },
+  332: {
+    newengland: "newenglandrevolution",
+    // MLS feeds alternate "SJ Earthquakes", "San Jose Earthquakes", the
+    // city-only "San Jose" and the mascot-only "Earthquakes" for the same
+    // club, which used to render the fixture twice.
+    sjearthquakes: "sanjoseearthquakes",
+    sanjoseearthquakes: "sanjoseearthquakes",
+    sanjose: "sanjoseearthquakes",
+    earthquakes: "sanjoseearthquakes",
+  },
   39: { coventry: "coventrycity" },
   78: {
     koln: "koln", "1fckoln": "koln",

@@ -26,6 +26,10 @@ export function getSharedPlaylist(key: string): string | null {
   return hit.body;
 }
 
+export function deleteSharedPlaylist(key: string): void {
+  playlistCache.delete(key);
+}
+
 export function clearPlaylistCache(): void {
   playlistCache.clear();
 }
