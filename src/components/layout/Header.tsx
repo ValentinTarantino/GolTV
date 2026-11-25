@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Trophy, Tv, Play } from "lucide-react";
+import { Trophy, Play } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LpfPlayMark from "@/components/lpf/LpfPlayMark";
 import SearchBar from "@/components/search/SearchBar";
@@ -69,16 +69,6 @@ export default function Header() {
             >
               <Trophy size={14} strokeWidth={3} />
               <span>{t.leagues?.title || "LIGAS"}</span>
-            </Link>
-            <Link
-              href="/canales"
-              className={isActive("/canales")
-                ? "flex items-center gap-1.5 px-3 py-1.5 border-2 border-[#ff6b35] bg-black shadow-[4px_4px_0px_0px_#ff6b35] font-black text-xs sm:text-sm text-[#ff6b35] uppercase"
-                : "flex items-center gap-1.5 px-3 py-1.5 border-2 border-white bg-black shadow-[4px_4px_0px_0px_#a3e635] font-black text-xs sm:text-sm text-white hover:text-[#ff6b35] hover:border-[#ff6b35] hover:shadow-[4px_4px_0px_0px_#ff6b35] transition-colors uppercase"}
-              id="header-canales"
-            >
-              <Tv size={14} strokeWidth={3} />
-              <span>{t.canales?.nav || "CANALES"}</span>
             </Link>
             <Link
               href="/lpf"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X, Search, Trophy, Tv, Play, Volleyball } from "lucide-react";
+import { Menu, X, Search, Trophy, Play, Volleyball } from "lucide-react";
 import TennisRacketIcon from "@/components/icons/TennisRacketIcon";
 import BoxingGloveIcon from "@/components/icons/BoxingGloveIcon";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -137,20 +137,6 @@ export default function MobileMenu() {
             >
               <Trophy size={16} strokeWidth={3} />
               <span>{t.leagues?.title || "LIGAS"}</span>
-            </Link>
-          </div>
-
-          <div className="px-4 py-3 border-b-2 border-white">
-            <Link
-              href="/canales"
-              onClick={() => setIsOpen(false)}
-              className={isActive("/canales")
-                ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#ff6b35] bg-black text-[#ff6b35] shadow-[4px_4px_0px_0px_#ff6b35] font-black text-sm uppercase"
-                : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#ff6b35] hover:border-[#ff6b35] hover:shadow-[4px_4px_0px_0px_#ff6b35] transition-colors"}
-              id="mobile-canales"
-            >
-              <Tv size={16} strokeWidth={3} />
-              <span>{t.canales?.nav || "CANALES"}</span>
             </Link>
           </div>
 

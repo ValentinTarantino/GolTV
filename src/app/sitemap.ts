@@ -42,12 +42,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 0.7,
     },
-    {
-      url: `${BASE_URL}/canales`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.7,
-    },
   ];
 
   const leaguePages: MetadataRoute.Sitemap = SUPPORTED_LEAGUES.filter((league) =>
