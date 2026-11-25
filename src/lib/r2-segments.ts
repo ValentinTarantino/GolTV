@@ -34,6 +34,14 @@ const MEDIA_CDN_BASE = (process.env.MEDIA_CDN_BASE ?? "").trim().replace(/\/+$/,
 const SEG_POPULATE_URL = (process.env.SEG_POPULATE_URL ?? "")
   .trim()
   .replace(/\/+$/, "");
+/** Same worker reached through the zone route: workers.dev direct gets
+ * connect-timeouts from some datacenter egress IPs (Render), while the
+ * goltv.stream route rides the normal zone pipeline. */
+const SEG_POPULATE_FALLBACK_URL = `${(
+  process.env.NEXT_PUBLIC_BASE_URL ?? "https://goltv.stream"
+)
+  .trim()
+  .replace(/\/+$/, "")}/api/populate`;
 
 /**
  * True when R2 segment delivery is enabled. Both variables are required:
@@ -42,6 +50,16 @@ const SEG_POPULATE_URL = (process.env.SEG_POPULATE_URL ?? "")
  */
 export function r2SegmentsEnabled(): boolean {
   return MEDIA_CDN_BASE.length > 0 && SEG_POPULATE_URL.length > 0;
+}
+
+/** Populate endpoints to try, primary first, deduplicated. */
+function populateUrls(kind: string, token: string): string[] {
+  const qs = `kind=${kind}&t=${encodeURIComponent(token)}`;
+  const urls = [
+    SEG_POPULATE_URL ? `${SEG_POPULATE_URL}?${qs}` : "",
+    `${SEG_POPULATE_FALLBACK_URL}?${qs}`,
+  ].filter(Boolean);
+  return [...new Set(urls)];
 }
 
 /** Public URL of a segment object inside the R2 bucket. */
@@ -80,20 +98,29 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
   if (triggered.size > TRIGGER_MAP_MAX) triggered.clear();
   triggered.set(dedupKey, now);
 
-  const url = `${SEG_POPULATE_URL}?kind=${kind}&t=${encodeURIComponent(token)}`;
-  const job = () =>
-    fetch(url, { method: "GET", cache: "no-store", signal: AbortSignal.timeout(20_000) })
-      .then(async (res) => {
-        if (!res.ok) {
-          const detail = await res.text().catch(() => "");
-          console.warn(`[r2-segments] populate ${kind} -> ${res.status} ${detail}`.trim());
-          triggered.delete(dedupKey);
-        }
-      })
-      .catch((error) => {
-        console.warn(`[r2-segments] populate ${kind} failed:`, error);
-        triggered.delete(dedupKey);
-      });
+  const job = async () => {
+    let lastError: unknown = null;
+    for (const url of populateUrls(kind, token)) {
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (res.ok) return;
+        const detail = await res.text().catch(() => "");
+        console.warn(`[r2-segments] populate ${kind} -> ${res.status} ${detail}`.trim());
+        lastError = new Error(`populate ${res.status}`);
+        // A reached-but-failed worker will fail the same on both URLs; only
+        // transport errors and 5xx justify trying the next endpoint.
+        if (res.status < 500) return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    console.warn(`[r2-segments] populate ${kind} failed:`, lastError);
+    triggered.delete(dedupKey);
+  };
   const promise = job();
   const pending = kind === "img" ? pendingImagePopulates : pendingPopulates;
   pending.add(promise);
