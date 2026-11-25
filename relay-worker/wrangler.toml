@@ -15,7 +15,6 @@ routes = [
   { pattern = "www.goltv.stream/api/hls/seg*", zone_name = "goltv.stream" },
   { pattern = "www.goltv.stream/api/canales/seg*", zone_name = "goltv.stream" },
   { pattern = "www.goltv.stream/api/populate*", zone_name = "goltv.stream" },
-  { pattern = "media.goltv.stream/*", zone_name = "goltv.stream" },
 ]
 
 [[r2_buckets]]
