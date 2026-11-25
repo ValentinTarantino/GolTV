@@ -1,9 +1,6 @@
 import { findPlayerFiveStreams } from "@/lib/player-five-source";
 import { findPrimaryStreams } from "@/lib/primary-player-source";
-import { getMatchById } from "@/lib/api-football";
-import { getStreamsForMatch } from "@/lib/streaming";
 import { getAgendaStream, findAgendaStreams } from "@/lib/agenda-source";
-import { findEventStreams } from "@/lib/event-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findSportplusStreams } from "@/lib/sportplus-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
@@ -64,7 +61,7 @@ export async function GET(
 
   const { streamId, eventSlug, eventSources, player } = queryValidation.data;
   let { home, away, league } = queryValidation.data;
-  const playerMode = player === "1" || player === "3" || player === "4" || player === "5" || player === "6" || player === "7" || player === "8" ? player : "2";
+  const playerMode = player === "1" || player === "3" || player === "5" || player === "6" || player === "8" ? player : "2";
   const id = parseInt(matchId, 10);
 
   if (isNaN(id) && !streamId) {
@@ -72,60 +69,10 @@ export async function GET(
   }
 
   let match: Match | null = null;
-  if (!isNaN(id)) {
-    match = (await getMatchById(id)) ?? null;
-  }
+  // API-Football removed — match info comes from agenda sources only
 
-  if (match && (LIVE_STATUSES.includes(match.status.short) || playerMode !== "3")) {
-    const channels: Channel[] = [];
-
-    if (playerMode === "6") {
-      channels.push(...await findPrimaryStreams(match.homeTeam.name, match.awayTeam.name));
-    } else if (playerMode === "1") {
-      channels.push(...await findSecondaryStreams(match.homeTeam.name, match.awayTeam.name));
-    } else if (playerMode === "2") {
-      channels.push(...await findSportplusStreams(match.homeTeam.name, match.awayTeam.name));
-    } else if (playerMode === "7") {
-      channels.push(...await findPlayerTwoStreams(match.homeTeam.name, match.awayTeam.name));
-    } else if (playerMode === "4") {
-      channels.push(...await findEventStreams(match.homeTeam.name, match.awayTeam.name));
-    } else if (playerMode === "5") {
-      channels.push(...await findPlayerFiveStreams(match.homeTeam.name, match.awayTeam.name));
-    } else if (playerMode === "8") {
-      channels.push(...await findPlayerSixStreams(match.homeTeam.name, match.awayTeam.name));
-    } else if (eventSlug && eventSources) {
-      try {
-        const sources = JSON.parse(eventSources) as { id: string; name: string; embedIframe: string }[];
-        for (const source of sources) {
-          const ch = await getAgendaStream(source.embedIframe, source.name);
-          if (ch) {
-            channels.push(ch);
-          }
-        }
-      } catch {
-        // ignore parse errors
-      }
-    }
-
-    if (playerMode === "3" && channels.length === 0) {
-      const rapidChannels = await getStreamsForMatch(
-        match.homeTeam.name,
-        match.awayTeam.name,
-        streamId || undefined
-      );
-      channels.push(...rapidChannels);
-    }
-
-    // Each player mode is a separate provider. Never leave the previous
-    // provider's channels attached when the selected source returns none.
-    if (playerMode !== "3" || channels.length > 0) {
-      match.channels = channels;
-    }
-  }
-
-  if (match) {
-    return respond(match);
-  }
+  // Skip the match-based channel lookup since match is always null now.
+  // The fallback below handles all cases via agenda sources.
 
   // Agenda fixtures are not API-Football records: their id is hashSlug(slug)
   // and watch links no longer carry the fixture context, so rebuild it from
@@ -175,35 +122,8 @@ export async function GET(
     return respond(syntheticMatch);
   }
 
-  if ((playerMode === "2" || playerMode === "7") && home && away) {
-    const channels = playerMode === "7"
-      ? await findPlayerTwoStreams(homeTeam, awayTeam)
-      : await findSportplusStreams(homeTeam, awayTeam);
-    const leagueId = getLeagueIdByName(leagueName);
-    const syntheticMatch: Match = {
-      id: id || 0,
-      league: {
-        id: leagueId,
-        name: leagueName,
-        country: "Internacional",
-        logo: getLeagueLogo(leagueId),
-        flag: "",
-        slug: leagueName.toLowerCase().replace(/\s+/g, "-"),
-      },
-      homeTeam: { id: 0, name: homeTeam, logo: "" },
-      awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: fixtureDateISO ?? new Date().toISOString(),
-      timestamp: fixtureTimestamp,
-      status: { short: "LIVE", long: "En Juego", elapsed: null },
-      score: { home: 0, away: 0 },
-      channels,
-    };
-
-    return respond(syntheticMatch);
-  }
-
-  if (playerMode === "4" && home && away) {
-    const channels = await findEventStreams(homeTeam, awayTeam);
+  if (playerMode === "2" && home && away) {
+    const channels = await findSportplusStreams(homeTeam, awayTeam);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,
@@ -290,34 +210,6 @@ export async function GET(
     } catch {
       // ignore parse errors
     }
-
-    const leagueId = getLeagueIdByName(leagueName);
-    const syntheticMatch: Match = {
-      id: id || 0,
-      league: {
-        id: leagueId,
-        name: leagueName,
-        country: "Internacional",
-        logo: getLeagueLogo(leagueId),
-        flag: "",
-        slug: leagueName.toLowerCase().replace(/\s+/g, "-"),
-      },
-      homeTeam: { id: 0, name: homeTeam, logo: "" },
-      awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: fixtureDateISO ?? new Date().toISOString(),
-      timestamp: fixtureTimestamp,
-      status: { short: "LIVE", long: "En Juego", elapsed: null },
-      score: { home: 0, away: 0 },
-      channels,
-    };
-
-    return respond(syntheticMatch);
-  }
-
-  if (playerMode === "3" && streamId) {
-    const channels: Channel[] = [];
-    const rapidChannels = await getStreamsForMatch(homeTeam, awayTeam, streamId);
-    channels.push(...rapidChannels);
 
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {

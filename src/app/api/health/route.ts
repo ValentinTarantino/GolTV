@@ -1,4 +1,3 @@
-import { getApiFootballUsage } from "@/lib/api-football";
 import { getAgendaUsage } from "@/lib/agenda-source";
 import { getStreamUsage } from "@/lib/streaming";
 import { validateQuery, healthQuerySchema } from "@/lib/validators";
@@ -20,10 +19,6 @@ export async function GET(request: Request) {
   const baseResponse = {
     timestamp: new Date().toISOString(),
     apis: {
-      apiFootball: {
-        description: "Fixture data provider",
-        keys: getApiFootballUsage(),
-      },
       agendaSource: {
         description: "Agenda + streams",
         ...getAgendaUsage(),

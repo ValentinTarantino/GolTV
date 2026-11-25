@@ -45,8 +45,8 @@ function WatchPageInner({
   // fixture cards set it via _preferredPlayer, this covers shared/direct URLs.
   const leagueParam = (searchParams.get("league") ?? "").trim().toLowerCase();
   const isPrimeraNacional = /^(primera (b )?nacional|liga de reserva)$/.test(leagueParam);
-  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "4" | "5" | "6" | "7" | "8">(
-    playerParam === "1" || playerParam === "2" || playerParam === "3" || playerParam === "4" || playerParam === "5" || playerParam === "6" || playerParam === "7" || playerParam === "8"
+  const [playerMode, setPlayerMode] = useState<"1" | "2" | "3" | "5" | "6" | "8">(
+    playerParam === "1" || playerParam === "2" || playerParam === "3" || playerParam === "5" || playerParam === "6" || playerParam === "8"
       ? playerParam
       : isPrimeraNacional
         ? "5"
@@ -248,7 +248,7 @@ function WatchPageInner({
                       Las señales en directo se desactivan una vez finalizado el encuentro.
                     </p>
                   </>
-                ) : (playerMode === "2" || playerMode === "7") && upcoming ? (
+                ) : playerMode === "2" && upcoming ? (
                   <>
                     <Tv size={24} strokeWidth={3} className="text-text-muted" />
                     <KickoffCountdown timestamp={match.timestamp} />
