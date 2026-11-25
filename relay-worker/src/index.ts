@@ -808,6 +808,10 @@ async function populateImg(env: Env, url: URL): Promise<PopulateResult> {
     redirect: "follow",
     signal: AbortSignal.timeout(15_000),
   });
+  // A 404 means the badge is gone upstream for good: report success so
+  // Render stops retrying it every dedup window all day. Other failures
+  // stay 502 so transient CDN hiccups keep retrying.
+  if (upstreamRes.status === 404) return { status: 200, body: "missing" };
   if (!upstreamRes.ok) return { status: 502, body: `upstream ${upstreamRes.status}` };
 
   const contentType = upstreamRes.headers.get("content-type") ?? "";

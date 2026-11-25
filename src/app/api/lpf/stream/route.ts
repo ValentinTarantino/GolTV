@@ -59,6 +59,59 @@ function getClientIP(request: Request): string {
   );
 }
 
+/**
+ * Residential fallback: the provider only answers home IPs for some hosts,
+ * so the owner's machine (Cloudflare tunnel) fetches on our behalf.
+ */
+async function fetchViaHomeRelay(
+  upstream: URL,
+  headers: Record<string, string>
+): Promise<Response | null> {
+  if (!needsHomeRelay(upstream.hostname)) return null;
+  const relay = await getHomeRelayUrl();
+  const secret = process.env.LPF_HOME_SECRET?.trim() ?? "";
+  if (!relay || !secret) return null;
+  try {
+    const res = await fetch(
+      `${relay}/fetch?u=${encodeURIComponent(upstream.toString())}&key=${encodeURIComponent(secret)}`,
+      {
+        headers,
+        redirect: "follow",
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        cache: "no-store",
+      }
+    );
+    return res.ok ? res : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Last-resort fallback: the segment-relay worker fetches the same sealed
+ * token from its own egress. Datacenter IPs are blocked for some providers,
+ * but the worker reaches hosts Render cannot (and vice versa).
+ */
+async function fetchViaWorkerSeg(
+  token: string,
+  headers: Record<string, string>
+): Promise<Response | null> {
+  const populateUrl = (process.env.SEG_POPULATE_URL ?? "").trim();
+  if (!populateUrl) return null;
+  try {
+    const origin = new URL(populateUrl).origin;
+    const res = await fetch(`${origin}/api/hls/seg?t=${encodeURIComponent(token)}`, {
+      headers,
+      redirect: "follow",
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    return res.ok ? res : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request): Promise<Response> {
   if (await isIPBanned(getClientIP(request))) {
     return new Response("Access denied", {
@@ -96,36 +149,37 @@ export async function GET(request: Request): Promise<Response> {
     const range = request.headers.get("range");
     if (range) headers.Range = range;
 
-    let upstreamRes = await fetch(upstream, {
-      headers,
-      redirect: "follow",
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      cache: "no-store",
-    });
-    let viaHomeRelay = false;
+    // Direct fetch first; on a thrown error (timeout, DNS, reset) or a
+    // non-OK status, walk the fallback chain. The old code only fell back
+    // on !ok, so connect timeouts — the usual datacenter block — skipped
+    // the residential relay entirely and went straight to a 502.
+    let upstreamRes: Response | null = null;
+    let viaFallback = false;
+    try {
+      upstreamRes = await fetch(upstream, {
+        headers,
+        redirect: "follow",
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        cache: "no-store",
+      });
+    } catch {
+      upstreamRes = null;
+    }
 
-    if (!upstreamRes.ok && needsHomeRelay(upstream.hostname)) {
-      const relay = await getHomeRelayUrl();
-      const secret = process.env.LPF_HOME_SECRET?.trim() ?? "";
-      if (relay && secret) {
-        const relayRes = await fetch(
-          `${relay}/fetch?u=${encodeURIComponent(upstream.toString())}&key=${encodeURIComponent(secret)}`,
-          {
-            headers,
-            redirect: "follow",
-            signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-            cache: "no-store",
-          }
-        );
-        if (relayRes.ok) {
-          upstreamRes = relayRes;
-          viaHomeRelay = true;
-        }
+    if (!upstreamRes?.ok) {
+      const fallback =
+        (await fetchViaHomeRelay(upstream, headers)) ??
+        (await fetchViaWorkerSeg(token, headers));
+      if (fallback) {
+        upstreamRes = fallback;
+        viaFallback = true;
       }
     }
 
-    if (!upstreamRes.ok) {
-      return new Response("Stream unavailable", { status: upstreamRes.status === 404 ? 503 : upstreamRes.status });
+    if (!upstreamRes?.ok) {
+      return new Response("Stream unavailable", {
+        status: upstreamRes && upstreamRes.status === 404 ? 503 : upstreamRes?.status ?? 502,
+      });
     }
 
     const contentType = upstreamRes.headers.get("content-type") ?? "";
@@ -134,9 +188,9 @@ export async function GET(request: Request): Promise<Response> {
 
     if (isPlaylist) {
       const body = await upstreamRes.text();
-      // Through the home relay the response URL is the tunnel's, so relative
-      // URIs must resolve against the original CDN URL instead.
-      const finalUrl = !viaHomeRelay && upstreamRes.url ? new URL(upstreamRes.url) : upstream;
+      // Through a fallback relay the response URL is the tunnel's/worker's,
+      // so relative URIs must resolve against the original CDN URL instead.
+      const finalUrl = !viaFallback && upstreamRes.url ? new URL(upstreamRes.url) : upstream;
       const rewritten = rewriteLpfPlaylist(body, finalUrl);
       // Wait for the populates of the segments just referenced so viewers
       // never hit an R2 object that is not stored yet.
