@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
+import CrestPlaceholder from "@/components/ui/CrestPlaceholder";
 import { withMatchParam } from "@/lib/viewer-id";
 
 interface LpfMatch {
@@ -60,12 +61,12 @@ function formatTime(start: string): string {
   });
 }
 
-/** Crest of a team; the name is the fallback when the crest is unknown. */
+/** Crest of a team; a gray placeholder stands in when the crest is unknown. */
 function TeamCrest({ src, name }: { src?: string; name: string }) {
   if (!src) {
     return (
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-current/40 text-xs font-black uppercase">
-        {name.slice(0, 2)}
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center" title={name}>
+        <CrestPlaceholder className="h-full w-full" />
       </span>
     );
   }

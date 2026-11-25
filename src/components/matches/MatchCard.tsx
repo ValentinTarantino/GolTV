@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import RetryImage from "@/components/ui/RetryImage";
+import CrestPlaceholder from "@/components/ui/CrestPlaceholder";
 import { Play } from "lucide-react";
 import type { Match } from "@/lib/types";
 import { shortenTeamName } from "@/lib/constants";
@@ -97,12 +98,15 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
                 fetchPriority={prioritizeLogos ? "high" : "auto"}
                 unoptimized={crestFallback.home || directBadge(match.homeTeam.logo)}
                 onError={() => setCrestFallback((f) => (f.home ? f : { ...f, home: true }))}
+                fallback={<CrestPlaceholder className="h-full w-full" />}
               />
             ) : nationalTeamFlag(match.homeTeam.name) ? (
               <span className="flex h-full items-center justify-center text-3xl" role="img" aria-label={match.homeTeam.name}>
                 {nationalTeamFlag(match.homeTeam.name)}
               </span>
-            ) : null}
+            ) : (
+              <CrestPlaceholder className="h-full w-full" />
+            )}
           </div>
           <span className="truncate font-team text-[16px] font-bold uppercase leading-none tracking-[0.01em] text-white sm:text-[18px]">
             {translateCountryName(shortenTeamName(match.homeTeam.name), language)}
@@ -178,12 +182,15 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
                 fetchPriority={prioritizeLogos ? "high" : "auto"}
                 unoptimized={crestFallback.away || directBadge(match.awayTeam.logo)}
                 onError={() => setCrestFallback((f) => (f.away ? f : { ...f, away: true }))}
+                fallback={<CrestPlaceholder className="h-full w-full" />}
               />
             ) : nationalTeamFlag(match.awayTeam.name) ? (
               <span className="flex h-full items-center justify-center text-3xl" role="img" aria-label={match.awayTeam.name}>
                 {nationalTeamFlag(match.awayTeam.name)}
               </span>
-            ) : null}
+            ) : (
+              <CrestPlaceholder className="h-full w-full" />
+            )}
           </div>
         </div>
       </div>
