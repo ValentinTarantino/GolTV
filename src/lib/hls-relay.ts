@@ -5,7 +5,11 @@ import {
 } from "@/lib/embed-resolver";
 import { isAllowedStreamUrl, rewriteHlsPlaylist, rewritePlaylistToAbsolute } from "@/lib/hls-proxy";
 import { getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
-import { settleSegmentPopulates } from "@/lib/r2-segments";
+import {
+  resolveDeferredSegmentUrls,
+  settleSegmentPopulates,
+  type DeferredSegmentUrl,
+} from "@/lib/r2-segments";
 import { isBlockedNetworkTarget } from "@/lib/url-guard";
 
 export const UPSTREAM_TIMEOUT_MS = 45_000;
@@ -160,13 +164,16 @@ export async function relayUpstream(
       // serves them all.
       const text = await upstreamRes.text();
       const finalUrl = upstreamRes.url ? new URL(upstreamRes.url) : upstream;
-      const rewritten = rewriteHlsPlaylist(text, finalUrl);
+      const deferred: DeferredSegmentUrl[] = [];
+      const rewritten = rewriteHlsPlaylist(text, finalUrl, deferred);
       // Hold the response until the populates for the segments we just
       // referenced finish, so viewers never request an object that is not
-      // in R2 yet (a 404 would be edge-cached for hours).
+      // in R2 yet (a 404 would be edge-cached for hours). Segments whose
+      // populate failed resolve to the worker relay instead of an R2 404.
       await settleSegmentPopulates();
-      if (!range) setSharedPlaylist(upstream.href, rewritten);
-      return new Response(rewritten, {
+      const resolved = resolveDeferredSegmentUrls(rewritten, deferred);
+      if (!range) setSharedPlaylist(upstream.href, resolved);
+      return new Response(resolved, {
         status: upstreamRes.status,
         headers: PLAYLIST_HEADERS,
       });

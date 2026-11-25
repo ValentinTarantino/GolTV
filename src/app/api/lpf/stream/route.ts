@@ -1,6 +1,10 @@
 import { isLpfStreamHost, openLpfUrl, rewriteLpfPlaylist } from "@/lib/lpf-play";
 import { getHomeRelayUrl } from "@/lib/lpf-home-relay";
-import { settleSegmentPopulates } from "@/lib/r2-segments";
+import {
+  resolveDeferredSegmentUrls,
+  settleSegmentPopulates,
+  type DeferredSegmentUrl,
+} from "@/lib/r2-segments";
 import { getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 import { isIPBanned } from "@/lib/chat";
 import { touchRequestPresence } from "@/lib/presence";
@@ -200,12 +204,15 @@ export async function GET(request: Request): Promise<Response> {
       // Through a fallback relay the response URL is the tunnel's/worker's,
       // so relative URIs must resolve against the original CDN URL instead.
       const finalUrl = !viaFallback && upstreamRes.url ? new URL(upstreamRes.url) : upstream;
-      const rewritten = rewriteLpfPlaylist(body, finalUrl);
+      const deferred: DeferredSegmentUrl[] = [];
+      const rewritten = rewriteLpfPlaylist(body, finalUrl, deferred);
       // Wait for the populates of the segments just referenced so viewers
-      // never hit an R2 object that is not stored yet.
+      // never hit an R2 object that is not stored yet; failed populates
+      // resolve to this relay, which serves the segment via the worker.
       await settleSegmentPopulates();
-      if (maybePlaylist && !range) setSharedPlaylist(upstream.href, rewritten);
-      return new Response(rewritten, {
+      const resolved = resolveDeferredSegmentUrls(rewritten, deferred);
+      if (maybePlaylist && !range) setSharedPlaylist(upstream.href, resolved);
+      return new Response(resolved, {
         status: 200,
         headers: PLAYLIST_HEADERS,
       });

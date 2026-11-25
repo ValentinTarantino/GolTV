@@ -7,7 +7,13 @@
  */
 
 import { sealLpfSegmentUrl, sealLpfUrl } from "./sealed-url";
-import { r2SegmentUrl, r2SegmentsEnabled, triggerSegmentPopulate } from "./r2-segments";
+import {
+  deferSegmentUrl,
+  r2SegmentUrl,
+  r2SegmentsEnabled,
+  triggerSegmentPopulate,
+  type DeferredSegmentUrl,
+} from "./r2-segments";
 
 /**
  * Optional external segment relay (e.g. a Cloudflare Tunnel to a home/office
@@ -95,7 +101,11 @@ export function rewritePlaylistToAbsolute(body: string, upstream: URL): string {
     .join("\n");
 }
 
-function toRelay(value: string, upstream: URL): string {
+function toRelay(
+  value: string,
+  upstream: URL,
+  defer?: DeferredSegmentUrl[]
+): string {
   if (/^(data|blob):/i.test(value)) return value;
   try {
     const absolute = new URL(value, upstream).toString();
@@ -113,6 +123,13 @@ function toRelay(value: string, upstream: URL): string {
     try {
       const token = sealLpfSegmentUrl(absolute);
       if (r2SegmentsEnabled()) {
+        const fallback = SEG_RELAY_BASE
+          ? `${SEG_RELAY_BASE}/seg?t=${token}`
+          : `/api/hls/seg?t=${token}`;
+        // Deferred mode: emit a marker resolved after the populate settles,
+        // so failed populates fall back to the worker relay instead of a
+        // 404 that the edge would cache for hours.
+        if (defer) return deferSegmentUrl("lpf", token, fallback, defer);
         triggerSegmentPopulate("lpf", token);
         return r2SegmentUrl("lpf", token);
       }
@@ -134,7 +151,11 @@ function toRelay(value: string, upstream: URL): string {
  * relay. Relative lines are resolved against the upstream playlist URL first,
  * mirroring how browsers resolve them.
  */
-export function rewriteHlsPlaylist(body: string, upstream: URL): string {
+export function rewriteHlsPlaylist(
+  body: string,
+  upstream: URL,
+  defer?: DeferredSegmentUrl[]
+): string {
   return body
     .split("\n")
     .map((line) => {
@@ -142,9 +163,9 @@ export function rewriteHlsPlaylist(body: string, upstream: URL): string {
       if (trimmed === "") return line;
       if (trimmed.startsWith("#")) {
         // EXT-X-KEY / EXT-X-MAP / EXT-X-I-FRAME-STREAM-INF carry URI="…" attrs.
-        return line.replace(URI_ATTR_RE, (_match, uri: string) => `URI="${toRelay(uri, upstream)}"`);
+        return line.replace(URI_ATTR_RE, (_match, uri: string) => `URI="${toRelay(uri, upstream, defer)}"`);
       }
-      return toRelay(trimmed, upstream);
+      return toRelay(trimmed, upstream, defer);
     })
     .join("\n");
 }

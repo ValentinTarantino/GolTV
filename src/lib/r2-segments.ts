@@ -71,6 +71,62 @@ export function r2SegmentUrl(kind: string, token: string): string {
 }
 
 /**
+ * Populate outcome per segment key. Playlist rewrites emit deferred markers
+ * and resolve them after `settleSegmentPopulates`: stored objects get the R2
+ * URL, anything else falls back to the relay so viewers never hit a 404 that
+ * the edge would cache for hours.
+ */
+const populateState = new Map<string, "pending" | "stored" | "failed">();
+
+/** Outcome of the populate for a segment, if one was triggered. */
+export function segmentPopulateState(
+  kind: string,
+  token: string
+): "pending" | "stored" | "failed" | undefined {
+  return populateState.get(`${kind}:${token}`);
+}
+
+export interface DeferredSegmentUrl {
+  marker: string;
+  kind: string;
+  token: string;
+  fallback: string;
+}
+
+/**
+ * Triggers the populate and returns a placeholder that `resolveDeferredSegmentUrls`
+ * swaps for the R2 or fallback URL once the populate settles.
+ */
+export function deferSegmentUrl(
+  kind: string,
+  token: string,
+  fallback: string,
+  list: DeferredSegmentUrl[]
+): string {
+  triggerSegmentPopulate(kind, token);
+  const marker = `%%GTV_R2_${list.length}%%`;
+  list.push({ marker, kind, token, fallback });
+  return marker;
+}
+
+/** Replaces deferred markers with R2 URLs for stored objects, fallback otherwise. */
+export function resolveDeferredSegmentUrls(
+  body: string,
+  list: DeferredSegmentUrl[]
+): string {
+  if (list.length === 0) return body;
+  let out = body;
+  for (const item of list) {
+    const url =
+      segmentPopulateState(item.kind, item.token) === "stored"
+        ? r2SegmentUrl(item.kind, item.token)
+        : item.fallback;
+    out = out.split(item.marker).join(url);
+  }
+  return out;
+}
+
+/**
  * Recently triggered populate keys, so playlist refreshes (every few seconds
  * per viewer) only fire one populate call per unique segment.
  */
@@ -98,17 +154,23 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
   const now = Date.now();
   const last = triggered.get(dedupKey);
   if (last !== undefined && now - last < TRIGGER_TTL_MS) return;
-  if (triggered.size > TRIGGER_MAP_MAX) triggered.clear();
+  if (triggered.size > TRIGGER_MAP_MAX) {
+    triggered.clear();
+    populateState.clear();
+  }
   triggered.set(dedupKey, now);
+  populateState.set(dedupKey, "pending");
 
   const job = async () => {
     // Fallback: populate via worker (if URL configured)
     if (!SEG_POPULATE_URL) {
       triggered.delete(dedupKey);
+      populateState.delete(dedupKey);
       return;
     }
 
     let lastError: unknown = null;
+    let permanentFail = false;
     for (const url of populateUrls(kind, token)) {
       try {
         const res = await fetch(url, {
@@ -116,19 +178,29 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
           cache: "no-store",
           signal: AbortSignal.timeout(20_000),
         });
-        if (res.ok) return;
+        if (res.ok) {
+          populateState.set(dedupKey, "stored");
+          return;
+        }
         const detail = await res.text().catch(() => "");
         console.warn(`[r2-segments] populate ${kind} -> ${res.status} ${detail}`.trim());
         lastError = new Error(`populate ${res.status}`);
         // A reached-but-failed worker will fail the same on both URLs; only
-        // transport errors and 5xx justify trying the next endpoint.
-        if (res.status < 500) return;
+        // transport errors and 5xx justify trying the next endpoint. A 4xx
+        // is permanent (bad token, disallowed host): keep the dedup entry so
+        // playlist polls do not spam the worker, and mark the segment failed
+        // so playlists fall back to the relay URL.
+        if (res.status < 500) {
+          permanentFail = true;
+          break;
+        }
       } catch (error) {
         lastError = error;
       }
     }
     console.warn(`[r2-segments] populate ${kind} failed:`, lastError);
-    triggered.delete(dedupKey);
+    populateState.set(dedupKey, "failed");
+    if (!permanentFail) triggered.delete(dedupKey);
   };
   const promise = job();
   const pending = kind === "img" ? pendingImagePopulates : pendingPopulates;

@@ -1,5 +1,11 @@
 import { openLpfUrl, sealLpfSegmentUrl, sealLpfUrl } from "./sealed-url";
-import { r2SegmentUrl, r2SegmentsEnabled, triggerSegmentPopulate } from "./r2-segments";
+import {
+  deferSegmentUrl,
+  r2SegmentUrl,
+  r2SegmentsEnabled,
+  triggerSegmentPopulate,
+  type DeferredSegmentUrl,
+} from "./r2-segments";
 
 export { openLpfUrl, sealLpfUrl };
 
@@ -27,7 +33,11 @@ export function lpfRelayUrl(url: string): string {
  * CDN when `MEDIA_CDN_BASE` + `SEG_POPULATE_URL` are configured — the
  * segment token is bucket-aligned so every viewer shares one object.
  */
-export function rewriteLpfPlaylist(body: string, upstream: URL): string {
+export function rewriteLpfPlaylist(
+  body: string,
+  upstream: URL,
+  defer?: DeferredSegmentUrl[]
+): string {
   const seal = (value: string): string => {
     if (/^(data|blob):/i.test(value)) return value;
     try {
@@ -35,6 +45,8 @@ export function rewriteLpfPlaylist(body: string, upstream: URL): string {
       if (/\.m3u8(?:[?#]|$)/i.test(absolute)) return lpfRelayUrl(absolute);
       const token = sealLpfSegmentUrl(absolute);
       if (r2SegmentsEnabled()) {
+        const fallback = `${RELAY_PATH}?t=${token}`;
+        if (defer) return deferSegmentUrl("lpf", token, fallback, defer);
         triggerSegmentPopulate("lpf", token);
         return r2SegmentUrl("lpf", token);
       }

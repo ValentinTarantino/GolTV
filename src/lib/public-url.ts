@@ -1,5 +1,10 @@
 import { openLpfUrl, sealLpfDailyUrl, sealLpfUrl } from "./sealed-url";
-import { r2SegmentUrl, r2SegmentsEnabled, triggerSegmentPopulate } from "./r2-segments";
+import {
+  r2SegmentUrl,
+  r2SegmentsEnabled,
+  segmentPopulateState,
+  triggerSegmentPopulate,
+} from "./r2-segments";
 import type { Channel } from "./types";
 
 /**
@@ -55,8 +60,11 @@ export function proxyImageUrl(url: string): string {
     // gets an edge HIT instead of waiting on this server or the upstream CDN.
     // The daily-bucket token keeps the object key stable for ~a day.
     if (r2SegmentsEnabled()) {
+      // A populate that already failed means the object is not (and may never
+      // be) in R2: serve the badge through the live relay instead of a 404.
+      const failing = segmentPopulateState("img", token) === "failed";
       triggerSegmentPopulate("img", token);
-      return r2SegmentUrl("img", token);
+      if (!failing) return r2SegmentUrl("img", token);
     }
     return `/api/img?t=${token}`;
   } catch {
