@@ -905,6 +905,9 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "platense": "platense",
   "porto": "fcporto",
   "psv": "psveindhoven",
+  // Feed short name for Paris Saint-Germain; ESPN spells it out.
+  "psg": "parissaintgermain",
+  "parissg": "parissaintgermain",
   "queretaro": "queretarofc",
   "racingclub": "racingclub",
   "racingavellaneda": "racingclub",
