@@ -8,6 +8,7 @@ import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
 import CrestPlaceholder from "@/components/ui/CrestPlaceholder";
+import NetworkNotice from "@/components/ui/NetworkNotice";
 import { withMatchParam } from "@/lib/viewer-id";
 
 interface NbaMatch {
@@ -228,6 +229,7 @@ export default function NbaPage() {
   return (
     <main className="min-h-screen">
       <section className="mx-auto max-w-7xl px-3 py-7 sm:px-4 md:px-6 md:py-10">
+        <NetworkNotice />
         <div className="flex flex-col gap-5">
           <div
             ref={stageRef}
