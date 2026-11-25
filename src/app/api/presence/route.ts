@@ -39,6 +39,28 @@ export async function POST(request: Request): Promise<Response> {
 
 /** Current number of people on the site (active in the last ~45s). */
 export async function GET(): Promise<Response> {
-  const count = await getViewerCount(PRESENCE_ID);
-  return Response.json({ count });
+  try {
+    const count = await Promise.race([
+      getViewerCount(PRESENCE_ID),
+      new Promise<number>((resolve) => setTimeout(() => resolve(0), 5000)),
+    ]);
+    return Response.json(
+      { count },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=30, s-maxage=30",
+        },
+      }
+    );
+  } catch {
+    return Response.json(
+      { count: 0 },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "public, max-age=30, s-maxage=30",
+        },
+      }
+    );
+  }
 }

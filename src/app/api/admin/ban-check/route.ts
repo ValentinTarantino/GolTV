@@ -15,6 +15,28 @@ function getClientIP(request: NextRequest): string {
 
 export async function GET(request: NextRequest) {
   const clientIP = getClientIP(request);
-  const banned = await isIPBanned(clientIP);
-  return NextResponse.json({ banned });
+  try {
+    const banned = await Promise.race([
+      isIPBanned(clientIP),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000)),
+    ]);
+    return NextResponse.json(
+      { banned },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=60, s-maxage=60",
+        },
+      }
+    );
+  } catch {
+    return NextResponse.json(
+      { banned: false },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "public, max-age=60, s-maxage=60",
+        },
+      }
+    );
+  }
 }
