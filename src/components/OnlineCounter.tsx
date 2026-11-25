@@ -4,62 +4,57 @@ import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const POLL_MS = 10_000;
+// One tiny JSON every 30s per visitor — the count only needs to feel live,
+// and /api/presence is a single countDocuments on an indexed field.
+const POLL_MS = 30_000;
 
 /**
  * Floating bottom-right counter of everyone currently on the site. It reads
  * the same presence feed the admin panel uses, so it works on every page.
+ * Viewers are registered server-side from ambient API traffic; this only
+ * reads the total.
  */
 export default function OnlineCounter() {
   const { t } = useLanguage();
   const [count, setCount] = useState<number | null>(null);
-  // Site-wide presence is only shown to the admin; regular visitors are
-  // counted server-side from their ambient API traffic.
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin/session")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { isAdmin?: boolean } | null) => {
-        if (!cancelled && data?.isAdmin) setIsAdmin(true);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let hidden = false;
+
+    const onVisibility = () => {
+      hidden = document.hidden;
     };
-  }, []);
-
-  // The counter is admin-only, so only admins pay for the poll; everyone
-  // else's presence is registered server-side from ambient traffic.
-  // TEMPORARILY DISABLED to reduce request spam during investigation
-  /*
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    let cancelled = false;
+    document.addEventListener("visibilitychange", onVisibility);
 
     const poll = async () => {
+      if (hidden) {
+        timer = setTimeout(poll, POLL_MS);
+        return;
+      }
       try {
         const res = await fetch("/api/presence", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && typeof data.count === "number") setCount(data.count);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && typeof data.count === "number") setCount(data.count);
+        }
       } catch {
         // transient error — keep the last count
+      } finally {
+        if (!cancelled) timer = setTimeout(poll, POLL_MS);
       }
     };
 
     void poll();
-    const timer = setInterval(poll, POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [isAdmin]);
-  */
+  }, []);
 
-  if (!isAdmin || count === null) return null;
+  if (count === null) return null;
 
   return (
     <div
