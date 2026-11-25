@@ -8,6 +8,7 @@ import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
 import CrestPlaceholder from "@/components/ui/CrestPlaceholder";
+import { displayCountryName } from "@/i18n/dictionaries";
 import { withMatchParam } from "@/lib/viewer-id";
 
 interface TennisMatch {
@@ -72,6 +73,12 @@ export default function TennisPage() {
   const { t, language } = useLanguage();
   const { timeZone } = useTimeZone();
   const copy = t.tennis;
+  // Feed names arrive in English ("Italy", "Korea Republic"); show them
+  // localized. Player names are not countries and pass through untouched.
+  const teamName = useCallback(
+    (name: string) => displayCountryName(name, language),
+    [language]
+  );
 
   const [matches, setMatches] = useState<TennisMatch[]>([]);
   const [listState, setListState] = useState<ListState>("loading");
@@ -240,7 +247,7 @@ export default function TennisPage() {
                     <ViewerBadge matchId={String(activeMatch.id)} active={activeMatch.status === "live"} />
                   )}
                   <span className="truncate text-xs font-black uppercase text-accent-primary sm:text-sm">
-                    {activeMatch ? `${activeMatch.home} vs ${activeMatch.away}` : copy.noMatch}
+                    {activeMatch ? `${teamName(activeMatch.home)} vs ${teamName(activeMatch.away)}` : copy.noMatch}
                   </span>
                   <button
                     type="button"
@@ -261,7 +268,7 @@ export default function TennisPage() {
               {streamState === "ready" && activeSource && activeMatch ? (
                 <VideoPlayer
                   url={withMatchParam(activeSource.src, String(activeMatch.id))}
-                  title={`${activeMatch.home} vs ${activeMatch.away}`}
+                  title={`${teamName(activeMatch.home)} vs ${teamName(activeMatch.away)}`}
                   kind={activeSource.kind}
                   preferFastStart
                 />
@@ -395,7 +402,7 @@ export default function TennisPage() {
                         type="button"
                         data-match={match.id}
                         onClick={() => selectMatch(match.id)}
-                        title={`${match.home} vs ${match.away}`}
+                        title={`${teamName(match.home)} vs ${teamName(match.away)}`}
                         className={`flex w-full min-w-0 flex-col gap-2 border-4 px-3 py-3 text-left transition-transform hover:-translate-y-0.5 sm:w-64 sm:shrink-0 sm:px-4 sm:py-3.5 md:w-80 ${
                           isActive
                             ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
@@ -403,12 +410,12 @@ export default function TennisPage() {
                         }`}
                       >
                       <span className="flex items-center justify-center gap-2">
-                        <TeamCrest src={match.homeLogo} name={match.home} />
+                        <TeamCrest src={match.homeLogo} name={teamName(match.home)} />
                         <span className="text-[11px] font-black uppercase opacity-80 sm:text-xs">vs</span>
-                        <TeamCrest src={match.awayLogo} name={match.away} />
+                        <TeamCrest src={match.awayLogo} name={teamName(match.away)} />
                       </span>
                       <span className="text-center text-xs font-black uppercase leading-tight sm:text-sm">
-                        {match.home} <span className="opacity-80">vs</span> {match.away}
+                        {teamName(match.home)} <span className="opacity-80">vs</span> {teamName(match.away)}
                       </span>
                       <span className="flex items-center justify-between gap-1">
                         <span className="text-[11px] font-bold uppercase sm:text-xs">{formatTime(match.start, language, timeZone)}</span>

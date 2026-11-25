@@ -164,6 +164,14 @@ export const countryNames: Record<string, string> = {
   "JORDAN": "Jordan",
   "LIBANO": "Lebanon",
   "PALESTINA": "Palestine",
+  "REINO UNIDO": "Great Britain",
+  "IRLANDA DEL NORTE": "Northern Ireland",
+  "TAIWAN": "Chinese Taipei",
+  "KAZAJISTAN": "Kazakhstan",
+  "UZBEKISTAN": "Uzbekistan",
+  "GEORGIA": "Georgia",
+  "ARMENIA": "Armenia",
+  "AZERBAIYAN": "Azerbaijan",
 };
 
 function stripAccents(value: string): string {
@@ -179,6 +187,52 @@ export function translateCountryName(name: string, language: string = "en"): str
 
   const key = stripAccents(name.toUpperCase().trim());
   return countryNamesNormalized[key] || name;
+}
+
+function countryKey(value: string): string {
+  return stripAccents(value.toUpperCase())
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// National-team feeds (tennis, Davis Cup) name countries in English, and the
+// provider uses its own variants ("Korea Republic", "USA"). Map those to the
+// canonical English name the rest of the site uses.
+const enCountryAliases: Record<string, string> = {
+  "KOREA REPUBLIC": "South Korea",
+  "KOREA REPUBLIC OF": "South Korea",
+  "REPUBLIC OF KOREA": "South Korea",
+  "GREAT BRITAIN": "Great Britain",
+  "UNITED KINGDOM": "Great Britain",
+  "UK": "Great Britain",
+  "GREAT BRITAIN AND NORTHERN IRELAND": "Great Britain",
+  "USA": "United States",
+  "U S A": "United States",
+  "UNITED STATES OF AMERICA": "United States",
+  "CZECHIA": "Czech Republic",
+  "HOLLAND": "Netherlands",
+  "TURKIYE": "Turkey",
+  "CHINESE TAIPEI": "Chinese Taipei",
+  "TAIWAN": "Chinese Taipei",
+};
+
+// Inverted countryNames: canonical English name -> Spanish name.
+const esNameByEnKey = new Map(
+  Object.entries(countryNames).map(([es, en]) => [countryKey(en), es])
+);
+
+/**
+ * Localize a country name that arrives in English from a feed. Spanish gets
+ * the Spanish name, English gets the canonical provider-clean name; anything
+ * that is not a known country (player names, etc.) passes through untouched.
+ */
+export function displayCountryName(name: string, language: string): string {
+  const canonical = enCountryAliases[countryKey(name)] ?? name;
+  if (language === "es") {
+    return esNameByEnKey.get(countryKey(canonical)) ?? canonical;
+  }
+  return canonical;
 }
 
 export function translateLeague(name: string, language: string = "es"): string {
