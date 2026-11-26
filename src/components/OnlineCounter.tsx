@@ -3,22 +3,25 @@
 import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 // One tiny JSON every 30s per visitor — the count only needs to feel live,
 // and /api/presence is a single countDocuments on an indexed field.
 const POLL_MS = 30_000;
 
 /**
- * Floating bottom-right counter of everyone currently on the site. It reads
- * the same presence feed the admin panel uses, so it works on every page.
+ * Floating bottom-right counter of everyone currently on the site. Admin-only:
+ * regular visitors never see it and never poll /api/presence.
  * Viewers are registered server-side from ambient API traffic; this only
  * reads the total.
  */
 export default function OnlineCounter() {
   const { t } = useLanguage();
+  const isAdmin = useIsAdmin();
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!isAdmin) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let hidden = false;
@@ -52,9 +55,9 @@ export default function OnlineCounter() {
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [isAdmin]);
 
-  if (count === null) return null;
+  if (!isAdmin || count === null) return null;
 
   return (
     <div

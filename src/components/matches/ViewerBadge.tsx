@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 const COUNT_POLL_MS = 15_000;
 
@@ -15,15 +16,15 @@ interface ViewerBadgeProps {
 /**
  * Live viewer counter for a match. Viewers are registered server-side from
  * ambient traffic (chat polls and playlist reloads carrying the viewer
- * cookie), so this component only reads the count — for everyone, not just
- * admins.
+ * cookie), so this component only reads the count. Admin-only.
  */
 export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps) {
   const { t } = useLanguage();
+  const isAdmin = useIsAdmin();
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !isAdmin) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -47,9 +48,9 @@ export default function ViewerBadge({ matchId, active = true }: ViewerBadgeProps
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [matchId, active]);
+  }, [matchId, active, isAdmin]);
 
-  if (!active || count === null || count === 0) return null;
+  if (!active || !isAdmin || count === null || count === 0) return null;
 
   return (
     <span
