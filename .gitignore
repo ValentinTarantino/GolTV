@@ -56,3 +56,4 @@ worker-secrets.json
 .open-next
 .dev.vars
 .wrangler/
+r2-cors.json
