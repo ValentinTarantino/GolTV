@@ -16,7 +16,14 @@ function devtoolsLooksOpen(): boolean {
     return true;
   }
   const start = performance.now();
-  debugger;
+  // new Function keeps the `debugger` statement alive through minification —
+  // a literal `debugger;` gets stripped from production bundles. If a CSP
+  // ever blocks eval, detection falls back to the size heuristic alone.
+  try {
+    new Function("debugger")();
+  } catch {
+    // eval blocked
+  }
   return performance.now() - start > DEBUGGER_THRESHOLD_MS;
 }
 
@@ -69,33 +76,39 @@ export default function DevToolsGuard() {
     };
     window.addEventListener("keydown", onKeyDown, true);
 
+    const check = () => {
+      if (devtoolsLooksOpen()) {
+        scrubDevToolsTraces();
+        setBlocked(true);
+        if (timer) clearInterval(timer);
+        window.removeEventListener("resize", check);
+        // Navigate the tab itself to about:blank — a fresh document means
+        // the Network panel empties and there is no DOM left to inspect.
+        // Going Back reloads the site, re-triggers detection, and blanks
+        // again while DevTools stays open.
+        try {
+          window.location.replace("about:blank");
+        } catch {
+          // overlay above still covers the page
+        }
+      }
+    };
+
     fetch("/api/admin/session", { cache: "no-store" })
       .then((res) => res.json())
       .then((data: { isAdmin?: boolean }) => {
         isAdmin = data.isAdmin === true;
         if (cancelled || isAdmin) return;
-        timer = setInterval(() => {
-          if (devtoolsLooksOpen()) {
-            scrubDevToolsTraces();
-            setBlocked(true);
-            if (timer) clearInterval(timer);
-            // Navigate the tab itself to about:blank — a fresh document means
-            // the Network panel empties and there is no DOM left to inspect.
-            // Going Back reloads the site, re-triggers detection, and blanks
-            // again while DevTools stays open.
-            try {
-              window.location.replace("about:blank");
-            } catch {
-              // overlay above still covers the page
-            }
-          }
-        }, POLL_MS);
+        timer = setInterval(check, POLL_MS);
+        // Docking/undocking DevTools fires resize — check immediately.
+        window.addEventListener("resize", check);
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      window.removeEventListener("resize", check);
       window.removeEventListener("keydown", onKeyDown, true);
     };
   }, []);
