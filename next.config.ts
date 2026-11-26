@@ -1,5 +1,13 @@
 import type { NextConfig } from "next";
 
+// Badge CDN hosts come from IMG_PROXY_HOSTS (same list the image proxy and
+// the segment-relay worker enforce) — nothing provider-specific is baked in.
+const imageRemotePatterns = (process.env.IMG_PROXY_HOSTS ?? "")
+  .split(",")
+  .map((entry) => entry.trim().toLowerCase())
+  .filter(Boolean)
+  .map((hostname) => ({ protocol: "https" as const, hostname, pathname: "/**" }));
+
 const nextConfig: NextConfig = {
   output: "standalone",
   // sharp is a native binary (badge optimizer) and mongodb manages its own
@@ -19,90 +27,7 @@ const nextConfig: NextConfig = {
       { pathname: "/api/league-logos" },
       { pathname: "/api/lpf/crest" },
     ],
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "media.api-sports.io",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "www.messicup.com",
-        pathname: "/media/**",
-      },
-      {
-        protocol: "https",
-        hostname: "www.thesportsdb.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "r2.thesportsdb.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "images.football-live-stream.online",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "cdn.freebiesupply.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "upload.wikimedia.org",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "api.promiedos.com.ar",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "flagcdn.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "encrypted-tbn0.gstatic.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "www.countryflags.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "football-logos.cc",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "assets.football-logos.cc",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "i.pinimg.com",
-        pathname: "/**",
-      },
-      {
-        // ESPN badge CDN — direct URLs in the badge maps (remote crests run
-        // through /_next/image, so every badge host must be configured).
-        protocol: "https",
-        hostname: "a.espncdn.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "www.footylogos.com",
-        pathname: "/**",
-      },
-    ],
+    remotePatterns: imageRemotePatterns,
   },
   async headers() {
     return [

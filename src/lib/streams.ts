@@ -34,8 +34,8 @@ const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 const SEGMENT_BUCKET_MS = 15 * 60 * 1000;
 /** The channel catalog of the embed app changes rarely; ten minutes is safe. */
 const EMBED_TTL = 10 * 60 * 1000;
-/** Catalog published by the embed app when its own URL does not name a repo. */
-const EMBED_REPO_FALLBACK = "el20chinitdt/Automatizador-de-Tokens";
+/** Catalog published by the embed app when its own URL does not name a repo (`EMBED_REPO_FALLBACK`). */
+const EMBED_REPO_FALLBACK = process.env.EMBED_REPO_FALLBACK?.trim() ?? "";
 
 const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":
@@ -567,25 +567,27 @@ export function decryptEmbedPayload(blob: EmbedBlob): string | null {
  * the same streams the embed app would.
  * ------------------------------------------------------------------ */
 
-/** Origins the provider accepts as callers of its embed app. */
-const EMBED_ALLOWED_ORIGINS = [
-  "https://el20chinitdt.github.io",
-  "https://encrypthtmlaes256.edgeone.app",
-  "https://isdntek.com",
-  "https://canalesenvivodeargentina.blogspot.com",
-];
+/** Origins the provider accepts as callers of its embed app (`EMBED_ALLOWED_ORIGINS`). */
+const EMBED_ALLOWED_ORIGINS = (process.env.EMBED_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+/** Host suffix for `<owner>.<suffix>` Pages sites and the raw-file base. */
+const EMBED_PAGES_SUFFIX = process.env.EMBED_PAGES_SUFFIX?.trim() ?? "";
+const EMBED_RAW_BASE = (process.env.EMBED_RAW_BASE?.trim() ?? "").replace(/\/+$/, "");
 
 /** Mirrors `getRepoFileSources` of the embed app, minus the relative one. */
 function embedFileUrls(repo: string, filePath: string): string[] {
   const [owner, name] = repo.split("/");
-  if (!owner || !name) return [];
-  const host = `${owner.toLowerCase()}.github.io`;
+  if (!owner || !name || !EMBED_PAGES_SUFFIX || !EMBED_RAW_BASE) return [];
+  const host = `${owner.toLowerCase()}.${EMBED_PAGES_SUFFIX}`;
   const pagesBase = name.toLowerCase() === host ? `https://${host}` : `https://${host}/${name}`;
   const stamp = `?t=${Date.now()}`;
   return [
     `${pagesBase}/${filePath}${stamp}`,
-    `https://raw.githubusercontent.com/${owner}/${name}/refs/heads/main/${filePath}${stamp}`,
-    `https://raw.githubusercontent.com/${owner}/${name}/master/${filePath}${stamp}`,
+    `${EMBED_RAW_BASE}/${owner}/${name}/refs/heads/main/${filePath}${stamp}`,
+    `${EMBED_RAW_BASE}/${owner}/${name}/master/${filePath}${stamp}`,
   ];
 }
 
@@ -687,10 +689,11 @@ function embedIntegrityOk(blob: EmbedBlob, keyHex: string): boolean {
 /** `<owner>/<repo>` of the catalog, read from the URL of the embed app. */
 function embedRepoFrom(playerUrl: URL): string {
   const host = playerUrl.hostname.toLowerCase();
-  if (host.endsWith(".github.io")) {
+  const pagesSuffix = EMBED_PAGES_SUFFIX;
+  if (pagesSuffix && host.endsWith(`.${pagesSuffix}`)) {
     const owner = host.split(".")[0];
     const segment = playerUrl.pathname.split("/").filter(Boolean)[0] ?? "";
-    const repo = segment && !/\.\w+$/.test(segment) ? segment : `${owner}.github.io`;
+    const repo = segment && !/\.\w+$/.test(segment) ? segment : `${owner}.${pagesSuffix}`;
     return `${owner}/${repo}`;
   }
   return EMBED_REPO_FALLBACK;
@@ -702,10 +705,11 @@ async function embedCatalog(repo: string): Promise<Record<string, EmbedBlob> | n
     const [owner, name] = repo.split("/");
     if (!owner || !name) return null;
 
+    if (!EMBED_PAGES_SUFFIX || !EMBED_RAW_BASE) return null;
     const urls = [
-      `https://${owner.toLowerCase()}.github.io/${name}/token.json?t=${Date.now()}`,
-      `https://raw.githubusercontent.com/${owner}/${name}/refs/heads/main/token.json`,
-      `https://raw.githubusercontent.com/${owner}/${name}/master/token.json`,
+      `https://${owner.toLowerCase()}.${EMBED_PAGES_SUFFIX}/${name}/token.json?t=${Date.now()}`,
+      `${EMBED_RAW_BASE}/${owner}/${name}/refs/heads/main/token.json`,
+      `${EMBED_RAW_BASE}/${owner}/${name}/master/token.json`,
     ];
 
     for (const url of urls) {

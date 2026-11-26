@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, X, Info, ExternalLink } from "lucide-react";
+import { AlertCircle, X, Info } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import FootballLoader from "@/components/ui/FootballLoader";
 import { useIframeChannelBridge, type IframeChannelBridgeProps } from "./useIframeChannelBridge";
@@ -54,7 +54,11 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
     if (originalUrl.startsWith("/api/combat/frame/")) {
       return originalUrl;
     }
-    if (originalUrl.includes("futbolvivo.tv") || originalUrl.includes("kora-plus.mov")) {
+    const htmlProxyHosts = (process.env.NEXT_PUBLIC_HTML_PROXY_HOSTS ?? "")
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean);
+    if (htmlProxyHosts.some((host) => originalUrl.toLowerCase().includes(host))) {
       return `/api/proxy?url=${encodeURIComponent(originalUrl)}`;
     }
     return originalUrl;
@@ -99,17 +103,13 @@ function IframeSession({ url, title, channel, onChannels }: IframePlayerProps) {
       )}
 
       {isPrimaryFeed && (
-        <div className="flex w-full aspect-video items-center justify-center">
-          <a
-            key={url}
-            href={url}
-            target="_blank"
-            rel="noopener"
-            className="inline-flex items-center gap-2 border-2 border-white bg-black px-3 py-2 text-xs font-bold text-white hover:border-accent-primary hover:text-accent-primary"
-          >
-            <ExternalLink size={14} />
-            {t.player.openSignalNewTab}
-          </a>
+        <div className="relative w-full aspect-video bg-black overflow-hidden border-4 border-white player-plate flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-center px-6">
+            <AlertCircle size={40} className="text-accent-red" />
+            <span className="text-sm font-medium text-text-primary">
+              {t.player.errorLoading}
+            </span>
+          </div>
         </div>
       )}
 

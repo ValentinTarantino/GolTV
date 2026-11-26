@@ -297,6 +297,7 @@ export async function getMatchById(matchId: number): Promise<Match | undefined> 
 
   const promise = (async () => {
     try {
+      if (!API_FOOTBALL_BASE) return undefined;
       const url = new URL("/fixtures", API_FOOTBALL_BASE);
       url.searchParams.set("id", String(matchId));
 

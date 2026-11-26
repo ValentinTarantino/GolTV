@@ -35,6 +35,12 @@ jest.mock("@/lib/espn-scores", () => ({
   ...jest.requireActual("@/lib/espn-scores"),
   loadEspnScoreboards: jest.fn().mockResolvedValue(new Map()),
 }));
+// prefetchImage is fire-and-forget: its lazy `import("sharp")` can resolve
+// after the Jest environment is torn down and fail the whole run.
+jest.mock("@/lib/image-cache", () => ({
+  prefetchImage: jest.fn(),
+  loadImage: jest.fn(),
+}));
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/matches/route";
 import { fetchAgenda } from "@/lib/agenda-source";

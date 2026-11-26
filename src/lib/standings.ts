@@ -2,7 +2,7 @@ import type { Standing, StandingsTable, StandingsTab, BracketRound, BracketMatch
 import { getCache, setCache } from "./cache";
 import { proxyImageUrl } from "./public-url";
 
-const PROMIEDOS_BASE = "https://www.promiedos.com.ar/league";
+const PROMIEDOS_BASE = (process.env.PROMIEDOS_BASE?.trim() ?? "").replace(/\/+$/, "");
 
 export interface PromiedosLeague {
   urlName: string;
@@ -276,7 +276,9 @@ async function fetchFromApiFootball(leagueId: number, season: number): Promise<L
     const apiKey = process.env.API_FOOTBALL_KEY?.split(",")[0]?.trim();
     if (!apiKey) return null;
 
-    const res = await fetch(`https://v3.football.api-sports.io/standings?league=${leagueId}&season=${season}`, {
+    const apiBase = (process.env.API_FOOTBALL_BASE?.trim() ?? "").replace(/\/+$/, "");
+    if (!apiBase) return null;
+    const res = await fetch(`${apiBase}/standings?league=${leagueId}&season=${season}`, {
       headers: { "x-apisports-key": apiKey },
       signal: AbortSignal.timeout(10000),
     });
@@ -343,6 +345,7 @@ export async function fetchLeagueStandings(
 
   // Try Promiedos first
   try {
+    if (!PROMIEDOS_BASE) throw new Error("Promiedos not configured");
     const url = `${PROMIEDOS_BASE}/${league.urlName}/${league.id}`;
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; GolTVLibre/1.0)" },

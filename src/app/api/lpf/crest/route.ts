@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
  * route so the CDN host never reaches the browser.
  */
 
-const CREST_BASE = "https://cdn.ovbstdn.com/onexbet";
+const CREST_BASE = (process.env.LPF_CREST_BASE?.trim() ?? "").replace(/\/+$/, "");
 const FETCH_TIMEOUT_MS = 15_000;
 
 export async function GET(request: Request): Promise<Response> {
@@ -15,6 +15,10 @@ export async function GET(request: Request): Promise<Response> {
 
   if (!/^\d{1,10}$/.test(pk)) {
     return new Response("Invalid team reference", { status: 400 });
+  }
+
+  if (!CREST_BASE) {
+    return new Response("Crest unavailable", { status: 404 });
   }
 
   try {

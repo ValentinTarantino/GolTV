@@ -23,8 +23,13 @@ const BASKETBALL_NAME_ALIASES: Record<string, string> = {
   fairleighdickinsonuniversity: "fairleighdickinson",
 };
 
-const SPORTSDB_KEY = "123";
-const SPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json";
+function sportsDbKey(): string {
+  return process.env.SPORTSDB_KEY?.trim() ?? "";
+}
+
+function sportsDbBase(): string {
+  return (process.env.SPORTSDB_BASE?.trim() ?? "").replace(/\/+$/, "");
+}
 
 // Stable API-Football media URLs for common clubs. The image endpoint is
 // public and does not consume API quota; IDs are intentionally separate from
@@ -220,6 +225,113 @@ const DIRECT_TEAM_BADGES: Record<string, string> = {
   jazz: "https://cdn.nba.com/logos/nba/1610612762/primary/L/logo.svg",
   washingtonwizards: "https://cdn.nba.com/logos/nba/1610612764/primary/L/logo.svg",
   wizards: "https://cdn.nba.com/logos/nba/1610612764/primary/L/logo.svg",
+  // UEFA Europa League + Conference League crests (ESPN soccer CDN, 500px PNG).
+  afcbournemouth: "https://a.espncdn.com/i/teamlogos/soccer/500/349.png",
+  bournemouth: "https://a.espncdn.com/i/teamlogos/soccer/500/349.png",
+  az: "https://a.espncdn.com/i/teamlogos/soccer/500/140.png",
+  azalkmaar: "https://a.espncdn.com/i/teamlogos/soccer/500/140.png",
+  araratarmenia: "https://a.espncdn.com/i/teamlogos/soccer/500/20024.png",
+  ararat: "https://a.espncdn.com/i/teamlogos/soccer/500/20024.png",
+  nkcelje: "https://a.espncdn.com/i/teamlogos/soccer/500/3362.png",
+  celje: "https://a.espncdn.com/i/teamlogos/soccer/500/3362.png",
+  jagielloniabiaystok: "https://a.espncdn.com/i/teamlogos/soccer/500/11505.png",
+  jagielloniabialystok: "https://a.espncdn.com/i/teamlogos/soccer/500/11505.png",
+  jagiellonia: "https://a.espncdn.com/i/teamlogos/soccer/500/11505.png",
+  lillestrm: "https://a.espncdn.com/i/teamlogos/soccer/500/987.png",
+  lillestrom: "https://a.espncdn.com/i/teamlogos/soccer/500/987.png",
+  nec: "https://a.espncdn.com/i/teamlogos/soccer/500/147.png",
+  necnijmegen: "https://a.espncdn.com/i/teamlogos/soccer/500/147.png",
+  ofi: "https://a.espncdn.com/i/teamlogos/soccer/500/1010.png",
+  oficrete: "https://a.espncdn.com/i/teamlogos/soccer/500/1010.png",
+  olympiquelyonnais: "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
+  lyon: "https://a.espncdn.com/i/teamlogos/soccer/500/167.png",
+  olympiquemarseille: "https://a.espncdn.com/i/teamlogos/soccer/500/176.png",
+  olympiquedemarseille: "https://a.espncdn.com/i/teamlogos/soccer/500/176.png",
+  marseille: "https://a.espncdn.com/i/teamlogos/soccer/500/176.png",
+  omonianicosia: "https://a.espncdn.com/i/teamlogos/soccer/500/617.png",
+  omonia: "https://a.espncdn.com/i/teamlogos/soccer/500/617.png",
+  rbsalzburg: "https://a.espncdn.com/i/teamlogos/soccer/500/2790.png",
+  salzburg: "https://a.espncdn.com/i/teamlogos/soccer/500/2790.png",
+  redbullsalzburg: "https://a.espncdn.com/i/teamlogos/soccer/500/2790.png",
+  spartapraha: "https://a.espncdn.com/i/teamlogos/soccer/500/433.png",
+  spartaprague: "https://a.espncdn.com/i/teamlogos/soccer/500/433.png",
+  spartapraga: "https://a.espncdn.com/i/teamlogos/soccer/500/433.png",
+  unionstgilloise: "https://a.espncdn.com/i/teamlogos/soccer/500/5807.png",
+  unionsaintgilloise: "https://a.espncdn.com/i/teamlogos/soccer/500/5807.png",
+  unionsg: "https://a.espncdn.com/i/teamlogos/soccer/500/5807.png",
+  agf: "https://a.espncdn.com/i/teamlogos/soccer/500/7853.png",
+  aarhus: "https://a.espncdn.com/i/teamlogos/soccer/500/7853.png",
+  aarhusgf: "https://a.espncdn.com/i/teamlogos/soccer/500/7853.png",
+  boracbanjaluka: "https://a.espncdn.com/i/teamlogos/soccer/500/20710.png",
+  borac: "https://a.espncdn.com/i/teamlogos/soccer/500/20710.png",
+  skbrann: "https://a.espncdn.com/i/teamlogos/soccer/500/620.png",
+  brann: "https://a.espncdn.com/i/teamlogos/soccer/500/620.png",
+  brightonhovealbion: "https://a.espncdn.com/i/teamlogos/soccer/500/331.png",
+  brighton: "https://a.espncdn.com/i/teamlogos/soccer/500/331.png",
+  cskasofia: "https://a.espncdn.com/i/teamlogos/soccer/500/10834.png",
+  cskasofiya: "https://a.espncdn.com/i/teamlogos/soccer/500/10834.png",
+  csucraiova: "https://a.espncdn.com/i/teamlogos/soccer/500/8089.png",
+  craiova: "https://a.espncdn.com/i/teamlogos/soccer/500/8089.png",
+  universitateacraiova: "https://a.espncdn.com/i/teamlogos/soccer/500/8089.png",
+  redstarbelgrade: "https://a.espncdn.com/i/teamlogos/soccer/500/2290.png",
+  crvenazvezda: "https://a.espncdn.com/i/teamlogos/soccer/500/2290.png",
+  estrellaroja: "https://a.espncdn.com/i/teamlogos/soccer/500/2290.png",
+  egnatiarrogozhine: "https://a.espncdn.com/i/teamlogos/soccer/500/21943.png",
+  egnatia: "https://a.espncdn.com/i/teamlogos/soccer/500/21943.png",
+  kaagent: "https://a.espncdn.com/i/teamlogos/soccer/500/3611.png",
+  gent: "https://a.espncdn.com/i/teamlogos/soccer/500/3611.png",
+  hajduksplit: "https://a.espncdn.com/i/teamlogos/soccer/500/489.png",
+  hajduk: "https://a.espncdn.com/i/teamlogos/soccer/500/489.png",
+  hnkhajduksplit: "https://a.espncdn.com/i/teamlogos/soccer/500/489.png",
+  heartofmidlothian: "https://a.espncdn.com/i/teamlogos/soccer/500/262.png",
+  hearts: "https://a.espncdn.com/i/teamlogos/soccer/500/262.png",
+  interdescaldes: "https://a.espncdn.com/i/teamlogos/soccer/500/20703.png",
+  interclubdescaldes: "https://a.espncdn.com/i/teamlogos/soccer/500/20703.png",
+  interclubdescales: "https://a.espncdn.com/i/teamlogos/soccer/500/20703.png",
+  interdescales: "https://a.espncdn.com/i/teamlogos/soccer/500/20703.png",
+  jablonec: "https://a.espncdn.com/i/teamlogos/soccer/500/7922.png",
+  fkjablonec: "https://a.espncdn.com/i/teamlogos/soccer/500/7922.png",
+  kaunozalgiris: "https://a.espncdn.com/i/teamlogos/soccer/500/20028.png",
+  zalgiris: "https://a.espncdn.com/i/teamlogos/soccer/500/20028.png",
+  kupskuopio: "https://a.espncdn.com/i/teamlogos/soccer/500/8169.png",
+  kups: "https://a.espncdn.com/i/teamlogos/soccer/500/8169.png",
+  kuopio: "https://a.espncdn.com/i/teamlogos/soccer/500/8169.png",
+  fckbenhavn: "https://a.espncdn.com/i/teamlogos/soccer/500/909.png",
+  fccopenhagen: "https://a.espncdn.com/i/teamlogos/soccer/500/909.png",
+  kbenhavn: "https://a.espncdn.com/i/teamlogos/soccer/500/909.png",
+  kobenhavn: "https://a.espncdn.com/i/teamlogos/soccer/500/909.png",
+  copenhagen: "https://a.espncdn.com/i/teamlogos/soccer/500/909.png",
+  lincolnredimps: "https://a.espncdn.com/i/teamlogos/soccer/500/17856.png",
+  lincoln: "https://a.espncdn.com/i/teamlogos/soccer/500/17856.png",
+  fclubano: "https://a.espncdn.com/i/teamlogos/soccer/500/7672.png",
+  lugano: "https://a.espncdn.com/i/teamlogos/soccer/500/7672.png",
+  fcmidtjylland: "https://a.espncdn.com/i/teamlogos/soccer/500/572.png",
+  midtjylland: "https://a.espncdn.com/i/teamlogos/soccer/500/572.png",
+  asmonaco: "https://a.espncdn.com/i/teamlogos/soccer/500/174.png",
+  monaco: "https://a.espncdn.com/i/teamlogos/soccer/500/174.png",
+  fcnordsjlland: "https://a.espncdn.com/i/teamlogos/soccer/500/3101.png",
+  nordsjlland: "https://a.espncdn.com/i/teamlogos/soccer/500/3101.png",
+  fcnordsjaelland: "https://a.espncdn.com/i/teamlogos/soccer/500/3101.png",
+  nordsjaelland: "https://a.espncdn.com/i/teamlogos/soccer/500/3101.png",
+  panathinaikos: "https://a.espncdn.com/i/teamlogos/soccer/500/443.png",
+  pafos: "https://a.espncdn.com/i/teamlogos/soccer/500/22281.png",
+  paphos: "https://a.espncdn.com/i/teamlogos/soccer/500/22281.png",
+  rigafc: "https://a.espncdn.com/i/teamlogos/soccer/500/19246.png",
+  riga: "https://a.espncdn.com/i/teamlogos/soccer/500/19246.png",
+  sinttruidense: "https://a.espncdn.com/i/teamlogos/soccer/500/936.png",
+  sinttruiden: "https://a.espncdn.com/i/teamlogos/soccer/500/936.png",
+  sttruiden: "https://a.espncdn.com/i/teamlogos/soccer/500/936.png",
+  struiden: "https://a.espncdn.com/i/teamlogos/soccer/500/936.png",
+  braga: "https://a.espncdn.com/i/teamlogos/soccer/500/2994.png",
+  sportingbraga: "https://a.espncdn.com/i/teamlogos/soccer/500/2994.png",
+  sportingdebraga: "https://a.espncdn.com/i/teamlogos/soccer/500/2994.png",
+  fcthun: "https://a.espncdn.com/i/teamlogos/soccer/500/3024.png",
+  thun: "https://a.espncdn.com/i/teamlogos/soccer/500/3024.png",
+  trabzonspor: "https://a.espncdn.com/i/teamlogos/soccer/500/997.png",
+  fctwente: "https://a.espncdn.com/i/teamlogos/soccer/500/152.png",
+  twente: "https://a.espncdn.com/i/teamlogos/soccer/500/152.png",
+  iberia1999: "https://a.espncdn.com/i/teamlogos/soccer/500/20025.png",
+  iberia: "https://a.espncdn.com/i/teamlogos/soccer/500/20025.png",
 };
 const TEAM_SEARCH_ALIASES: Record<string, string> = {
   "celtadevigo": "Celta Vigo",
@@ -612,7 +724,10 @@ function getSearchVariations(name: string): string[] {
 }
 
 async function searchTeam(query: string): Promise<SportsDBTeam[] | null> {
-  const url = `${SPORTSDB_BASE}/${SPORTSDB_KEY}/searchteams.php?t=${encodeURIComponent(query)}`;
+  const base = sportsDbBase();
+  const key = sportsDbKey();
+  if (!base || !key) return null;
+  const url = `${base}/${key}/searchteams.php?t=${encodeURIComponent(query)}`;
   await acquireSearchSlot();
   try {
     for (let attempt = 0; attempt < 3; attempt++) {

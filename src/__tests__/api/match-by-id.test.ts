@@ -12,10 +12,8 @@ jest.mock("@/lib/agenda-fixture", () => ({
   findAgendaFixtureById: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/agenda-source", () => ({
-  getAgendaStream: jest.fn(),
-  findAgendaStreams: jest.fn().mockResolvedValue([]),
-  fetchAgenda: jest.fn().mockResolvedValue([]),
+jest.mock("@/lib/grid-source", () => ({
+  findGridStreams: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/secondary-source", () => ({
@@ -42,7 +40,7 @@ jest.mock("@/lib/player-six-source", () => ({
 
 import { GET } from "@/app/api/matches/[matchId]/route";
 import { findAgendaFixtureById, hashSlug } from "@/lib/agenda-fixture";
-import { findAgendaStreams } from "@/lib/agenda-source";
+import { findGridStreams } from "@/lib/grid-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findLpfStreams } from "@/lib/lpf-source";
 import { findPrimaryStreams } from "@/lib/primary-player-source";
@@ -132,7 +130,7 @@ describe("/api/matches/[matchId]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("creates synthetic match with event source fallback", async () => {
+  it("creates synthetic match for player 3 with team params", async () => {
     const sources = JSON.stringify([{ id: "s1", name: "Test", embedIframe: "https://example.com/embed" }]);
     const req = makeRequest(
       `http://localhost/api/matches/99999?player=3&eventSlug=test-slug&eventSources=${encodeURIComponent(sources)}&home=Boca&away=River&league=Liga`
@@ -174,9 +172,9 @@ describe("/api/matches/[matchId]", () => {
     expect(findPrimaryStreams).not.toHaveBeenCalled();
   });
 
-  it("resolves primary-agenda channels for secondary-only matches (player=3)", async () => {
-    (findAgendaStreams as jest.Mock).mockResolvedValue([
-      { id: "a1", name: "Canal", url: "https://example.com/embed" },
+  it("resolves board signals for player 3 matches", async () => {
+    (findGridStreams as jest.Mock).mockResolvedValue([
+      { id: "grid-abc123", name: "Señal 1", url: "/api/hls?t=token", kind: "hls" },
     ]);
 
     const req = makeRequest(
@@ -188,8 +186,9 @@ describe("/api/matches/[matchId]", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(findAgendaStreams).toHaveBeenCalledWith("Platense", "Estudiantes");
+    expect(findGridStreams).toHaveBeenCalledWith("Platense", "Estudiantes");
     expect(data.match.channels.length).toBeGreaterThan(0);
+    expect(data.match.channels[0].kind).toBe("hls");
   });
 
   it("uses the LPF board source when player=2", async () => {

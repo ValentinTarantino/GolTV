@@ -76,7 +76,17 @@ export default function DevToolsGuard() {
     };
     window.addEventListener("keydown", onKeyDown, true);
 
+    // Fullscreen enter/exit animates the window chrome, so inner/outer
+    // dimensions diverge for a moment and would false-positive the size
+    // heuristic — blanking the tab right when the user leaves fullscreen.
+    let fullscreenGraceUntil = 0;
+    const onFullscreenChange = () => {
+      fullscreenGraceUntil = performance.now() + 1_500;
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+
     const check = () => {
+      if (document.fullscreenElement || performance.now() < fullscreenGraceUntil) return;
       if (devtoolsLooksOpen()) {
         scrubDevToolsTraces();
         setBlocked(true);
@@ -110,6 +120,7 @@ export default function DevToolsGuard() {
       if (timer) clearInterval(timer);
       window.removeEventListener("resize", check);
       window.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
     };
   }, []);
 

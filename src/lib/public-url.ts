@@ -19,33 +19,28 @@ import type { Channel } from "./types";
  * misconfigured environments.
  */
 
-/** Badge CDNs allowed through `/api/img`. Mirrors `images.remotePatterns`. */
-const PROXIED_IMAGE_HOSTS = new Set([
-  "r2.thesportsdb.com",
-  "www.thesportsdb.com",
-  "media.api-sports.io",
-  "a.espncdn.com",
-  "www.messicup.com",
-  "cdn.freebiesupply.com",
-  "upload.wikimedia.org",
-  "api.promiedos.com.ar",
-  "www.promiedos.com.ar",
-  "flagcdn.com",
-  "encrypted-tbn0.gstatic.com",
-  "www.countryflags.com",
-  "football-logos.cc",
-  "assets.football-logos.cc",
-  "i.pinimg.com",
-  "www.footylogos.com",
-  "images.football-live-stream.online",
-  "logos1.tcrbg61levl.cfd",
-  "logos1.tcpwe138stya.ru",
-  "cdn.nba.com",
-]);
+/**
+ * Badge CDNs allowed through `/api/img`, from `IMG_PROXY_HOSTS`
+ * (comma-separated hostnames). Mirrors the worker's `IMG_PROXY_HOSTS`.
+ */
+let imageHostsCache: { raw: string; hosts: Set<string> } | null = null;
+
+function proxiedImageHosts(): Set<string> {
+  const raw = process.env.IMG_PROXY_HOSTS ?? "";
+  if (imageHostsCache && imageHostsCache.raw === raw) return imageHostsCache.hosts;
+  const hosts = new Set(
+    raw
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  imageHostsCache = { raw, hosts };
+  return hosts;
+}
 
 export function isProxiedImageHost(url: string): boolean {
   try {
-    return PROXIED_IMAGE_HOSTS.has(new URL(url).hostname);
+    return proxiedImageHosts().has(new URL(url).hostname.toLowerCase());
   } catch {
     return false;
   }
@@ -87,14 +82,23 @@ export function openImageToken(token: string): string | null {
 /**
  * Player pages that must be fetched and rewritten by `/api/proxy` (ad
  * stripping, iframe rewriting, framing headers) instead of framed raw.
- * Mirrors the exceptions in `IframePlayer.getProxyUrl`.
+ * Hosts come from `NEXT_PUBLIC_HTML_PROXY_HOSTS` (comma-separated).
  */
-const HTML_PROXY_HOSTS = /futbolvivo\.tv|kora-plus\.mov/i;
+function htmlProxyHosts(): string[] {
+  return (process.env.NEXT_PUBLIC_HTML_PROXY_HOSTS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+}
 
 function sealFrameUrl(rawUrl: string): string | null {
   try {
     const token = sealLpfUrl(rawUrl);
-    return HTML_PROXY_HOSTS.test(rawUrl)
+    const host = new URL(rawUrl).hostname.toLowerCase();
+    const proxied = htmlProxyHosts().some(
+      (entry) => host === entry || host.endsWith(`.${entry}`)
+    );
+    return proxied
       ? `/api/proxy?t=${token}`
       : `/api/frame?t=${token}`;
   } catch {

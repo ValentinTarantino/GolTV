@@ -198,9 +198,11 @@ function WatchPageInner({
               {/* Display numbers are independent of the existing provider IDs. */}
               {([
                 { mode: "6", label: t.player.playerTwoB },
-                { mode: "8", label: t.player.playerSix },
-                { mode: "2", label: t.player.playerTwo },
-                { mode: "3", label: t.player.playerThree },
+                // Display order: P2 = grid source (mode "3"), P3 = old P2
+                // (mode "8"), P4 = old P3 (mode "2").
+                { mode: "3", label: t.player.playerSix },
+                { mode: "8", label: t.player.playerTwo },
+                { mode: "2", label: t.player.playerThree },
                 { mode: "5", label: t.player.playerFive },
                 // Player 4 stays reachable via ?player=4 but is hidden from the
                 // selector; RBTV (mode "7") is hidden for the same reason —

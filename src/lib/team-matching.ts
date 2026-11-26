@@ -16,8 +16,7 @@ function significantTokens(s: string): string[] {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .split(/\s+/)
-    .map((w) => w.replace(/[^a-z0-9]/g, ""))
+    .split(/[^a-z0-9]+/)
     .filter((t) => t.length > 2 && !TEAM_STOPWORDS.has(t));
 }
 

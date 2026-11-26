@@ -141,17 +141,23 @@ function openLpfUrl(token: string, env: Env): string | null {
   }
 }
 
-const LPF_ALLOWED_SUFFIXES = [".ftlly.com", ".futlivehd.com", ".ebaclofen.org"];
-const LPF_ALLOWED_PREFIXES = ["fhlsport"];
-
-function isAllowedStreamUrl(url: URL): boolean {
+/**
+ * Upstream hosts the relay may fetch, from `HLS_STREAM_HOSTS` (comma-separated).
+ * An entry ending in `*` matches by prefix (rotating CDN labels); any other
+ * entry matches the host itself or its subdomains. No hosts are baked in.
+ */
+function isAllowedStreamUrl(url: URL, env: Env): boolean {
   if (url.protocol !== "https:") return false;
   const host = url.hostname.toLowerCase();
-  return (
-    LPF_ALLOWED_SUFFIXES.some(
-      (suffix) => host === suffix.slice(1) || host.endsWith(suffix)
-    ) || LPF_ALLOWED_PREFIXES.some((prefix) => host.startsWith(prefix))
-  );
+  return (env.HLS_STREAM_HOSTS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean)
+    .some((entry) => {
+      if (entry.endsWith("*")) return host.startsWith(entry.slice(0, -1));
+      const suffix = entry.replace(/^\.+/, "");
+      return host === suffix || host.endsWith(`.${suffix}`);
+    });
 }
 
 /**
@@ -173,16 +179,14 @@ function isLpfStreamHostAllowed(url: URL, env: Env): boolean {
     );
 }
 
-const PLAYER_DOMAINS = ["kora-plus.mov", "kora-plus.li", "kora-plus.app"];
 const PLAYER_PAGE_PATH_RE = /\/(?:framelatin|framestream)\.php$/i;
 
 function isEmbedPlayerPage(url: URL, env: Env): boolean {
   const host = url.hostname.toLowerCase();
-  const extra = (env.EMBED_PLAYER_DOMAINS ?? "")
+  const domains = (env.EMBED_PLAYER_DOMAINS ?? "")
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
-  const domains = [...PLAYER_DOMAINS, ...extra];
   const isPlayerHost = domains.some(
     (domain) => host === domain || host.endsWith(`.${domain}`)
   );
@@ -305,7 +309,7 @@ async function handleLpfSeg(request: Request, env: Env, url: URL): Promise<Respo
   if (isEmbedPlayerPage(upstream, env)) {
     return new Response("Player pages are not segments", { status: 400 });
   }
-  if (!isAllowedStreamUrl(upstream)) {
+  if (!isAllowedStreamUrl(upstream, env)) {
     return new Response("Stream host not allowed", { status: 403 });
   }
 
@@ -698,7 +702,7 @@ async function populateLpf(env: Env, url: URL): Promise<PopulateResult> {
   }
   if (upstream.protocol !== "https:") return { status: 403, body: "Segment URL not allowed" };
   if (isEmbedPlayerPage(upstream, env)) return { status: 400, body: "Player pages are not segments" };
-  if (!isAllowedStreamUrl(upstream) && !isLpfStreamHostAllowed(upstream, env)) {
+  if (!isAllowedStreamUrl(upstream, env) && !isLpfStreamHostAllowed(upstream, env)) {
     return { status: 403, body: `Stream host not allowed: ${upstream.hostname}` };
   }
 
@@ -780,32 +784,20 @@ async function populateCanal(env: Env, url: URL): Promise<PopulateResult> {
 }
 
 /**
- * Badge/logo hosts — mirrors PROXIED_IMAGE_HOSTS in src/lib/public-url.ts.
- * Image populate opens the same daily-bucket sealed tokens the app seals,
- * so without this list the endpoint could fetch arbitrary https URLs.
+ * Badge/logo hosts allowed through populate — `IMG_PROXY_HOSTS` env
+ * (comma-separated hostnames). Mirrors `IMG_PROXY_HOSTS` in
+ * src/lib/public-url.ts. Image populate opens the same daily-bucket sealed
+ * tokens the app seals, so without this list the endpoint could fetch
+ * arbitrary https URLs.
  */
-const IMG_ALLOWED_HOSTS = new Set([
-  "r2.thesportsdb.com",
-  "www.thesportsdb.com",
-  "media.api-sports.io",
-  "a.espncdn.com",
-  "www.messicup.com",
-  "cdn.freebiesupply.com",
-  "upload.wikimedia.org",
-  "api.promiedos.com.ar",
-  "www.promiedos.com.ar",
-  "flagcdn.com",
-  "encrypted-tbn0.gstatic.com",
-  "www.countryflags.com",
-  "football-logos.cc",
-  "assets.football-logos.cc",
-  "i.pinimg.com",
-  "www.footylogos.com",
-  "images.football-live-stream.online",
-  "logos1.tcrbg61levl.cfd",
-  "logos1.tcpwe138stya.ru",
-  "cdn.nba.com",
-]);
+function isImgHostAllowed(hostname: string, env: Env): boolean {
+  const host = hostname.toLowerCase();
+  return (env.IMG_PROXY_HOSTS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(host);
+}
 
 const IMG_MAX_BYTES = 8 * 1024 * 1024;
 const IMG_FETCH_UA =
@@ -828,7 +820,7 @@ async function populateImg(env: Env, url: URL): Promise<PopulateResult> {
   if (upstream.protocol !== "https:") {
     return { status: 403, body: "Image URL not allowed" };
   }
-  if (!IMG_ALLOWED_HOSTS.has(upstream.hostname.toLowerCase())) {
+  if (!isImgHostAllowed(upstream.hostname, env)) {
     return { status: 403, body: `Image host not allowed: ${upstream.hostname}` };
   }
 
@@ -897,6 +889,8 @@ interface Env {
   CANALES_STREAM_HOSTS?: string;
   PLAYER_SIX_REFERER?: string;
   EMBED_PLAYER_DOMAINS?: string;
+  HLS_STREAM_HOSTS?: string;
+  IMG_PROXY_HOSTS?: string;
   SEGMENTS_BUCKET?: R2BucketLike;
 }
 

@@ -1,6 +1,6 @@
 import { findPlayerFiveStreams } from "@/lib/player-five-source";
 import { findPrimaryStreams } from "@/lib/primary-player-source";
-import { getAgendaStream, findAgendaStreams } from "@/lib/agenda-source";
+import { findGridStreams } from "@/lib/grid-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
 import { findLpfStreams } from "@/lib/lpf-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
@@ -14,7 +14,7 @@ import { findAgendaFixtureById } from "@/lib/agenda-fixture";
 import { isIPBanned } from "@/lib/chat";
 import { touchRequestPresence } from "@/lib/presence";
 import { BANNED_HEADER } from "@/lib/viewer-id";
-import type { Match, Channel } from "@/lib/types";
+import type { Match } from "@/lib/types";
 import { validateParams, validateQuery, createErrorResponse, matchIdParamsSchema, matchIdQuerySchema } from "@/lib/validators";
 
 function getClientIP(request: Request): string {
@@ -59,7 +59,7 @@ export async function GET(
   const queryValidation = await validateQuery(request, matchIdQuerySchema);
   if ("error" in queryValidation) return queryValidation.error;
 
-  const { streamId, eventSlug, eventSources, player } = queryValidation.data;
+  const { streamId, player } = queryValidation.data;
   let { home, away, league } = queryValidation.data;
   const playerMode = player === "1" || player === "3" || player === "5" || player === "6" || player === "8" ? player : "2";
   const id = parseInt(matchId, 10);
@@ -197,47 +197,11 @@ export async function GET(
     return respond(syntheticMatch);
   }
 
-  if (playerMode === "3" && eventSlug && eventSources) {
-    const channels: Channel[] = [];
-    try {
-      const sources = JSON.parse(eventSources) as { id: string; name: string; embedIframe: string }[];
-      for (const source of sources) {
-        const ch = await getAgendaStream(source.embedIframe, source.name);
-        if (ch) {
-          channels.push(ch);
-        }
-      }
-    } catch {
-      // ignore parse errors
-    }
-
-    const leagueId = getLeagueIdByName(leagueName);
-    const syntheticMatch: Match = {
-      id: id || 0,
-      league: {
-        id: leagueId,
-        name: leagueName,
-        country: "Internacional",
-        logo: getLeagueLogo(leagueId),
-        flag: "",
-        slug: leagueName.toLowerCase().replace(/\s+/g, "-"),
-      },
-      homeTeam: { id: 0, name: homeTeam, logo: "" },
-      awayTeam: { id: 0, name: awayTeam, logo: "" },
-      date: fixtureDateISO ?? new Date().toISOString(),
-      timestamp: fixtureTimestamp,
-      status: { short: "LIVE", long: "En Juego", elapsed: null },
-      score: { home: 0, away: 0 },
-      channels,
-    };
-
-    return respond(syntheticMatch);
-  }
-
-  // Secondary-fixture matches: player 3 resolves the primary agenda by team
-  // names when no API-Football record or stream ID is available.
+  // Player 4: the programming board's own per-match signals, served as HLS
+  // through the shared relay. Team names resolve the fixture; agenda fixture
+  // ids fill home/away above when the link does not carry them.
   if (playerMode === "3" && home && away) {
-    const channels = await findAgendaStreams(home, away);
+    const channels = await findGridStreams(homeTeam, awayTeam);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,

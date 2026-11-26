@@ -24,14 +24,27 @@ import {
  */
 const SEG_RELAY_BASE = (process.env.HLS_SEG_RELAY_BASE ?? "").replace(/\/+$/, "");
 
-/** Only these hosts (and their subdomains) may be relayed — not an open proxy. */
-const ALLOWED_HOST_SUFFIXES = [".ftlly.com", ".futlivehd.com", ".ebaclofen.org"];
-
 /**
- * RBTV+ stream CDNs rotate across throwaway domains but always keep the
- * `fhlsport` label (fhlsportNNN.<random>.{xyz,ru,cfd,...}).
+ * Upstream hosts the relay may fetch, from `HLS_STREAM_HOSTS` (comma-separated).
+ * An entry ending in `*` matches by prefix (rotating CDN labels); any other
+ * entry matches the host itself or its subdomains. No hosts are baked in.
  */
-const ALLOWED_HOST_PREFIXES = ["fhlsport"];
+let allowedCache: { raw: string; suffixes: string[]; prefixes: string[] } | null = null;
+
+function allowedHosts(): { suffixes: string[]; prefixes: string[] } {
+  const raw = process.env.HLS_STREAM_HOSTS ?? "";
+  if (allowedCache && allowedCache.raw === raw) return allowedCache;
+  const suffixes: string[] = [];
+  const prefixes: string[] = [];
+  for (const entry of raw.split(",")) {
+    const host = entry.trim().toLowerCase();
+    if (!host) continue;
+    if (host.endsWith("*")) prefixes.push(host.slice(0, -1));
+    else suffixes.push(host.replace(/^\.+/, ""));
+  }
+  allowedCache = { raw, suffixes, prefixes };
+  return allowedCache;
+}
 
 const URI_ATTR_RE = /URI="([^"]+)"/g;
 
@@ -39,10 +52,11 @@ const URI_ATTR_RE = /URI="([^"]+)"/g;
 export function isAllowedStreamUrl(url: URL): boolean {
   if (url.protocol !== "https:") return false;
   const host = url.hostname.toLowerCase();
+  const { suffixes, prefixes } = allowedHosts();
   return (
-    ALLOWED_HOST_SUFFIXES.some(
-      (suffix) => host === suffix.slice(1) || host.endsWith(suffix)
-    ) || ALLOWED_HOST_PREFIXES.some((prefix) => host.startsWith(prefix))
+    suffixes.some(
+      (suffix) => host === suffix || host.endsWith(`.${suffix}`)
+    ) || prefixes.some((prefix) => host.startsWith(prefix))
   );
 }
 

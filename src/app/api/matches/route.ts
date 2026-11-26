@@ -5,7 +5,7 @@ import { fetchAgenda } from "@/lib/agenda-source";
 import { fetchSecondaryAgenda } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
 import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
-import { getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub, FINISHED_STATUSES } from "@/lib/constants";
+import { getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub, FINISHED_STATUSES, SPORTS_MEDIA_BASE } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { leagueRanks, loadLeagueOrder } from "@/lib/league-order";
 import { espnSlugsForLeague, espnSlugsForLeagues, findEspnEvent, loadEspnScoreboards } from "@/lib/espn-scores";
@@ -360,7 +360,7 @@ export async function GET(request: NextRequest) {
         id: league.id,
         name: league.name,
         country: league.country,
-        logo: proxyImageUrl(LEAGUE_LOGOS[league.id] || `https://media.api-sports.io/football/leagues/${league.id}.png`),
+        logo: proxyImageUrl(LEAGUE_LOGOS[league.id] || (SPORTS_MEDIA_BASE ? `${SPORTS_MEDIA_BASE}/football/leagues/${league.id}.png` : "")),
         flag: league.countryFlag,
         slug: league.slug,
       },
@@ -417,7 +417,7 @@ export async function GET(request: NextRequest) {
             id: segunda.id,
             name: segunda.name,
             country: segunda.country,
-            logo: proxyImageUrl(LEAGUE_LOGOS[segunda.id] || `https://media.api-sports.io/football/leagues/${segunda.id}.png`),
+            logo: proxyImageUrl(LEAGUE_LOGOS[segunda.id] || (SPORTS_MEDIA_BASE ? `${SPORTS_MEDIA_BASE}/football/leagues/${segunda.id}.png` : "")),
             flag: segunda.countryFlag,
             slug: segunda.slug,
           };

@@ -10,6 +10,9 @@ import {
 } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 
+process.env.SPORTSDB_BASE = "https://www.thesportsdb.com/api/v1/json";
+process.env.SPORTSDB_KEY = "123";
+
 describe("SUPPORTED_LEAGUES", () => {
   it("contains Liga Profesional Argentina", () => {
     const liga = SUPPORTED_LEAGUES.find((l) => l.id === 128);

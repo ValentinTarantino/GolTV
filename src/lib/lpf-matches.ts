@@ -29,13 +29,10 @@ const RECENT_TTL = 90 * 60 * 1000;
 /** A vanished "live" match keeps the badge for this long, then shows finished. */
 const LIVE_GRACE_MS = 45 * 60 * 1000;
 
-const SPORTPLUS_API = process.env.SPORTPLUS_API?.trim() || "https://apisplus.live/v3.1";
-const SPORTPLUS_SITE = process.env.SPORTPLUS_SITE?.trim() || "https://es.sportplus.watch";
-const ANGULISMO_AGGREGATOR =
-  process.env.ANGULISMO_AGENDA_URL?.trim() || "https://la14hd.alangulismotv.workers.dev/events";
-const ANGULISMO_FALLBACK =
-  process.env.ANGULISMO_FALLBACK_URL?.trim() ||
-  "https://raw.githubusercontent.com/tadeoallende/repos-web/refs/heads/main/datos.json";
+const SPORTPLUS_API = process.env.SPORTPLUS_API?.trim() ?? "";
+const SPORTPLUS_SITE = process.env.SPORTPLUS_SITE?.trim() ?? "";
+const ANGULISMO_AGGREGATOR = process.env.ANGULISMO_AGENDA_URL?.trim() ?? "";
+const ANGULISMO_FALLBACK = process.env.ANGULISMO_FALLBACK_URL?.trim() ?? "";
 
 const BROWSER_HEADERS: Record<string, string> = {
   "User-Agent":

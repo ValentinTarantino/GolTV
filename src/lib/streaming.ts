@@ -4,7 +4,8 @@ import { isAllowedStreamUrl, toHlsProxyUrl } from "./hls-proxy";
 import { sealLpfUrl } from "./sealed-url";
 import { matchTeamsPair } from "./team-matching";
 
-const STREAM_API_BASE = "https://football-live-stream-api.p.rapidapi.com";
+const STREAM_API_BASE = (process.env.STREAM_API_BASE?.trim() ?? "").replace(/\/+$/, "");
+const STREAM_EMBED_BASE = (process.env.STREAM_EMBED_BASE?.trim() ?? "").replace(/\/+$/, "");
 const RAPID_API_KEY = process.env.RAPIDAPI_KEY || "";
 
 const COOLDOWN_MS = 5 * 60 * 1000;
@@ -63,11 +64,20 @@ export function unwrapNestedStreamUrl(raw: string): string {
   return current;
 }
 
+function streamEmbedHost(): string {
+  try {
+    return STREAM_EMBED_BASE ? new URL(STREAM_EMBED_BASE).hostname : "";
+  } catch {
+    return "";
+  }
+}
+
 function preferPlayUrl(raw: string): string {
-  if (/football-live-stream\.online/i.test(raw)) return raw;
+  const embedHost = streamEmbedHost();
+  if (embedHost && raw.toLowerCase().includes(embedHost)) return raw;
   const unwrapped = unwrapNestedStreamUrl(raw);
-  if (unwrapped.includes(".m3u8") || /^https?:\/\//i.test(unwrapped)) {
-    return `https://football-live-stream.online/?url=${encodeURIComponent(unwrapped)}`;
+  if (STREAM_EMBED_BASE && (unwrapped.includes(".m3u8") || /^https?:\/\//i.test(unwrapped))) {
+    return `${STREAM_EMBED_BASE}/?url=${encodeURIComponent(unwrapped)}`;
   }
   return raw;
 }
@@ -89,13 +99,14 @@ function playableCandidates(raw: string): string[] {
   const unwrapped = unwrapNestedStreamUrl(raw);
   const candidates: string[] = [];
 
-  if (/football-live-stream\.online/i.test(raw)) {
+  const embedHost = streamEmbedHost();
+  if (embedHost && raw.toLowerCase().includes(embedHost)) {
     candidates.push(raw);
   }
   if (unwrapped !== raw) {
-    if (unwrapped.includes(".m3u8")) {
+    if (STREAM_EMBED_BASE && unwrapped.includes(".m3u8")) {
       candidates.push(
-        `https://football-live-stream.online/?url=${encodeURIComponent(unwrapped)}`
+        `${STREAM_EMBED_BASE}/?url=${encodeURIComponent(unwrapped)}`
       );
     }
     candidates.push(unwrapped);
@@ -108,13 +119,14 @@ function playableCandidates(raw: string): string[] {
 async function pickPlayableStreamUrl(raw: string): Promise<string | null> {
   for (const candidate of playableCandidates(raw)) {
     try {
+      const headers: Record<string, string> = {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "application/vnd.apple.mpegurl,application/x-mpegURL,*/*",
+      };
+      if (STREAM_EMBED_BASE) headers.Referer = STREAM_EMBED_BASE;
       const res = await fetch(candidate, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "application/vnd.apple.mpegurl,application/x-mpegURL,*/*",
-          Referer: "https://football-live-stream.online/",
-        },
+        headers,
         cache: "no-store",
         signal: AbortSignal.timeout(8000),
       });
@@ -271,8 +283,8 @@ export async function getStreamsForMatch(
   awayTeam: string,
   matchId?: string
 ): Promise<Channel[]> {
-  if (!RAPID_API_KEY) {
-    console.warn("[stream] RAPIDAPI_KEY not configured");
+  if (!RAPID_API_KEY || !STREAM_API_BASE) {
+    console.warn("[stream] RAPIDAPI_KEY or STREAM_API_BASE not configured");
     return [];
   }
   if (await isInCooldown() && !matchId) {

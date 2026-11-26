@@ -11,6 +11,11 @@ import { openLpfUrl, sealLpfSegmentUrl, sealLpfUrl } from "@/lib/sealed-url";
 import { GET } from "@/app/api/hls/route";
 import { relaySegment } from "@/lib/hls-relay";
 
+beforeAll(() => {
+  process.env.LPF_PROXY_SECRET = "test-relay-secret";
+  process.env.HLS_STREAM_HOSTS = "ftlly.com,fhlsport*";
+});
+
 const PLAYLIST = [
   "#EXTM3U",
   '#EXT-X-KEY:METHOD=AES-128,URI="key.bin",IV=0x9c7db8778570d05c3f9ae7afbafa6423',

@@ -9,7 +9,7 @@ import { matchTeamsPair } from "./team-matching";
  * dead slug does not get hammered by every poll.
  */
 
-const SCOREBOARD_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer";
+const SCOREBOARD_BASE = (process.env.ESPN_SCOREBOARD_BASE?.trim() ?? "").replace(/\/+$/, "");
 const CACHE_TTL_MS = 20_000;
 const FETCH_TIMEOUT_MS = 8_000;
 
@@ -31,6 +31,7 @@ const LEAGUE_SLUGS: Record<number, string[]> = {
   11: ["conmebol.sudamericana"],
   2: ["uefa.champions"],
   3: ["uefa.europa"],
+  848: ["uefa.europa.conf"], // UEFA Conference League
   140: ["esp.1"], // La Liga
   141: ["esp.2"], // Segunda División
   143: ["esp.copa_del_rey"],
@@ -114,6 +115,7 @@ function parseEvent(raw: RawEvent): EspnEvent | null {
 }
 
 async function fetchSlug(slug: string): Promise<EspnEvent[]> {
+  if (!SCOREBOARD_BASE) return [];
   const store = cache();
   const hit = store.get(slug);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.events;

@@ -18,8 +18,7 @@ import type { Channel } from "./types";
 export const EMBED_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-/** Player families the provider rotates between; extend via env when it drifts. */
-const DEFAULT_PLAYER_DOMAINS = ["kora-plus.mov", "kora-plus.li", "kora-plus.app"];
+/** Player-family domains, all from `EMBED_PLAYER_DOMAINS` (comma-separated). */
 
 const WRAPPER_PATH_RE = /\/streamlat\.html$/i;
 /**
@@ -52,11 +51,10 @@ function httpsUrl(value: string): URL | null {
 }
 
 function playerDomains(): string[] {
-  const extra = (process.env.EMBED_PLAYER_DOMAINS ?? "")
+  return (process.env.EMBED_PLAYER_DOMAINS ?? "")
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => DOMAIN_RE.test(entry));
-  return [...new Set([...DEFAULT_PLAYER_DOMAINS, ...extra])];
 }
 
 /** True for the provider's own player hosts (any edge subdomain). */

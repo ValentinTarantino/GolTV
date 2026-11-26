@@ -16,6 +16,10 @@ import { GET } from "@/app/api/hls/route";
 import { openLpfUrl } from "@/lib/sealed-url";
 import type { Channel } from "@/lib/types";
 
+beforeAll(() => {
+  process.env.EMBED_PLAYER_DOMAINS = "kora-plus.mov,kora-plus.li,kora-plus.app";
+});
+
 // Shape of the provider's static wrapper (scripts trimmed to the two constants
 // this resolver reads). The wrapper frames `<edge>.<domain>/framelatin.php`.
 const WRAPPER_HTML = `

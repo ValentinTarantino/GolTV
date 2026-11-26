@@ -175,6 +175,28 @@ const CHILEAN_CLUB_DEDUP_ALIASES: Record<string, string> = {
   universidaddeconcepcion: "universidaddeconcepcion",
 };
 
+// UEFA feeds alternate native and international spellings for the same
+// club, which rendered identical Conference/Europa League fixtures twice.
+const UEFA_TEAM_DEDUP_ALIASES: Record<string, string> = {
+  // "Nordsjælland" loses æ to a token split ("nordsjlland") while ASCII
+  // feeds write "Nordsjaelland".
+  nordsjaelland: "nordsjlland",
+  fcnordsjaelland: "nordsjlland",
+  // "København" vs "FC Copenhagen".
+  kbenhavn: "copenhagen",
+  kobenhavn: "copenhagen",
+  fccopenhagen: "copenhagen",
+  // Spanish feeds translate Freiburg.
+  friburgo: "freiburg",
+  // "St. Truiden" vs "Sint-Truiden"/"Sint-Truidense".
+  sttruiden: "sinttruiden",
+  sttruidense: "sinttruiden",
+  sinttruidense: "sinttruiden",
+  // "Sporting Braga" vs "Sporting de Braga" vs bare "Braga".
+  sportingdebraga: "sportingbraga",
+  braga: "sportingbraga",
+};
+
 const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
   // International feeds alternate Portuguese/Spanish names for this
   // Champions fixture, which otherwise produces two identical cards.
@@ -192,11 +214,14 @@ const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
     como: "como", como1907: "como",
     mancity: "mancity", manchestercity: "mancity",
     rbleipzig: "rbleipzig", leipzig: "rbleipzig",
+    ...UEFA_TEAM_DEDUP_ALIASES,
   },
   3: {
     olympiacos: "olympiacos", olympiakos: "olympiacos",
     olympiakospiraeus: "olympiacos", olympiacospiraeus: "olympiacos",
+    ...UEFA_TEAM_DEDUP_ALIASES,
   },
+  848: UEFA_TEAM_DEDUP_ALIASES,
   332: {
     newengland: "newenglandrevolution",
     // MLS feeds alternate "SJ Earthquakes", "San Jose Earthquakes", the
@@ -266,6 +291,8 @@ const LEAGUE_TEAM_DEDUP_ALIASES: Record<number, Record<string, string>> = {
 
 const TEAM_NAME_DESIGNATORS = new Set([
   "ac", "ae", "afc", "ca", "cf", "cd", "club", "fc", "fk", "if", "sc", "sk", "ud", "ub",
+  // Croatian clubs carry "HNK" (Hajduk, Rijeka, Osijek); feeds drop it.
+  "hnk",
 ]);
 
 // Share the explicit full/short names used by cards, not fuzzy string matches

@@ -25,6 +25,7 @@ export const LEAGUE_LOGOS: Record<number, string> = {
   11: "https://media.api-sports.io/football/leagues/11.png",
   2: "https://media.api-sports.io/football/leagues/2.png",
   3: "https://media.api-sports.io/football/leagues/3.png",
+  848: "https://media.api-sports.io/football/leagues/848.png",
   140: "https://media.api-sports.io/football/leagues/140.png",
   143: "https://media.api-sports.io/football/leagues/143.png",
   39: "https://media.api-sports.io/football/leagues/39.png",
@@ -98,6 +99,7 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   // UEFA
   { id: 2, name: "Champions League", country: "Internacional", countryFlag: "🌎", slug: "champions-league", season: 2026 },
   { id: 3, name: "Europa League", country: "Internacional", countryFlag: "🌎", slug: "europa-league", season: 2026 },
+  { id: 848, name: "Conference League", country: "Internacional", countryFlag: "🌎", slug: "conference-league", season: 2026 },
   { id: 140, name: "La Liga", country: "España", countryFlag: "🇪🇸", slug: "la-liga", season: 2026 },
   { id: 141, name: "Segunda División", country: "España", countryFlag: "🇪🇸", slug: "segunda-division", season: 2026 },
   { id: 143, name: "Copa del Rey", country: "España", countryFlag: "🇪🇸", slug: "copa-del-rey", season: 2026 },
@@ -114,7 +116,8 @@ export const SUPPORTED_LEAGUES: LeagueConfig[] = [
   { id: 10, name: "Amistosos Internacionales", country: "Internacional", countryFlag: "🌎", slug: "amistosos", season: 2026 },
 ];
 
-export const API_FOOTBALL_BASE = "https://v3.football.api-sports.io";
+export const API_FOOTBALL_BASE = (process.env.API_FOOTBALL_BASE?.trim() ?? "").replace(/\/+$/, "");
+export const SPORTS_MEDIA_BASE = (process.env.SPORTS_MEDIA_BASE?.trim() ?? "").replace(/\/+$/, "");
 
 export const LIVE_STATUSES = ["1H", "HT", "2H", "ET", "BT", "P", "INT", "LIVE"];
 export const FINISHED_STATUSES = ["FT", "AET", "PEN", "AWD", "WO"];
@@ -219,6 +222,7 @@ export const BROADCAST_CHANNELS: Record<number, string[]> = {
   11: ["ESPN", "Fox Sports", "DSports"],
   2: ["HBO Max", "ESPN", "Fox Sports", "DSports", "Movistar Plus+"],
   3: ["HBO Max", "ESPN", "Fox Sports", "DSports"],
+  848: ["HBO Max", "ESPN", "Fox Sports", "DSports"],
   140: ["Movistar Plus+", "DAZN", "ESPN"],
   143: ["Movistar Plus+", "DAZN", "ESPN"],
   39: ["Sky Sports", "TNT Sports", "Prime Video"],
@@ -311,6 +315,8 @@ const PL_LEAGUE_MAP: Record<string, number> = {
   "uefa champions league": 2,
   "europa league": 3,
   "uefa europa league": 3,
+  "conference league": 848,
+  "uefa conference league": 848,
   "la liga": 140,
   "laliga": 140,
   "laliga ea sports": 140,
@@ -938,6 +944,36 @@ export const PROMIEDOS_ALIASES: Record<string, string> = {
   "rcceltafortuna": "celtadevigoii",
   "celtafortuna": "celtadevigoii",
   "celtadevigofortuna": "celtadevigoii",
+  // UEFA feeds vs ESPN spellings that share no tokens: needed for live
+  // score matching (findEspnEvent) in Champions/Europa/Conference League.
+  "paphos": "pafos",
+  "pafos": "paphos",
+  "crvenazvezda": "redstarbelgrade",
+  "redstarbelgrade": "crvenazvezda",
+  "friburgo": "freiburg",
+  "freiburg": "friburgo",
+  "scfreiburg": "freiburg",
+  "kbenhavn": "fccopenhagen",
+  "fckbenhavn": "fccopenhagen",
+  "fccopenhagen": "kbenhavn",
+  "nordsjlland": "fcnordsjlland",
+  "fcnordsjlland": "nordsjlland",
+  "nordsjaelland": "fcnordsjaelland",
+  "fcnordsjaelland": "nordsjaelland",
+  "sttruiden": "sinttruidense",
+  "sinttruiden": "sinttruidense",
+  "sinttruidense": "sttruiden",
+  "sportingbraga": "braga",
+  "sportingdebraga": "braga",
+  "braga": "sportingdebraga",
+  "egnatirrogozhine": "egnatia",
+  "egnatia": "egnatirrogozhine",
+  "interclubdescaldes": "interdescaldes",
+  "interdescaldes": "interclubdescaldes",
+  "heartofmidlothian": "hearts",
+  "hearts": "heartofmidlothian",
+  "kaunozalgiris": "kauno",
+  "kauno": "kaunozalgiris",
 };
 
 
