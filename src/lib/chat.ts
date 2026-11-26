@@ -53,9 +53,11 @@ function validateMessage(text: string): string | null {
   return sanitized;
 }
 
+// Rooms are keyed by matchId for fixtures, or by a section slug
+// ("nba"/"tennis"/"combat"/"motor") for the shared per-section chats.
 function validateMatchId(matchId: string): string | null {
   if (typeof matchId !== "string") return null;
-  if (!/^\d+$/.test(matchId)) return null;
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(matchId)) return null;
   return matchId;
 }
 

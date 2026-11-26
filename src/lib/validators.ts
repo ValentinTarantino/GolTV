@@ -22,8 +22,15 @@ export const matchIdQuerySchema = z.object({
   league: z.string().min(1).max(100).optional(),
 });
 
+// Chat rooms are keyed by matchId for fixtures, but sport sections share one
+// room per section ("nba", "tennis", "combat", "motor") so viewers of
+// different events in the same section see each other.
+export const chatMatchIdSchema = z
+  .string()
+  .regex(/^[a-zA-Z0-9_-]{1,64}$/, "Invalid match ID");
+
 export const chatPostSchema = z.object({
-  matchId: z.string().regex(/^\d+$/, "Invalid match ID"),
+  matchId: chatMatchIdSchema,
   nick: z.string().min(1).max(20).regex(/^[a-zA-Z0-9 _-]+$/),
   text: z.string().min(1).max(500),
   nickColor: z.string().regex(CHAT_COLOR_PATTERN).refine(isChatPaletteColor).optional(),

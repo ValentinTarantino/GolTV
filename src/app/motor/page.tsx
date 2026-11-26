@@ -307,7 +307,7 @@ export default function MotorPage() {
 
             {activeMatch && (
               <div className={isFullscreen ? "h-full min-h-[320px]" : "h-[380px] min-h-0 sm:h-[480px] lg:h-[560px]"}>
-                <ChatBox matchId={String(activeMatch.id)} />
+                <ChatBox matchId="motor" />
               </div>
             )}
           </div>

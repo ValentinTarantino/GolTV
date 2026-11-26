@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getChatMessages, addChatMessage, isIPBanned, getDeletedChatMessageIds } from "@/lib/chat";
 import { isMongoConfigured } from "@/lib/mongo";
-import { validateQuery, validateBody, createErrorResponse, chatPostSchema } from "@/lib/validators";
+import { validateQuery, validateBody, createErrorResponse, chatPostSchema, chatMatchIdSchema } from "@/lib/validators";
 import { isValidAdminSession } from "@/lib/admin-session";
 import { touchRequestPresence, viewerIdFromRequest } from "@/lib/presence";
 import { touchViewer, SITE_PRESENCE_ID } from "@/lib/viewers";
@@ -25,7 +25,7 @@ function getClientIP(request: Request): string {
 export const dynamic = "force-dynamic";
 
 const chatGetSchema = z.object({
-  matchId: z.string().regex(/^\d+$/, "Invalid match ID"),
+  matchId: chatMatchIdSchema,
   offset: z.string().regex(/^\d+$/).optional(),
 });
 

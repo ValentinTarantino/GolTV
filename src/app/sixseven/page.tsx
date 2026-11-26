@@ -102,6 +102,11 @@ export default function AdminPage() {
         put(motor?.matches, (m) =>
           `${String(m.title ?? `#${m.id}`)}${m.sportName ? ` · ${String(m.sportName)}` : ""}`
         );
+        // Shared per-section chat rooms surface as viewer scopes too.
+        labels["nba"] = "Chat · NBA";
+        labels["tennis"] = "Chat · Tenis";
+        labels["combat"] = "Chat · Lucha";
+        labels["motor"] = "Chat · Motor";
       } catch {
         // labels are cosmetic — the raw ids still render
       }

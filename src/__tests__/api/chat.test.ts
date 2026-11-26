@@ -120,9 +120,20 @@ describe("/api/chat", () => {
     });
 
     it("returns 400 for invalid matchId format", async () => {
-      const req = makePostRequest({ matchId: "abc", nick: "User", text: "Hi" });
+      const req = makePostRequest({ matchId: "bad id!", nick: "User", text: "Hi" });
       const res = await POST(req);
       expect(res.status).toBe(400);
+    });
+
+    it("accepts a section slug as matchId", async () => {
+      const req = makePostRequest({ matchId: "motor", nick: "MotorFan", text: "Hola motor" });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const getReq = makeGetRequest("http://localhost/api/chat?matchId=motor");
+      const getRes = await GET(getReq);
+      const data = await getRes.json();
+      expect(data.messages.some((m: { text: string }) => m.text === "Hola motor")).toBe(true);
     });
 
     it("returns 400 for invalid JSON body", async () => {
