@@ -8,7 +8,7 @@ interface RacingHelmetIconProps {
 }
 
 /**
- * Side-profile racing helmet for the CARRERAS nav item.
+ * Side-profile racing helmet for the AUTOMOVILISMO nav item.
  *
  * Two shapes only: the shell and the eyeport. The old glyph carried five paths
  * — visor frame, crown stripe, chin bar — and at 14px they all collapsed into

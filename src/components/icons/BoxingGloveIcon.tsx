@@ -7,7 +7,7 @@ interface BoxingGloveIconProps {
   style?: CSSProperties;
 }
 
-/** Boxing glove glyph for the LUCHA nav item. */
+/** Boxing glove glyph for the BOXEO nav item. */
 export default function BoxingGloveIcon({
   size = 16,
   strokeWidth = 2,

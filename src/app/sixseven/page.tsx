@@ -113,10 +113,10 @@ export default function AdminPage() {
           `${String(m.title ?? `#${m.id}`)}${m.sportName ? ` · ${String(m.sportName)}` : ""}`
         );
         // Shared per-section chat rooms surface as viewer scopes too.
-        labels["nba"] = "Chat · NBA";
+        labels["nba"] = "Chat · Basket";
         labels["tennis"] = "Chat · Tenis";
-        labels["combat"] = "Chat · Lucha";
-        labels["motor"] = "Chat · Carreras";
+        labels["combat"] = "Chat · Boxeo";
+        labels["motor"] = "Chat · Automovilismo";
       } catch {
         // labels are cosmetic — the raw ids still render
       }

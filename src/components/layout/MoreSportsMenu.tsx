@@ -17,7 +17,7 @@ const ITEMS = [
   { href: "/motor", icon: RacingHelmetIcon, color: "#a855f7", label: (t: Dictionary) => t.motor.nav },
 ] as const;
 
-/** NBA / LUCHA / TENIS grouped behind one navbar dropdown. */
+/** NBA / BOXEO / TENIS grouped behind one navbar dropdown. */
 export default function MoreSportsMenu() {
   const { t } = useLanguage();
   const pathname = usePathname();

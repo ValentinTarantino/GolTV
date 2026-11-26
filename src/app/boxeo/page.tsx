@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
@@ -118,17 +118,6 @@ export default function BoxeoPage() {
 
   const activeMatch = matches.find((match) => match.id === activeId) ?? null;
   const activeSource = streamSources[sourceIndex] ?? null;
-
-  const groups = useMemo(() => {
-    const map = new Map<string, CombatMatch[]>();
-    for (const match of matches) {
-      const key = match.sportName || match.sport.toUpperCase();
-      const list = map.get(key) ?? [];
-      list.push(match);
-      map.set(key, list);
-    }
-    return [...map.entries()];
-  }, [matches]);
 
   const reloadStream = useCallback(() => {
     setStreamState("loading");
@@ -324,49 +313,42 @@ export default function BoxeoPage() {
               </div>
             )}
 
-            {groups.map(([sport, list]) => (
-              <div key={sport} className="flex flex-col gap-2">
-                <span className="border-2 border-white/30 bg-black px-3 py-1 text-[10px] font-black uppercase tracking-widest text-accent-red">
-                  {sport}
-                </span>
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
-                  {list.map((match) => {
-                    const isActive = match.id === activeId;
-                    return (
-                      <button
-                        key={match.id}
-                        type="button"
-                        data-match={match.id}
-                        onClick={() => selectMatch(match.id)}
-                        title={matchLabel(match)}
-                        className={`flex w-full min-w-0 flex-col gap-2 border-4 px-3 py-3 text-left transition-transform hover:-translate-y-0.5 sm:w-64 sm:shrink-0 sm:px-4 sm:py-3.5 md:w-80 ${
-                          isActive
-                            ? "border-accent-red bg-accent-red text-white shadow-brutal"
-                            : "border-white bg-black text-white shadow-brutal"
-                        }`}
-                      >
-                        <span className="text-left text-xs font-black uppercase leading-tight sm:text-sm">
-                          {matchLabel(match)}
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
+              {matches.map((match) => {
+                const isActive = match.id === activeId;
+                return (
+                  <button
+                    key={match.id}
+                    type="button"
+                    data-match={match.id}
+                    onClick={() => selectMatch(match.id)}
+                    title={matchLabel(match)}
+                    className={`flex w-full min-w-0 flex-col gap-2 border-4 px-3 py-3 text-left transition-transform hover:-translate-y-0.5 sm:w-64 sm:shrink-0 sm:px-4 sm:py-3.5 md:w-80 ${
+                      isActive
+                        ? "border-accent-red bg-accent-red text-white shadow-brutal"
+                        : "border-white bg-black text-white shadow-brutal"
+                    }`}
+                  >
+                    <span className="text-left text-xs font-black uppercase leading-tight sm:text-sm">
+                      {matchLabel(match)}
+                    </span>
+                    <span className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-bold uppercase sm:text-xs">{formatTime(match.startsAt)}</span>
+                      {match.live ? (
+                        <span className="flex shrink-0 items-center gap-1 text-[10px] font-black uppercase sm:text-xs">
+                          <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
+                          {copy.live}
                         </span>
-                        <span className="flex items-center justify-between gap-1">
-                          <span className="text-[10px] font-bold uppercase sm:text-xs">{formatTime(match.startsAt)}</span>
-                          {match.live ? (
-                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-black uppercase sm:text-xs">
-                              <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
-                              {copy.live}
-                            </span>
-                          ) : (
-                            <span className="shrink-0 text-[10px] font-black uppercase sm:text-xs">
-                              {statusLabel(match)}
-                            </span>
-                          )}
+                      ) : (
+                        <span className="shrink-0 text-[10px] font-black uppercase sm:text-xs">
+                          {statusLabel(match)}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>

@@ -34,7 +34,7 @@ export async function listCombatMatches(): Promise<CombatMatch[]> {
       id: e.matchId,
       title: e.title,
       sport: "fighting",
-      sportName: "Lucha",
+      sportName: "Boxeo",
       startsAt: new Date(e.matchDate).toISOString(),
       timestamp: e.matchDate,
       live: e.matchDate > 0 && e.matchDate <= now,

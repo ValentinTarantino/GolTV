@@ -515,7 +515,7 @@ export const dictionaries = {
       retry: "Reintentar",
     },
     combat: {
-      nav: "LUCHA",
+      nav: "BOXEO",
       nowPlaying: "Pelea en curso",
       noFight: "Sin pelea",
       sources: "Fuentes",
@@ -539,7 +539,7 @@ export const dictionaries = {
       retry: "Reintentar",
     },
     motor: {
-      nav: "CARRERAS",
+      nav: "AUTOMOVILISMO",
       nowPlaying: "Sesión en curso",
       noEvent: "Sin sesión",
       sources: "Fuentes",
@@ -565,7 +565,7 @@ export const dictionaries = {
       retry: "Reintentar",
     },
     nba: {
-      nav: "NBA",
+      nav: "BASKET",
       nowPlaying: "Partido en curso",
       noMatch: "Sin partido",
       sources: "Fuentes",
@@ -678,7 +678,7 @@ export const dictionaries = {
       retry: "Retry",
     },
     combat: {
-      nav: "FIGHT",
+      nav: "BOXING",
       nowPlaying: "Fight on",
       noFight: "No fight",
       sources: "Sources",
@@ -702,7 +702,7 @@ export const dictionaries = {
       retry: "Retry",
     },
     motor: {
-      nav: "RACING",
+      nav: "MOTORSPORT",
       nowPlaying: "Session on",
       noEvent: "No session",
       sources: "Sources",
@@ -728,7 +728,7 @@ export const dictionaries = {
       retry: "Retry",
     },
     nba: {
-      nav: "NBA",
+      nav: "BASKET",
       nowPlaying: "Match on",
       noMatch: "No match",
       sources: "Sources",

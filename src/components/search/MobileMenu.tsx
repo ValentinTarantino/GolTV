@@ -167,10 +167,10 @@ export default function MobileMenu() {
                 className={isActive("/nba")
                   ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#f97316] bg-black text-[#f97316] shadow-[4px_4px_0px_0px_#f97316] font-black text-sm uppercase"
                   : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#f97316] hover:border-[#f97316] hover:shadow-[4px_4px_0px_0px_#f97316] transition-colors"}
-                id="mobile-nba"
+                id="mobile-basket"
               >
                 <Volleyball size={16} strokeWidth={3} />
-                <span>{t.nba?.nav || "NBA"}</span>
+                <span>{t.nba?.nav || "BASKET"}</span>
               </Link>
               <Link
                 href="/boxeo"
@@ -178,10 +178,10 @@ export default function MobileMenu() {
                 className={isActive("/boxeo")
                   ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#ef4444] bg-black text-[#ef4444] shadow-[4px_4px_0px_0px_#ef4444] font-black text-sm uppercase"
                   : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#ef4444] hover:border-[#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-colors"}
-                id="mobile-lucha"
+                id="mobile-boxeo"
               >
                 <BoxingGloveIcon size={16} strokeWidth={3} />
-                <span>{t.combat?.nav || "LUCHA"}</span>
+                <span>{t.combat?.nav || "BOXEO"}</span>
               </Link>
               <Link
                 href="/tennis"
@@ -203,7 +203,7 @@ export default function MobileMenu() {
                 id="mobile-motor"
               >
                 <RacingHelmetIcon size={16} strokeWidth={3} />
-                <span>{t.motor?.nav || "CARRERAS"}</span>
+                <span>{t.motor?.nav || "AUTOMOVILISMO"}</span>
               </Link>
             </div>
           </div>
