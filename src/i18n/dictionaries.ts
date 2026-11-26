@@ -241,6 +241,53 @@ export function translateLeague(name: string, language: string = "es"): string {
   return leagueNames[name] || name;
 }
 
+// ---------------------------------------------------------------------------
+// Motorsport feed localization
+// ---------------------------------------------------------------------------
+
+// Country names that actually change in Spanish (same word modulo case or
+// accents is skipped — the UI uppercases everything anyway).
+const motorCountryEs: [RegExp, string][] = [...esNameByEnKey.entries()]
+  .filter(([en, es]) => countryKey(en) !== countryKey(es))
+  .sort((a, b) => b[0].length - a[0].length)
+  .map(([en, es]) => [new RegExp(`\\b${en.replace(/ /g, "\\s+")}\\b`, "gi"), es]);
+
+// Session vocabulary, most specific first so "Sprint Race" and "World X"
+// patterns win over the generic single-word rules.
+const MOTOR_ES_RULES: [RegExp, string][] = [
+  [/\bSupercars Championship\b/gi, "Campeonato Supercars"],
+  [/\b(\S(?:.*?\S)?)\s+World Championship\b/gi, "Campeonato Mundial de $1"],
+  [/\b(\S(?:.*?\S)?)\s+World Cup\b/gi, "$1 Copa Mundial"],
+  [/\b(\S(?:.*?\S)?)\s+World Final\b/gi, "$1 Final Mundial"],
+  [/\bGrand Prix\b/gi, "Gran Premio"],
+  [/\bSprint Races?\b/gi, "Sprint"],
+  [/\bFeature Race\b/gi, "Carrera Principal"],
+  [/\bPractice\b/gi, "Práctica"],
+  [/\bQualifications?\b/gi, "Clasificación"],
+  [/\bQualifying\b/gi, "Clasificación"],
+  [/\bRace\b/gi, "Carrera"],
+  [/\bChampionship\b/gi, "Campeonato"],
+  [/\bRound\b/gi, "Fecha"],
+];
+
+/**
+ * Localize a motorsport session title or league name that arrives in
+ * English from the feed ("Qatar Grand Prix (Qatar) - Practice 1"). Spanish
+ * gets translated session terms and country names; English passes through.
+ */
+export function displayMotorsportText(name: string, language: string): string {
+  if (language !== "es" || !name) return name;
+  let out = name;
+  // Countries inside parentheses first ("(Spain)" -> "(ESPAÑA)").
+  out = out.replace(/\(([^()]+)\)/g, (_m, inner: string) => {
+    const translated = displayCountryName(inner.trim(), "es");
+    return translated === inner.trim() ? `(${inner})` : `(${translated})`;
+  });
+  for (const [re, es] of motorCountryEs) out = out.replace(re, es);
+  for (const [re, es] of MOTOR_ES_RULES) out = out.replace(re, es);
+  return out;
+}
+
 export const dictionaries = {
   es: {
     header: {

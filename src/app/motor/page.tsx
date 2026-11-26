@@ -9,6 +9,7 @@ import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
 import NetworkNotice from "@/components/ui/NetworkNotice";
 import { withMatchParam } from "@/lib/viewer-id";
+import { displayMotorsportText } from "@/i18n/dictionaries";
 
 interface MotorsportEvent {
   id: number;
@@ -214,7 +215,7 @@ export default function MotorPage() {
                     <ViewerBadge matchId={String(activeMatch.id)} active={activeMatch.status === "live"} />
                   )}
                   <span className="truncate text-xs font-black uppercase text-accent-primary sm:text-sm">
-                    {activeMatch ? activeMatch.title : copy.noEvent}
+                    {activeMatch ? displayMotorsportText(activeMatch.title, language) : copy.noEvent}
                   </span>
                   <button
                     type="button"
@@ -235,7 +236,7 @@ export default function MotorPage() {
               {streamState === "ready" && activeSource && activeMatch ? (
                 <VideoPlayer
                   url={withMatchParam(activeSource.src, String(activeMatch.id))}
-                  title={activeMatch.title}
+                  title={displayMotorsportText(activeMatch.title, language)}
                   kind={activeSource.kind}
                   preferFastStart
                 />
@@ -353,7 +354,7 @@ export default function MotorPage() {
                 <div key={group.name} className="flex flex-col gap-2">
                   <div className="plate-face flex items-center gap-3 border-4 border-black bg-accent-primary px-3 py-2.5 shadow-brutal-sm sm:gap-4 sm:px-4 sm:py-3">
                     <h2 className="text-lg font-black uppercase leading-none tracking-tight text-black sm:text-2xl">
-                      {group.name}
+                      {displayMotorsportText(group.name, language)}
                     </h2>
                     <span className="ml-auto border-2 border-black bg-black px-2 py-0.5 text-[10px] font-black uppercase text-accent-primary sm:text-xs">
                       {group.matches.length}
@@ -368,7 +369,7 @@ export default function MotorPage() {
                           type="button"
                           data-match={match.id}
                           onClick={() => selectMatch(match.id)}
-                          title={match.title}
+                          title={displayMotorsportText(match.title, language)}
                           className={`flex w-full min-w-0 flex-col gap-2 border-4 px-3 py-3 text-left transition-transform hover:-translate-y-0.5 sm:w-64 sm:shrink-0 sm:px-4 sm:py-3.5 md:w-80 ${
                             isActive
                               ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
@@ -376,7 +377,7 @@ export default function MotorPage() {
                           }`}
                         >
                           <span className="line-clamp-2 text-center text-xs font-black uppercase leading-tight sm:text-sm">
-                            {match.title}
+                            {displayMotorsportText(match.title, language)}
                           </span>
                           <span className="flex items-center justify-between gap-1">
                             <span className="text-[11px] font-bold uppercase sm:text-xs">
