@@ -7,7 +7,7 @@ interface RacingHelmetIconProps {
   style?: CSSProperties;
 }
 
-/** F1-style racing helmet glyph for the CARRERAS nav item. */
+/** Side-profile F1-style racing helmet glyph for the CARRERAS nav item. */
 export default function RacingHelmetIcon({
   size = 16,
   strokeWidth = 2,
@@ -28,12 +28,12 @@ export default function RacingHelmetIcon({
       style={style}
       aria-hidden="true"
     >
-      {/* helmet dome + chin bar */}
-      <path d="M12 5c4.6 0 7.5 3 7.5 7.2V15a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-2.8C4.5 8 7.4 5 12 5Z" />
+      {/* helmet outline, facing right: dome + chin bar */}
+      <path d="M5.6 16.4C5 11.3 7.7 6.4 12.9 5.5 17.4 4.8 20.3 7.9 20.3 12v1.8c0 1.6-1.3 2.9-2.9 2.9H9.1c-1.7 0-3-1.1-3.5-2.5Z" />
       {/* visor slit */}
-      <path d="M8.6 12.4h6.8" />
-      {/* center stripe */}
-      <path d="M12 8.2v4" />
+      <path d="M13.8 10.6h5.4" />
+      {/* crown stripe */}
+      <path d="M10.2 8.6c1.5-1.3 3.4-2 5.5-1.8" />
     </svg>
   );
 }
