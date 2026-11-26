@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Car, Maximize2, Minimize2, RefreshCw } from "lucide-react";
+import { AlertCircle, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTimeZone } from "@/contexts/TimeZoneContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
@@ -352,11 +352,6 @@ export default function MotorPage() {
               {groups.map((group) => (
                 <div key={group.name} className="flex flex-col gap-2">
                   <div className="plate-face flex items-center gap-3 border-4 border-black bg-accent-primary px-3 py-2.5 shadow-brutal-sm sm:gap-4 sm:px-4 sm:py-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-white shadow-brutal-sm sm:h-12 sm:w-12">
-                      <span className="text-sm font-black uppercase text-black">
-                        {group.name.slice(0, 2)}
-                      </span>
-                    </div>
                     <h2 className="text-lg font-black uppercase leading-none tracking-tight text-black sm:text-2xl">
                       {group.name}
                     </h2>
@@ -380,9 +375,6 @@ export default function MotorPage() {
                               : "border-white bg-black text-white shadow-brutal"
                           }`}
                         >
-                          <span className="flex items-center justify-center">
-                            <Car size={30} strokeWidth={2.5} className="text-accent-primary" />
-                          </span>
                           <span className="line-clamp-2 text-center text-xs font-black uppercase leading-tight sm:text-sm">
                             {match.title}
                           </span>
