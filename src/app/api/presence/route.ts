@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { heartbeatViewer, getViewerCount, removeViewer, SITE_PRESENCE_ID } from "@/lib/viewers";
+import { extractViewerMeta } from "@/lib/viewer-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
   const count =
     action === "leave"
       ? await removeViewer(PRESENCE_ID, viewerId)
-      : await heartbeatViewer(PRESENCE_ID, viewerId);
+      : await heartbeatViewer(PRESENCE_ID, viewerId, extractViewerMeta(request));
 
   return Response.json({ count });
 }

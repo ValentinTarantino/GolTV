@@ -20,6 +20,16 @@ export interface ViewerDoc {
   lastSeen: number;
   /** Chat nickname, attached once the viewer speaks (admin panel only). */
   nick?: string;
+  /** First time this viewer was seen (set once on insert). */
+  firstSeen?: number;
+  /** Admin-panel metadata captured from request headers. */
+  ip?: string;
+  country?: string;
+  device?: string;
+  browser?: string;
+  os?: string;
+  lang?: string;
+  referrer?: string;
 }
 
 interface CachedClient {

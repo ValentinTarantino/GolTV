@@ -5,6 +5,7 @@ import { validateQuery, validateBody, createErrorResponse, chatPostSchema } from
 import { isValidAdminSession } from "@/lib/admin-session";
 import { touchRequestPresence, viewerIdFromRequest } from "@/lib/presence";
 import { touchViewer, SITE_PRESENCE_ID } from "@/lib/viewers";
+import { extractViewerMeta } from "@/lib/viewer-meta";
 import { BANNED_HEADER } from "@/lib/viewer-id";
 import { deleteSharedPlaylist, getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 
@@ -105,8 +106,9 @@ export async function POST(request: Request) {
   // doc so the admin panel can list names instead of bare viewer ids.
   const viewerId = viewerIdFromRequest(request);
   if (viewerId) {
-    void touchViewer(matchId, viewerId, nick);
-    void touchViewer(SITE_PRESENCE_ID, viewerId, nick);
+    const meta = extractViewerMeta(request);
+    void touchViewer(matchId, viewerId, nick, meta);
+    void touchViewer(SITE_PRESENCE_ID, viewerId, nick, meta);
   }
 
   // Drop the cached latest-messages payload so the new post shows up on the

@@ -1,5 +1,6 @@
 import { touchViewer, SITE_PRESENCE_ID } from "./viewers";
 import { isValidViewerId, VIEWER_ID_COOKIE } from "./viewer-id";
+import { extractViewerMeta } from "./viewer-meta";
 
 /**
  * Ambient presence: routes call `touchRequestPresence` on requests the
@@ -29,8 +30,9 @@ export function viewerIdFromRequest(request: Request): string | null {
 export function touchRequestPresence(request: Request, matchId?: string | null): void {
   const viewerId = viewerIdFromRequest(request);
   if (!viewerId) return;
-  void touchViewer(SITE_PRESENCE_ID, viewerId).catch(() => {});
+  const meta = extractViewerMeta(request);
+  void touchViewer(SITE_PRESENCE_ID, viewerId, undefined, meta).catch(() => {});
   if (matchId && /^\d+$/.test(matchId)) {
-    void touchViewer(matchId, viewerId).catch(() => {});
+    void touchViewer(matchId, viewerId, undefined, meta).catch(() => {});
   }
 }

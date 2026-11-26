@@ -1,4 +1,5 @@
 import { getViewersCollection, type ViewerDoc } from "./mongo";
+import type { ViewerMeta } from "./viewer-meta";
 
 const ACTIVE_WINDOW_MS = 60_000; // viewer counted if heartbeat < 60s ago
 const HEARTBEAT_INTERVAL_MS = 20_000;
@@ -14,6 +15,8 @@ export const SITE_PRESENCE_ID = "__site__";
 const memoryViewers = new Map<string, number>();
 // Chat nicks learned from messages, keyed the same way (memory fallback only)
 const memoryNicks = new Map<string, string>();
+// Header metadata + firstSeen, keyed the same way (memory fallback only)
+const memoryMeta = new Map<string, { meta: ViewerMeta; firstSeen: number }>();
 // Throttle bookkeeping: "matchId:viewerId" -> last write attempt
 const lastTouchWrite = new Map<string, number>();
 
@@ -24,6 +27,31 @@ export interface ActiveViewer {
   viewerId: string;
   nick: string | null;
   lastSeen: number;
+  firstSeen: number | null;
+  ip: string | null;
+  country: string | null;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  lang: string | null;
+  referrer: string | null;
+}
+
+function toActiveViewer(d: ViewerDoc): ActiveViewer {
+  return {
+    matchId: d.matchId,
+    viewerId: d.viewerId,
+    nick: d.nick ?? null,
+    lastSeen: d.lastSeen,
+    firstSeen: d.firstSeen ?? null,
+    ip: d.ip ?? null,
+    country: d.country ?? null,
+    device: d.device ?? null,
+    browser: d.browser ?? null,
+    os: d.os ?? null,
+    lang: d.lang ?? null,
+    referrer: d.referrer ?? null,
+  };
 }
 
 /**
@@ -40,16 +68,25 @@ export async function listActiveViewers(): Promise<ActiveViewer[]> {
   try {
     const docs = await collection
       .find<ViewerDoc>({ lastSeen: { $gte: cutoff } })
-      .project<ViewerDoc>({ matchId: 1, viewerId: 1, nick: 1, lastSeen: 1, _id: 0 })
+      .project<ViewerDoc>({
+        matchId: 1,
+        viewerId: 1,
+        nick: 1,
+        lastSeen: 1,
+        firstSeen: 1,
+        ip: 1,
+        country: 1,
+        device: 1,
+        browser: 1,
+        os: 1,
+        lang: 1,
+        referrer: 1,
+        _id: 0,
+      })
       .sort({ lastSeen: -1 })
       .limit(2000)
       .toArray();
-    return docs.map((d) => ({
-      matchId: d.matchId,
-      viewerId: d.viewerId,
-      nick: d.nick ?? null,
-      lastSeen: d.lastSeen,
-    }));
+    return docs.map(toActiveViewer);
   } catch {
     return listActiveViewersMemoryFallback(cutoff);
   }
@@ -61,12 +98,16 @@ function listActiveViewersMemoryFallback(cutoff: number): ActiveViewer[] {
   for (const [key, ts] of memoryViewers) {
     if (ts < cutoff) continue;
     const sep = key.indexOf(":");
-    out.push({
+    const meta = memoryMeta.get(key);
+    const doc: ViewerDoc = {
       matchId: key.slice(0, sep),
       viewerId: key.slice(sep + 1),
-      nick: memoryNicks.get(key) ?? null,
       lastSeen: ts,
-    });
+      nick: memoryNicks.get(key) ?? undefined,
+      firstSeen: meta?.firstSeen,
+      ...meta?.meta,
+    };
+    out.push(toActiveViewer(doc));
   }
   return out.sort((a, b) => b.lastSeen - a.lastSeen);
 }
@@ -86,7 +127,10 @@ function memoryKey(matchId: string, viewerId: string): string {
 function pruneMemory(): void {
   const cutoff = Date.now() - ACTIVE_WINDOW_MS;
   for (const [key, ts] of memoryViewers) {
-    if (ts < cutoff) memoryViewers.delete(key);
+    if (ts < cutoff) {
+      memoryViewers.delete(key);
+      memoryMeta.delete(key);
+    }
   }
 }
 
@@ -105,19 +149,27 @@ function memoryCount(matchId: string): number {
  * current active-viewer count for that match.
  * Falls back to the in-memory map without MONGODB_URI (tests / local dev).
  */
-export async function heartbeatViewer(matchId: string, viewerId: string): Promise<number> {
+export async function heartbeatViewer(
+  matchId: string,
+  viewerId: string,
+  meta?: ViewerMeta
+): Promise<number> {
   const now = Date.now();
   const collection = await getViewersCollection();
 
   if (!collection) {
     memoryViewers.set(memoryKey(matchId, viewerId), now);
+    if (meta) rememberMeta(matchId, viewerId, meta, now);
     return memoryCount(matchId);
   }
 
   try {
     await collection.updateOne(
       { matchId, viewerId },
-      { $set: { lastSeen: now } },
+      {
+        $set: { lastSeen: now, ...meta },
+        $setOnInsert: { firstSeen: now },
+      },
       { upsert: true }
     );
     return await collection.countDocuments({
@@ -127,8 +179,19 @@ export async function heartbeatViewer(matchId: string, viewerId: string): Promis
   } catch {
     // fall through to the in-memory fallback
     memoryViewers.set(memoryKey(matchId, viewerId), now);
+    if (meta) rememberMeta(matchId, viewerId, meta, now);
     return memoryCount(matchId);
   }
+}
+
+/** Memory-fallback counterpart of the Mongo `$setOnInsert: firstSeen`. */
+function rememberMeta(matchId: string, viewerId: string, meta: ViewerMeta, now: number): void {
+  const key = memoryKey(matchId, viewerId);
+  const prev = memoryMeta.get(key);
+  memoryMeta.set(key, {
+    meta: { ...prev?.meta, ...meta },
+    firstSeen: prev?.firstSeen ?? now,
+  });
 }
 
 /**
@@ -136,7 +199,12 @@ export async function heartbeatViewer(matchId: string, viewerId: string): Promis
  * refreshes `lastSeen` — never counts — and writes at most once per
  * TOUCH_THROTTLE_MS per viewer+scope. Safe to call on every hot request.
  */
-export async function touchViewer(matchId: string, viewerId: string, nick?: string): Promise<void> {
+export async function touchViewer(
+  matchId: string,
+  viewerId: string,
+  nick?: string,
+  meta?: ViewerMeta
+): Promise<void> {
   const key = `${matchId}:${viewerId}`;
   const now = Date.now();
   if (now - (lastTouchWrite.get(key) ?? 0) < TOUCH_THROTTLE_MS) {
@@ -160,18 +228,23 @@ export async function touchViewer(matchId: string, viewerId: string, nick?: stri
   if (!collection) {
     memoryViewers.set(memoryKey(matchId, viewerId), now);
     if (nick) memoryNicks.set(key, nick);
+    if (meta) rememberMeta(matchId, viewerId, meta, now);
     return;
   }
 
   try {
     await collection.updateOne(
       { matchId, viewerId },
-      { $set: { lastSeen: now, ...(nick ? { nick } : {}) } },
+      {
+        $set: { lastSeen: now, ...(nick ? { nick } : {}), ...meta },
+        $setOnInsert: { firstSeen: now },
+      },
       { upsert: true }
     );
   } catch {
     memoryViewers.set(memoryKey(matchId, viewerId), now);
     if (nick) memoryNicks.set(key, nick);
+    if (meta) rememberMeta(matchId, viewerId, meta, now);
   }
 }
 

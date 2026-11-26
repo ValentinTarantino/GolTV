@@ -8,6 +8,14 @@ interface LiveViewer {
   viewerId: string;
   nick: string | null;
   lastSeen: number;
+  firstSeen?: number | null;
+  ip?: string | null;
+  country?: string | null;
+  device?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  lang?: string | null;
+  referrer?: string | null;
 }
 
 // Presence doc id for "on the site but not on a specific match". Mirrors
@@ -124,20 +132,46 @@ export default function AdminPage() {
   const viewerGroups = useMemo(() => {
     const map = new Map<
       string,
-      { nick: string | null; site: boolean; matches: string[]; lastSeen: number }
+      {
+        nick: string | null;
+        site: boolean;
+        matches: string[];
+        lastSeen: number;
+        meta: LiveViewer;
+      }
     >();
     for (const v of liveViewers ?? []) {
-      const g = map.get(v.viewerId) ?? { nick: null, site: false, matches: [], lastSeen: 0 };
+      const g =
+        map.get(v.viewerId) ??
+        { nick: null, site: false, matches: [], lastSeen: 0, meta: v };
       if (v.nick && !g.nick) g.nick = v.nick;
       if (v.matchId === SITE_SCOPE) g.site = true;
       else if (!g.matches.includes(v.matchId)) g.matches.push(v.matchId);
       g.lastSeen = Math.max(g.lastSeen, v.lastSeen);
+      // Meta fields are identical across a viewer's docs; keep whichever doc
+      // actually carried them (some docs predate the meta fields).
+      for (const k of ["ip", "country", "device", "browser", "os", "lang", "referrer"] as const) {
+        if (!g.meta[k] && v[k]) g.meta[k] = v[k];
+      }
+      if (!g.meta.firstSeen && v.firstSeen) g.meta.firstSeen = v.firstSeen;
       map.set(v.viewerId, g);
     }
     return [...map.entries()].sort((a, b) => b[1].lastSeen - a[1].lastSeen);
   }, [liveViewers]);
 
   const viewerMatchLabel = (matchId: string) => matchLabels[matchId] ?? `#${matchId}`;
+
+  const viewerMetaChips = (m: LiveViewer): string[] => {
+    const chips: string[] = [];
+    if (m.country) chips.push(m.country);
+    if (m.device) chips.push(m.device);
+    const bo = [m.browser, m.os].filter(Boolean).join(" · ");
+    if (bo) chips.push(bo);
+    if (m.lang) chips.push(m.lang.toUpperCase());
+    if (m.ip) chips.push(m.ip);
+    if (m.referrer) chips.push(`via ${m.referrer}`);
+    return chips;
+  };
 
   const fetchBannedIPs = async () => {
     try {
@@ -300,6 +334,13 @@ export default function AdminPage() {
                           ? "Navegando el sitio"
                           : "—"}
                     </div>
+                    {viewerMetaChips(g.meta).length > 0 && (
+                      <div className="text-[10px] text-gray-500 font-mono truncate">
+                        {viewerMetaChips(g.meta).join("  ·  ")}
+                        {g.meta.firstSeen != null &&
+                          `  ·  joined ${Math.max(0, Math.round((Date.now() - g.meta.firstSeen) / 60000))}m ago`}
+                      </div>
+                    )}
                   </div>
                   <span className="shrink-0 text-[10px] font-bold uppercase text-gray-500">
                     {Math.max(0, Math.round((Date.now() - g.lastSeen) / 1000))}s

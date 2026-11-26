@@ -5,6 +5,7 @@ import {
   validateBody,
   viewerHeartbeatSchema,
 } from "@/lib/validators";
+import { extractViewerMeta } from "@/lib/viewer-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,6 @@ export async function POST(request: Request) {
   const count =
     action === "leave"
       ? await removeViewer(matchId, viewerId)
-      : await heartbeatViewer(matchId, viewerId);
+      : await heartbeatViewer(matchId, viewerId, extractViewerMeta(request));
   return Response.json({ count });
 }
