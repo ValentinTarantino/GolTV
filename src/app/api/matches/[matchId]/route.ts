@@ -2,7 +2,7 @@ import { findPlayerFiveStreams } from "@/lib/player-five-source";
 import { findPrimaryStreams } from "@/lib/primary-player-source";
 import { getAgendaStream, findAgendaStreams } from "@/lib/agenda-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
-import { findSportplusStreams } from "@/lib/sportplus-source";
+import { findLpfStreams } from "@/lib/lpf-source";
 import { findPlayerTwoStreams } from "@/lib/player-two-source";
 import { findPlayerSixStreams } from "@/lib/player-six-source";
 import { LIVE_STATUSES, getLeagueIdByName, getLeagueLogo as rawLeagueLogo } from "@/lib/constants";
@@ -123,7 +123,7 @@ export async function GET(
   }
 
   if (playerMode === "2" && home && away) {
-    const channels = await findSportplusStreams(homeTeam, awayTeam);
+    const channels = await findLpfStreams(homeTeam, awayTeam);
     const leagueId = getLeagueIdByName(leagueName);
     const syntheticMatch: Match = {
       id: id || 0,

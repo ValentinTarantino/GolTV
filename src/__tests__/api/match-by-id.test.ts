@@ -28,8 +28,8 @@ jest.mock("@/lib/player-five-source", () => ({
   fetchPlayerFiveAgenda: jest.fn().mockResolvedValue([]),
 }));
 
-jest.mock("@/lib/sportplus-source", () => ({
-  findSportplusStreams: jest.fn().mockResolvedValue([]),
+jest.mock("@/lib/lpf-source", () => ({
+  findLpfStreams: jest.fn().mockResolvedValue([]),
 }));
 
 jest.mock("@/lib/primary-player-source", () => ({
@@ -44,7 +44,7 @@ import { GET } from "@/app/api/matches/[matchId]/route";
 import { findAgendaFixtureById, hashSlug } from "@/lib/agenda-fixture";
 import { findAgendaStreams } from "@/lib/agenda-source";
 import { findSecondaryStreams } from "@/lib/secondary-source";
-import { findSportplusStreams } from "@/lib/sportplus-source";
+import { findLpfStreams } from "@/lib/lpf-source";
 import { findPrimaryStreams } from "@/lib/primary-player-source";
 import { findPlayerFiveStreams } from "@/lib/player-five-source";
 import { openLpfUrl } from "@/lib/sealed-url";
@@ -96,7 +96,7 @@ describe("/api/matches/[matchId]", () => {
       leagueName: "Liga Profesional",
       dateISO: new Date().toISOString(),
     });
-    (findSportplusStreams as jest.Mock).mockResolvedValue([]);
+    (findLpfStreams as jest.Mock).mockResolvedValue([]);
 
     const req = makeRequest("http://localhost/api/matches/12345");
     const res = await GET(req, { params: Promise.resolve({ matchId: "12345" }) });
@@ -192,9 +192,9 @@ describe("/api/matches/[matchId]", () => {
     expect(data.match.channels.length).toBeGreaterThan(0);
   });
 
-  it("uses the sportplus source when player=2", async () => {
-    (findSportplusStreams as jest.Mock).mockResolvedValue([
-      { id: "sportplus-lpm_abc-0", name: "Fuente 1", url: "/api/lpf/stream?t=token", kind: "hls" },
+  it("uses the LPF board source when player=2", async () => {
+    (findLpfStreams as jest.Mock).mockResolvedValue([
+      { id: "lpf-abc123", name: "Fuente 1", url: "/api/lpf/stream?t=token", kind: "hls" },
     ]);
 
     const req = makeRequest(
@@ -206,7 +206,7 @@ describe("/api/matches/[matchId]", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(findSportplusStreams).toHaveBeenCalledWith("Boca", "River");
+    expect(findLpfStreams).toHaveBeenCalledWith("Boca", "River");
     expect(data.match.channels[0].kind).toBe("hls");
     expect(data.match.channels[0].url).toContain("/api/lpf/stream");
   });

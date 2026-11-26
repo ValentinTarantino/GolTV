@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   listSportplusMatches,
   resolveSportplusMatchStream,
@@ -10,15 +11,15 @@ import type { Channel } from "./types";
 const MAX_CANDIDATES = 3;
 
 /**
- * Sportplus as a watch-page player ("REPRODUCTOR 3").
+ * The LPF board as a watch-page player.
  *
  * The provider's global `matches/index` lists every live football match of
  * every competition it carries, so a fixture of the main agenda is matched
- * by team names alone — no competition mapping needed. Each `ls` playlist
+ * by team names alone — no competition mapping needed. Each playlist
  * goes through the same sealed relay the /lpf page uses; provider hosts
  * never reach the browser.
  */
-export async function findSportplusStreams(homeTeam: string, awayTeam: string): Promise<Channel[]> {
+export async function findLpfStreams(homeTeam: string, awayTeam: string): Promise<Channel[]> {
   const live = await listSportplusMatches();
   // Live listings first: they are the ones that can actually serve `ls`.
   const candidates = live
@@ -42,7 +43,11 @@ export async function findSportplusStreams(homeTeam: string, awayTeam: string): 
       if (seen.has(url)) return;
       seen.add(url);
       channels.push({
-        id: `sportplus-${candidate.tournamentId}-${candidate.id}-${index}`,
+        // Opaque id: provider names and coordinates never reach the client.
+        id: `lpf-${createHash("sha256")
+          .update(`${candidate.tournamentId}|${candidate.id}|${index}`)
+          .digest("hex")
+          .slice(0, 16)}`,
         name: `Fuente ${index + 1}${source.quality ? ` ${source.quality}` : ""}`,
         url,
         kind: "hls",

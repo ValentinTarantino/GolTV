@@ -184,11 +184,37 @@ interface SportplusItem {
   match_status?: number;
 }
 
+/**
+ * The provider's board API only answers residential IPs (datacenter ranges
+ * get a refusal or a stripped `items`), so a failed or empty direct answer
+ * retries once through the home relay's `/index` endpoint.
+ */
+async function fetchSportplusIndex(url: string): Promise<string | null> {
+  const direct = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
+  if (direct) {
+    try {
+      const items = (JSON.parse(direct) as { items?: unknown[] }).items;
+      if (Array.isArray(items) && items.length > 0) return direct;
+    } catch {
+      return direct;
+    }
+  }
+  const relay = await getHomeRelayUrl();
+  const secret = process.env.LPF_HOME_SECRET?.trim() ?? "";
+  if (!relay || !secret) return direct;
+  return (
+    (await fetchText(
+      `${relay}/index?u=${encodeURIComponent(url)}&key=${encodeURIComponent(secret)}`,
+      `${SPORTPLUS_SITE}/football/`
+    )) ?? direct
+  );
+}
+
 async function sportplusMatches(competitionId: string): Promise<SportplusItem[]> {
   const url = `${SPORTPLUS_API}/matches/index?fw=3.1&lang=es&lcfg=es&offset=0&sport_id=football&tournament_id=${encodeURIComponent(
     competitionId
   )}`;
-  const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
+  const text = await fetchSportplusIndex(url);
   if (!text) return [];
   try {
     const parsed = JSON.parse(text) as { items?: SportplusItem[] };
@@ -777,7 +803,7 @@ function sportplusTotals(item: SportplusItem): { home: number | null; away: numb
 export async function listSportplusScores(): Promise<SportplusScoreEvent[]> {
   return cached("lpf:sp-scores:v1", 20_000, async () => {
     const url = `${SPORTPLUS_API}/matches/index?fw=3.1&lang=es&lcfg=es&offset=0&sport_id=football`;
-    const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
+    const text = await fetchSportplusIndex(url);
     if (!text) return [];
     try {
       const parsed = JSON.parse(text) as { items?: SportplusItem[] };
@@ -870,7 +896,7 @@ export interface SportplusLiveMatch {
 export async function listSportplusMatches(): Promise<SportplusLiveMatch[]> {
   return cached("lpf:sp-index:v1", LIST_TTL, async () => {
     const url = `${SPORTPLUS_API}/matches/index?sport_id=football&lang=es&lcfg=es&fw=3.1&offset=0`;
-    const text = await fetchText(url, `${SPORTPLUS_SITE}/football/`);
+    const text = await fetchSportplusIndex(url);
     if (!text) return [];
     try {
       const parsed = JSON.parse(text) as { items?: SportplusItem[] };
