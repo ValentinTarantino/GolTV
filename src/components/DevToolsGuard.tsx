@@ -84,10 +84,10 @@ export default function DevToolsGuard() {
         window.removeEventListener("resize", check);
         // Navigate the tab itself to about:blank — a fresh document means
         // the Network panel empties and there is no DOM left to inspect.
-        // Going Back reloads the site, re-triggers detection, and blanks
-        // again while DevTools stays open.
+        // Plain href (not replace) keeps the user's page in history, so
+        // Back returns to it and re-triggers the guard while DevTools is open.
         try {
-          window.location.replace("about:blank");
+          window.location.href = "about:blank";
         } catch {
           // overlay above still covers the page
         }
