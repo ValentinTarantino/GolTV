@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import DesktopBackgroundParallax from "@/components/layout/DesktopBackgroundParallax";
 import BanGate from "@/components/BanGate";
+import DevToolsGuard from "@/components/DevToolsGuard";
 import ViewerIdentity from "@/components/ViewerIdentity";
 import OnlineCounter from "@/components/OnlineCounter";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -164,6 +165,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col font-sans antialiased">
         <DesktopBackgroundParallax />
         <BanGate />
+        <DevToolsGuard />
         <ViewerIdentity />
         <LanguageProvider>
           <TimeZoneProvider>

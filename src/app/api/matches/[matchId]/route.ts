@@ -68,7 +68,7 @@ export async function GET(
     return createErrorResponse("Invalid match ID", 400);
   }
 
-  let match: Match | null = null;
+  const match: Match | null = null;
   // API-Football removed — match info comes from agenda sources only
 
   // Skip the match-based channel lookup since match is always null now.

@@ -14,7 +14,7 @@ const ITEMS = [
   { href: "/nba", icon: Volleyball, color: "#f97316", label: (t: Dictionary) => t.nba.nav },
   { href: "/boxeo", icon: BoxingGloveIcon, color: "#ef4444", label: (t: Dictionary) => t.combat.nav },
   { href: "/tennis", icon: TennisRacketIcon, color: "#eab308", label: (t: Dictionary) => t.tennis.nav },
-  { href: "/motor", icon: RacingHelmetIcon, color: "#22d3ee", label: (t: Dictionary) => t.motor.nav },
+  { href: "/motor", icon: RacingHelmetIcon, color: "#a855f7", label: (t: Dictionary) => t.motor.nav },
 ] as const;
 
 /** NBA / LUCHA / TENIS grouped behind one navbar dropdown. */

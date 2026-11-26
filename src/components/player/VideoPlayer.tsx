@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import Hls from "hls.js";
-import { Play, Pause, Maximize, Volume2, VolumeX, AlertCircle, RefreshCw, Settings, Check } from "lucide-react";
+import { Play, Pause, Maximize, Volume1, Volume2, VolumeX, AlertCircle, RefreshCw, Settings, Check } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import FootballLoader from "@/components/ui/FootballLoader";
 import IframePlayer from "./IframePlayer";
@@ -25,6 +26,7 @@ interface QualityLevelInfo {
 }
 
 const QUALITY_STORAGE_KEY = "goltv-quality";
+const VOLUME_STORAGE_KEY = "goltv-volume";
 
 /** Saved quality preference: -1/auto by default, otherwise a rendition height. */
 function readSavedQualityHeight(): number {
@@ -41,6 +43,27 @@ function readSavedQualityHeight(): number {
 function saveQualityHeight(height: number): void {
   try {
     localStorage.setItem(QUALITY_STORAGE_KEY, String(height));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Saved volume (0..1). Without a stored value the player starts at full. */
+function readSavedVolume(): number {
+  try {
+    const raw = localStorage.getItem(VOLUME_STORAGE_KEY);
+    if (raw === null) return 1;
+    const parsed = parseFloat(raw);
+    if (Number.isNaN(parsed)) return 1;
+    return Math.min(1, Math.max(0, parsed));
+  } catch {
+    return 1;
+  }
+}
+
+function saveVolume(volume: number): void {
+  try {
+    localStorage.setItem(VOLUME_STORAGE_KEY, volume.toFixed(2));
   } catch {
     /* ignore */
   }
@@ -68,6 +91,7 @@ function HlsPlayer({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -182,6 +206,10 @@ function HlsPlayer({
       // The stream may start with a broken audio frame; the sound is muted
       // until the first picture is on screen.
       video.muted = true;
+      // Volume is a user preference and survives channel changes; the element
+      // still starts muted until the first picture arrives.
+      const savedVolume = readSavedVolume();
+      video.volume = savedVolume;
 
       hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
         setIsLoading(false);
@@ -324,7 +352,10 @@ function HlsPlayer({
     const onPause = () => setIsPlaying(false);
     // The icon follows the element, including the automatic mute that waits
     // for the first picture.
-    const onVolumeChange = () => setIsMuted(video.muted);
+    const onVolumeChange = () => {
+      setIsMuted(video.muted || video.volume === 0);
+      setVolume(video.volume);
+    };
     // The sound comes back once there is a picture to look at.
     const onFirstFrame = () => {
       if (userMutedRef.current) return;
@@ -337,6 +368,9 @@ function HlsPlayer({
     video.addEventListener("volumechange", onVolumeChange);
     video.addEventListener("loadeddata", onFirstFrame);
     video.addEventListener("playing", onFirstFrame);
+    // The source effect already restored the saved volume, but this listener
+    // did not exist yet; a synthetic event brings the slider in sync.
+    video.dispatchEvent(new Event("volumechange"));
 
     return () => {
       video.removeEventListener("play", onPlay);
@@ -372,9 +406,28 @@ function HlsPlayer({
   const toggleMute = () => {
     const video = videoRef.current;
     if (!video) return;
+    // Coming back from a full drop to zero restores a usable level, otherwise
+    // unmuting would leave the picture silent.
+    if (video.muted && video.volume === 0) {
+      video.volume = 0.5;
+      saveVolume(0.5);
+    }
     video.muted = !video.muted;
     userMutedRef.current = video.muted;
     setIsMuted(video.muted);
+  };
+
+  const handleVolumeChange = (percent: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const next = Math.min(1, Math.max(0, percent / 100));
+    video.volume = next;
+    // Dragging all the way down is the same as muting; any move above zero
+    // also lifts a mute the browser applied for autoplay.
+    video.muted = next === 0;
+    userMutedRef.current = next === 0;
+    setVolume(next);
+    saveVolume(next);
   };
 
   const toggleFullscreen = () => {
@@ -402,6 +455,9 @@ function HlsPlayer({
     : levels.find((level) => level.index === activeLevel)
       ? levelLabel(levels.find((level) => level.index === activeLevel)!)
       : t.player.quality;
+
+  const volumePercent = Math.round(volume * 100);
+  const VolumeIcon = isMuted || volumePercent === 0 ? VolumeX : volumePercent < 50 ? Volume1 : Volume2;
 
   return (
     <div
@@ -497,9 +553,25 @@ function HlsPlayer({
               onClick={toggleMute}
               className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10"
               id="player-toggle-mute"
+              aria-label={isMuted ? t.player.unmute : t.player.mute}
+              title={isMuted ? t.player.unmute : t.player.mute}
             >
-              {isMuted ? <VolumeX size={14} strokeWidth={3} /> : <Volume2 size={14} strokeWidth={3} />}
+              <VolumeIcon size={14} strokeWidth={3} />
             </button>
+
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={volumePercent}
+              onChange={(e) => handleVolumeChange(Number(e.target.value))}
+              className="volume-slider ml-0.5"
+              style={{ "--volume-fill": `${volumePercent}%` } as CSSProperties}
+              id="player-volume"
+              aria-label={t.player.volume}
+              title={`${t.player.volume}: ${volumePercent}%`}
+            />
 
             {isPlaying && (
               <div className="ml-1 sm:ml-2 flex items-center gap-1 sm:gap-1.5">

@@ -198,8 +198,8 @@ export default function MobileMenu() {
                 href="/motor"
                 onClick={() => setIsOpen(false)}
                 className={isActive("/motor")
-                  ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#22d3ee] bg-black text-[#22d3ee] shadow-[4px_4px_0px_0px_#22d3ee] font-black text-sm uppercase"
-                  : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#22d3ee] hover:border-[#22d3ee] hover:shadow-[4px_4px_0px_0px_#22d3ee] transition-colors"}
+                  ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#a855f7] bg-black text-[#a855f7] shadow-[4px_4px_0px_0px_#a855f7] font-black text-sm uppercase"
+                  : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#a855f7] hover:border-[#a855f7] hover:shadow-[4px_4px_0px_0px_#a855f7] transition-colors"}
                 id="mobile-motor"
               >
                 <RacingHelmetIcon size={16} strokeWidth={3} />

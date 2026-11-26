@@ -32,6 +32,16 @@ export default function AdminPage() {
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [liveViewers, setLiveViewers] = useState<LiveViewer[] | null>(null);
   const [matchLabels, setMatchLabels] = useState<Record<string, string>>({});
+  // Wall clock for the "joined / last seen" counters. Reading Date.now() while
+  // rendering is impure, so the value comes from state refreshed by a timer.
+  const [nowMs, setNowMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => setNowMs(Date.now());
+    tick();
+    const timer = setInterval(tick, 5_000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Poll the site-wide presence counter while the admin panel is open.
   useEffect(() => {
@@ -347,12 +357,13 @@ export default function AdminPage() {
                       <div className="text-[10px] text-gray-500 font-mono truncate">
                         {viewerMetaChips(g.meta).join("  ·  ")}
                         {g.meta.firstSeen != null &&
-                          `  ·  joined ${Math.max(0, Math.round((Date.now() - g.meta.firstSeen) / 60000))}m ago`}
+                          nowMs != null &&
+                          `  ·  joined ${Math.max(0, Math.round((nowMs - g.meta.firstSeen) / 60000))}m ago`}
                       </div>
                     )}
                   </div>
                   <span className="shrink-0 text-[10px] font-bold uppercase text-gray-500">
-                    {Math.max(0, Math.round((Date.now() - g.lastSeen) / 1000))}s
+                    {nowMs == null ? "—" : `${Math.max(0, Math.round((nowMs - g.lastSeen) / 1000))}s`}
                   </span>
                 </div>
               ))}

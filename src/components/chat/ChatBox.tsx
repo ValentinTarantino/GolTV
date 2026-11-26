@@ -64,7 +64,8 @@ function ChatSession({ matchId }: ChatBoxProps) {
   // Last time the chat produced activity (new messages seen or own post
   // accepted). Drives the adaptive poll: fast while the conversation is
   // warm, slow when it goes quiet so idle viewers stop hammering the API.
-  const lastActivityRef = useRef(Date.now());
+  // Seeded by the polling effect, never during render (Date.now() is impure).
+  const lastActivityRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const nickInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -166,6 +167,9 @@ function ChatSession({ matchId }: ChatBoxProps) {
     // 15s once it goes quiet — same freshness when it matters, far fewer
     // requests when nobody is talking.
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // The first poll counts as activity, so an idle tab still starts fast and
+    // only backs off once nothing new arrives.
+    lastActivityRef.current = Date.now();
     const clear = () => {
       if (timer) clearTimeout(timer);
       timer = undefined;

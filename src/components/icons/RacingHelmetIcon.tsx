@@ -7,7 +7,14 @@ interface RacingHelmetIconProps {
   style?: CSSProperties;
 }
 
-/** Side-profile F1-style racing helmet glyph for the CARRERAS nav item. */
+/**
+ * Side-profile racing helmet for the CARRERAS nav item.
+ *
+ * Two shapes only: the shell and the eyeport. The old glyph carried five paths
+ * — visor frame, crown stripe, chin bar — and at 14px they all collapsed into
+ * a blob. The base is a single straight edge (no notch), and the drawing fills
+ * most of the 24 grid so it stays legible from 14px up.
+ */
 export default function RacingHelmetIcon({
   size = 16,
   strokeWidth = 2,
@@ -28,12 +35,10 @@ export default function RacingHelmetIcon({
       style={style}
       aria-hidden="true"
     >
-      {/* helmet outline, facing right: dome + chin bar */}
-      <path d="M5.6 16.4C5 11.3 7.7 6.4 12.9 5.5 17.4 4.8 20.3 7.9 20.3 12v1.8c0 1.6-1.3 2.9-2.9 2.9H9.1c-1.7 0-3-1.1-3.5-2.5Z" />
-      {/* visor slit */}
-      <path d="M13.8 10.6h5.4" />
-      {/* crown stripe */}
-      <path d="M10.2 8.6c1.5-1.3 3.4-2 5.5-1.8" />
+      {/* shell, facing right: dome, front face and chin bar over a straight base */}
+      <path d="M4.8 20.9C3 20.2 1.9 17.6 2.1 13.7C2.3 7.3 6.8 2.3 12.4 2.3C18 2.3 22.1 7.2 22.3 12.9C22.4 15.6 22 17.9 20.9 19.4C20.1 20.5 18.8 21 17.2 20.9H4.8Z" />
+      {/* eyeport */}
+      <path d="M10.1 10.1L19 9.4C19.9 9.35 20.4 9.8 20.45 10.7L20.55 13C20.6 13.9 20.15 14.35 19.25 14.4L10.3 15C9.4 15.05 8.95 14.6 8.9 13.7L8.8 11.6C8.75 10.7 9.2 10.15 10.1 10.1Z" />
     </svg>
   );
 }

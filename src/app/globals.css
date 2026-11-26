@@ -447,6 +447,76 @@ body.watch-theater-open > main {
       5px 5px 0 0 #ffffff;
   }
 
+  /* Volume fader in the player bar: flat 4px track with a lime fill driven by
+     the --volume-fill custom property, and a square white handle so it matches
+     the palette instead of the browser's default pill. */
+  .volume-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 56px;
+    height: 14px;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    touch-action: none;
+  }
+
+  @media (min-width: 640px) {
+    .volume-slider {
+      width: 68px;
+    }
+  }
+
+  .volume-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 0;
+    background: linear-gradient(
+      to right,
+      var(--color-accent-primary) 0%,
+      var(--color-accent-primary) var(--volume-fill, 100%),
+      rgba(255, 255, 255, 0.28) var(--volume-fill, 100%),
+      rgba(255, 255, 255, 0.28) 100%
+    );
+  }
+
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    margin-top: -3px;
+    border: 2px solid #000000;
+    border-radius: 0;
+    background: #ffffff;
+    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
+  }
+
+  .volume-slider::-moz-range-track {
+    height: 4px;
+    border-radius: 0;
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .volume-slider::-moz-range-progress {
+    height: 4px;
+    border-radius: 0;
+    background: var(--color-accent-primary);
+  }
+
+  .volume-slider::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border: 2px solid #000000;
+    border-radius: 0;
+    background: #ffffff;
+    box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
+  }
+
+  .volume-slider:focus-visible {
+    outline: 2px solid var(--color-accent-tertiary);
+    outline-offset: 3px;
+  }
+
   /* Skeleton placeholder: the shimmer keyframe slides background-position, so
      the block needs an actual gradient to sweep across. Without it the
      skeleton renders invisible and the page looks frozen. */

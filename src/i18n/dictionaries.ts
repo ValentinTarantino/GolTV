@@ -393,6 +393,9 @@ export const dictionaries = {
       adBlockerTip: "¿Se abren ventanas emergentes? Usá un bloqueador de anuncios para evitarlas",
       quality: "CALIDAD",
       autoQuality: "Automática",
+      volume: "VOLUMEN",
+      mute: "Silenciar",
+      unmute: "Activar sonido",
     },
     chat: {
       title: "CHAT EN VIVO",
@@ -904,6 +907,9 @@ export const dictionaries = {
       adBlockerTip: "Popups opening? Use an ad-blocker to prevent them",
       quality: "QUALITY",
       autoQuality: "Auto",
+      volume: "VOLUME",
+      mute: "Mute",
+      unmute: "Unmute",
     },
     chat: {
       title: "LIVE CHAT",
