@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Maximize2, Minimize2, RefreshCw } from "lucide-react";
+import { AlertCircle, Car, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTimeZone } from "@/contexts/TimeZoneContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
@@ -18,8 +19,7 @@ interface MotorsportEvent {
   sportName: string;
   startsAt: string;
   timestamp: number;
-  live: boolean;
-  finished: boolean;
+  status: "live" | "upcoming" | "finished";
 }
 
 type ListState = "loading" | "ready" | "error";
@@ -31,30 +31,24 @@ interface StreamSource {
   quality?: string;
 }
 
-function pickInitialMatch(list: MotorsportEvent[]): number | null {
-  return list[0]?.id ?? null;
-}
-
-/** Kickoff arrives in UTC; render it in Argentina time like the LPF page. */
-function formatTime(start: string): string {
+/** Kickoff arrives in UTC; render it in the zone picked in the navbar. */
+function formatTime(start: string, lang: string, timeZone: string): string {
   if (!start) return "";
   const date = new Date(start);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("es-AR", {
+  return date.toLocaleString(lang === "es" ? "es-AR" : "en-US", {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "UTC",
+    hour12: lang !== "es",
+    timeZone,
   });
 }
 
-function matchLabel(match: MotorsportEvent): string {
-  return match.title;
-}
-
 export default function MotorPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { timeZone } = useTimeZone();
   const copy = t.motor;
 
   const [matches, setMatches] = useState<MotorsportEvent[]>([]);
@@ -78,7 +72,10 @@ export default function MotorPage() {
         const next = Array.isArray(data.matches) ? data.matches : [];
         setMatches(next);
         setListState("ready");
-        setActiveId((current) => current ?? pickInitialMatch(next));
+        setActiveId(
+          (current) =>
+            current ?? next.find((match) => match.status !== "finished")?.id ?? null
+        );
       })
       .catch(() => {
         if (cancelled) return;
@@ -118,16 +115,33 @@ export default function MotorPage() {
   const activeMatch = matches.find((match) => match.id === activeId) ?? null;
   const activeSource = streamSources[sourceIndex] ?? null;
 
+  // Finished sessions drop out of the agenda entirely, like the main fixture.
+  const visibleMatches = useMemo(
+    () => matches.filter((match) => match.status !== "finished"),
+    [matches]
+  );
+
+  // Same ordering the main fixture uses: league sections ranked by relevance
+  // and sessions inside each section chronologically by status then start.
   const groups = useMemo(() => {
     const map = new Map<string, MotorsportEvent[]>();
-    for (const match of matches) {
+    for (const match of visibleMatches) {
       const key = match.sportName || match.sport.toUpperCase();
       const list = map.get(key) ?? [];
       list.push(match);
       map.set(key, list);
     }
-    return [...map.entries()];
-  }, [matches]);
+    const statusRank = (status: MotorsportEvent["status"]) =>
+      status === "live" ? 0 : status === "upcoming" ? 1 : 2;
+    const result = [...map.entries()].map(([name, list]) => ({ name, matches: list }));
+    for (const group of result) {
+      group.matches.sort(
+        (a, b) => statusRank(a.status) - statusRank(b.status) || a.startsAt.localeCompare(b.startsAt)
+      );
+    }
+    result.sort((a, b) => (a.matches[0]?.startsAt ?? "").localeCompare(b.matches[0]?.startsAt ?? ""));
+    return result;
+  }, [visibleMatches]);
 
   const reloadStream = useCallback(() => {
     setStreamState("loading");
@@ -152,10 +166,11 @@ export default function MotorPage() {
     [activeId]
   );
 
-  // Upcoming sessions publish their players when the broadcast starts.
+  // A session the provider has not opened yet gets its sources as soon as
+  // the broadcast starts, so the page asks again on its own.
   useEffect(() => {
     if (streamState !== "error" || activeId === null) return;
-    const live = matches.find((match) => match.id === activeId)?.live;
+    const live = matches.find((match) => match.id === activeId)?.status === "live";
     const timer = setInterval(() => setStreamReload((n) => n + 1), live ? 25_000 : 45_000);
     return () => clearInterval(timer);
   }, [streamState, activeId, matches]);
@@ -174,9 +189,9 @@ export default function MotorPage() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  const statusLabel = (match: MotorsportEvent) => {
-    if (match.live) return copy.live;
-    if (match.finished) return copy.finished;
+  const statusLabel = (status: MotorsportEvent["status"]) => {
+    if (status === "live") return copy.live;
+    if (status === "finished") return copy.finished;
     return copy.scheduled;
   };
 
@@ -196,27 +211,31 @@ export default function MotorPage() {
                 </span>
                 <span className="flex min-w-0 items-center gap-2">
                   {activeMatch && (
-                    <ViewerBadge matchId={String(activeMatch.id)} />
+                    <ViewerBadge matchId={String(activeMatch.id)} active={activeMatch.status === "live"} />
                   )}
-                  <span className="truncate text-xs font-black uppercase text-accent-red sm:text-sm">
-                    {activeMatch ? matchLabel(activeMatch) : copy.noEvent}
+                  <span className="truncate text-xs font-black uppercase text-accent-primary sm:text-sm">
+                    {activeMatch ? activeMatch.title : copy.noEvent}
                   </span>
                   <button
                     type="button"
                     onClick={toggleFullscreen}
                     title={isFullscreen ? copy.exitFullscreen : copy.fullscreen}
                     aria-label={isFullscreen ? copy.exitFullscreen : copy.fullscreen}
-                    className="shrink-0 border-2 border-white bg-black p-1.5 text-white transition-colors hover:bg-accent-red hover:text-white"
+                    className="shrink-0 border-2 border-white bg-black p-1.5 text-white transition-colors hover:bg-accent-primary hover:text-black"
                   >
                     {isFullscreen ? <Minimize2 size={14} strokeWidth={3} /> : <Maximize2 size={14} strokeWidth={3} />}
                   </button>
                 </span>
               </div>
 
+              <p className="border-2 border-accent-primary/60 bg-black px-3 py-1.5 text-[10px] font-bold uppercase leading-snug tracking-wide text-gray-300 sm:text-[11px]">
+                {copy.patienceNotice}
+              </p>
+
               {streamState === "ready" && activeSource && activeMatch ? (
                 <VideoPlayer
                   url={withMatchParam(activeSource.src, String(activeMatch.id))}
-                  title={matchLabel(activeMatch)}
+                  title={activeMatch.title}
                   kind={activeSource.kind}
                   preferFastStart
                 />
@@ -224,7 +243,7 @@ export default function MotorPage() {
                 <div className="relative flex aspect-video w-full items-center justify-center border-3 border-white bg-black sm:border-4">
                   {streamState === "loading" ? (
                     <div className="flex flex-col items-center gap-3 px-6 text-center">
-                      <RefreshCw size={26} strokeWidth={3} className="animate-spin text-accent-red" />
+                      <RefreshCw size={26} strokeWidth={3} className="animate-spin text-accent-primary" />
                       <span className="text-xs font-black uppercase tracking-widest text-white sm:text-sm">
                         {copy.loadingStream}
                       </span>
@@ -232,7 +251,7 @@ export default function MotorPage() {
                   ) : (
                     <div className="flex max-w-sm flex-col items-center gap-3 px-6 text-center">
                       <AlertCircle size={30} strokeWidth={3} className="text-accent-red" />
-                      {activeMatch && !activeMatch.live ? (
+                      {activeMatch?.status === "upcoming" ? (
                         <span className="text-xs font-medium leading-relaxed text-gray-300">
                           {copy.sourcesAtEvent}
                         </span>
@@ -247,7 +266,7 @@ export default function MotorPage() {
                       <button
                         type="button"
                         onClick={reloadStream}
-                        className="mt-1 border-2 border-black bg-accent-red px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-btn transition-transform hover:-translate-y-0.5"
+                        className="mt-1 border-2 border-black bg-accent-primary px-3 py-1.5 text-[10px] font-black uppercase text-black shadow-btn transition-transform hover:-translate-y-0.5"
                       >
                         {copy.retry}
                       </button>
@@ -256,7 +275,7 @@ export default function MotorPage() {
                 </div>
               )}
 
-              {streamState === "ready" && streamSources.length > 1 && (
+              {streamState === "ready" && streamSources.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 border-4 border-white bg-black px-3 py-2 shadow-brutal">
                   <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
                     {copy.sources}
@@ -268,11 +287,17 @@ export default function MotorPage() {
                       onClick={() => setSourceIndex(idx)}
                       className={`border-2 px-2 py-1 text-[10px] font-black uppercase transition-transform hover:-translate-y-0.5 ${
                         idx === sourceIndex
-                          ? "border-accent-red bg-accent-red text-white"
+                          ? "border-accent-primary bg-accent-primary text-black"
                           : "border-white bg-black text-white"
                       }`}
                     >
                       {copy.sourceLabel} {idx + 1}
+                      {source.quality && (
+                        <>
+                          {" "}
+                          <span className="opacity-70">{source.quality}</span>
+                        </>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -291,88 +316,105 @@ export default function MotorPage() {
               <span className="text-[10px] font-black uppercase tracking-widest text-white sm:text-xs">
                 {copy.events}
               </span>
-              <span className="border-2 border-white bg-accent-red px-2 py-0.5 text-[10px] font-black text-white">
-                {matches.length}
+              <span className="border-2 border-white bg-accent-primary px-2 py-0.5 text-[10px] font-black text-black">
+                {visibleMatches.length}
               </span>
             </div>
 
-            {listState === "loading" && (
-              <p className="border-2 border-white/20 px-3 py-4 text-center text-xs font-bold uppercase text-gray-400">
-                {copy.loadingMatches}
-              </p>
-            )}
+            <div className="flex flex-col gap-3">
+              {listState === "loading" && (
+                <p className="border-2 border-white/20 px-3 py-4 text-center text-xs font-bold uppercase text-gray-400">
+                  {copy.loadingMatches}
+                </p>
+              )}
 
-            {listState === "error" && (
-              <div className="flex flex-col items-center gap-2 border-2 border-accent-red/60 px-3 py-4 text-center">
-                <span className="text-xs font-black uppercase text-accent-red">{copy.error}</span>
-                <span className="text-[11px] font-medium text-gray-400">{copy.errorDesc}</span>
-                <button
-                  type="button"
-                  onClick={reloadList}
-                  className="mt-1 border-2 border-black bg-accent-red px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-btn transition-transform hover:-translate-y-0.5"
-                >
-                  {copy.retry}
-                </button>
-              </div>
-            )}
-
-            {listState === "ready" && matches.length === 0 && (
-              <div className="flex flex-col items-center gap-2 border-2 border-white/20 px-3 py-4 text-center">
-                <span className="text-xs font-black uppercase text-white">{copy.empty}</span>
-                <span className="text-[11px] font-medium text-gray-400">{copy.emptyDesc}</span>
-              </div>
-            )}
-
-            {groups.map(([league, list]) => (
-              <div key={league} className="flex flex-col gap-2">
-                <span className="border-2 border-white/30 bg-black px-3 py-1 text-[10px] font-black uppercase tracking-widest text-accent-red">
-                  {league}
-                </span>
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
-                  {list.map((match) => {
-                    const isActive = match.id === activeId;
-                    return (
-                      <button
-                        key={match.id}
-                        type="button"
-                        data-match={match.id}
-                        onClick={() => selectMatch(match.id)}
-                        title={matchLabel(match)}
-                        className={`flex w-full min-w-0 flex-col gap-2 border-4 px-3 py-3 text-left transition-transform hover:-translate-y-0.5 sm:w-64 sm:shrink-0 sm:px-4 sm:py-3.5 md:w-80 ${
-                          isActive
-                            ? "border-accent-red bg-accent-red text-white shadow-brutal"
-                            : "border-white bg-black text-white shadow-brutal"
-                        }`}
-                      >
-                        <span className="text-left text-xs font-black uppercase leading-tight sm:text-sm">
-                          {matchLabel(match)}
-                        </span>
-                        <span className="flex items-center justify-between gap-1">
-                          <span className="text-[10px] font-bold uppercase sm:text-xs">{formatTime(match.startsAt)}</span>
-                          {match.live ? (
-                            <span className="flex shrink-0 items-center gap-1 text-[10px] font-black uppercase sm:text-xs">
-                              <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
-                              {copy.live}
-                            </span>
-                          ) : (
-                            <span className="shrink-0 text-[10px] font-black uppercase sm:text-xs">
-                              {statusLabel(match)}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
+              {listState === "error" && (
+                <div className="flex flex-col items-center gap-2 border-2 border-accent-red/60 px-3 py-4 text-center">
+                  <span className="text-xs font-black uppercase text-accent-red">{copy.error}</span>
+                  <span className="text-[11px] font-medium text-gray-400">{copy.errorDesc}</span>
+                  <button
+                    type="button"
+                    onClick={reloadList}
+                    className="mt-1 border-2 border-black bg-accent-primary px-3 py-1.5 text-[10px] font-black uppercase text-black shadow-btn transition-transform hover:-translate-y-0.5"
+                  >
+                    {copy.retry}
+                  </button>
                 </div>
-              </div>
-            ))}
+              )}
+
+              {listState === "ready" && visibleMatches.length === 0 && (
+                <div className="flex flex-col items-center gap-2 border-2 border-white/20 px-3 py-4 text-center">
+                  <span className="text-xs font-black uppercase text-white">{copy.empty}</span>
+                  <span className="text-[11px] font-medium text-gray-400">{copy.emptyDesc}</span>
+                </div>
+              )}
+
+              {groups.map((group) => (
+                <div key={group.name} className="flex flex-col gap-2">
+                  <div className="plate-face flex items-center gap-3 border-4 border-black bg-accent-primary px-3 py-2.5 shadow-brutal-sm sm:gap-4 sm:px-4 sm:py-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-white shadow-brutal-sm sm:h-12 sm:w-12">
+                      <span className="text-sm font-black uppercase text-black">
+                        {group.name.slice(0, 2)}
+                      </span>
+                    </div>
+                    <h2 className="text-lg font-black uppercase leading-none tracking-tight text-black sm:text-2xl">
+                      {group.name}
+                    </h2>
+                    <span className="ml-auto border-2 border-black bg-black px-2 py-0.5 text-[10px] font-black uppercase text-accent-primary sm:text-xs">
+                      {group.matches.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
+                    {group.matches.map((match) => {
+                      const isActive = match.id === activeId;
+                      return (
+                        <button
+                          key={match.id}
+                          type="button"
+                          data-match={match.id}
+                          onClick={() => selectMatch(match.id)}
+                          title={match.title}
+                          className={`flex w-full min-w-0 flex-col gap-2 border-4 px-3 py-3 text-left transition-transform hover:-translate-y-0.5 sm:w-64 sm:shrink-0 sm:px-4 sm:py-3.5 md:w-80 ${
+                            isActive
+                              ? "border-accent-primary bg-accent-primary text-black shadow-brutal"
+                              : "border-white bg-black text-white shadow-brutal"
+                          }`}
+                        >
+                          <span className="flex items-center justify-center">
+                            <Car size={30} strokeWidth={2.5} className="text-accent-primary" />
+                          </span>
+                          <span className="line-clamp-2 text-center text-xs font-black uppercase leading-tight sm:text-sm">
+                            {match.title}
+                          </span>
+                          <span className="flex items-center justify-between gap-1">
+                            <span className="text-[11px] font-bold uppercase sm:text-xs">
+                              {formatTime(match.startsAt, language, timeZone)}
+                            </span>
+                            {match.status === "live" ? (
+                              <span className="flex shrink-0 items-center gap-1 text-[11px] font-black uppercase">
+                                <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
+                                {copy.live}
+                              </span>
+                            ) : (
+                              <span className="shrink-0 text-[11px] font-black uppercase">
+                                {statusLabel(match.status)}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {listState === "loading" && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/90 backdrop-blur-sm">
-          <RefreshCw size={36} strokeWidth={3} className="animate-spin text-accent-red" />
+          <RefreshCw size={36} strokeWidth={3} className="animate-spin text-accent-primary" />
           <span className="text-xs font-black uppercase tracking-widest text-white sm:text-sm">
             {copy.loadingMatches}
           </span>

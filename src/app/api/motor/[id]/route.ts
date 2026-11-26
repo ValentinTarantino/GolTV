@@ -29,7 +29,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       src: finalSources[0]?.src ?? null,
       kind: finalSources[0]?.kind ?? null,
       sources: finalSources,
-      live: match.live,
+      live: match.status === "live",
     });
   } catch (error) {
     console.error("[api/motor/[id]]", error);

@@ -11,6 +11,10 @@ import { listMotorsportMatches } from "./player-six-source";
 const LIST_CACHE = "motor:events:v1";
 const LIST_TTL = 60_000;
 
+// A session runs ~1-2h (practice/qualifying shorter, races longer). Past
+// this window the card is certainly done even if the provider keeps it.
+const LIVE_WINDOW_MS = 4 * 60 * 60 * 1000;
+
 export interface MotorsportEvent {
   id: number;
   title: string;
@@ -20,8 +24,7 @@ export interface MotorsportEvent {
   sportName: string;
   startsAt: string;
   timestamp: number;
-  live: boolean;
-  finished: boolean;
+  status: "live" | "upcoming" | "finished";
 }
 
 export async function listMotorsportEvents(): Promise<MotorsportEvent[]> {
@@ -39,8 +42,12 @@ export async function listMotorsportEvents(): Promise<MotorsportEvent[]> {
       sportName: e.league,
       startsAt: e.kickoffMs ? new Date(e.kickoffMs).toISOString() : "",
       timestamp: e.kickoffMs,
-      live: e.kickoffMs > 0 && e.kickoffMs <= now,
-      finished: false,
+      status:
+        e.kickoffMs > now
+          ? "upcoming"
+          : now - e.kickoffMs <= LIVE_WINDOW_MS
+            ? "live"
+            : "finished",
     }));
     await setCache(LIST_CACHE, matches, LIST_TTL);
     return matches;

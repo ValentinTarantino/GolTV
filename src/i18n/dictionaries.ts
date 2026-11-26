@@ -504,6 +504,8 @@ export const dictionaries = {
       unavailableDesc: "Esta sesión no está transmitiendo en este momento. Probá con otra.",
       sourcesAtEvent:
         "Los reproductores de esta sesión aparecen cuando arranca la transmisión. Se actualiza solo.",
+      patienceNotice:
+        "La transmisión puede tardar varios minutos en arrancar. Tené paciencia, se actualiza solo.",
       fullscreen: "Ver sesión y chat en pantalla completa",
       exitFullscreen: "Salir de pantalla completa",
       empty: "No hay sesiones disponibles",
@@ -665,6 +667,8 @@ export const dictionaries = {
       unavailableDesc: "This session is not broadcasting right now. Try another one.",
       sourcesAtEvent:
         "The players for this session show up when the broadcast starts. It updates on its own.",
+      patienceNotice:
+        "The broadcast may take a few minutes to start. Please be patient, it updates on its own.",
       fullscreen: "View session and chat in fullscreen",
       exitFullscreen: "Exit fullscreen",
       empty: "No sessions available",
