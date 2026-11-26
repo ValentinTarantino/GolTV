@@ -32,6 +32,8 @@ export default function AdminPage() {
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [liveViewers, setLiveViewers] = useState<LiveViewer[] | null>(null);
   const [matchLabels, setMatchLabels] = useState<Record<string, string>>({});
+  const [expandedViewer, setExpandedViewer] = useState<string | null>(null);
+  const [viewerGeo, setViewerGeo] = useState<Record<string, { country?: string; city?: string; region?: string; isp?: string }>>({});
   // Wall clock for the "joined / last seen" counters. Reading Date.now() while
   // rendering is impure, so the value comes from state refreshed by a timer.
   const [nowMs, setNowMs] = useState<number | null>(null);
@@ -179,6 +181,25 @@ export default function AdminPage() {
   }, [liveViewers]);
 
   const viewerMatchLabel = (matchId: string) => matchLabels[matchId] ?? `#${matchId}`;
+
+  const toggleViewer = (viewerId: string, ip?: string | null) => {
+    setExpandedViewer((cur) => (cur === viewerId ? null : viewerId));
+    // Geo lookup once per IP when the row is opened — same endpoint the
+    // banned-IP list uses.
+    if (ip && !viewerGeo[ip] && !ipInfoMap[ip]) {
+      void fetch(`/api/admin/ip-info?ip=${encodeURIComponent(ip)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d && (d.country || d.city)) {
+            setViewerGeo((prev) => ({
+              ...prev,
+              [ip]: { country: d.country, city: d.city, region: d.region, isp: d.isp },
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  };
 
   const viewerMetaChips = (m: LiveViewer): string[] => {
     const chips: string[] = [];
@@ -339,34 +360,102 @@ export default function AdminPage() {
           ) : viewerGroups.length === 0 ? (
             <p className="text-gray-400 text-sm">No hay viewers activos</p>
           ) : (
-            <div className="space-y-1.5 max-h-80 overflow-y-auto">
-              {viewerGroups.map(([viewerId, g]) => (
-                <div key={viewerId} className="flex items-center justify-between gap-3 border border-white/20 px-2.5 py-1.5">
-                  <div className="min-w-0">
-                    <span className="text-white text-sm font-bold">
-                      {g.nick ?? `viewer ${viewerId.slice(0, 8)}`}
-                    </span>
-                    <div className="text-xs text-gray-400 truncate">
-                      {g.matches.length > 0
-                        ? g.matches.map(viewerMatchLabel).join("  ·  ")
-                        : g.site
-                          ? "Navegando el sitio"
-                          : "—"}
-                    </div>
-                    {viewerMetaChips(g.meta).length > 0 && (
-                      <div className="text-[10px] text-gray-500 font-mono truncate">
-                        {viewerMetaChips(g.meta).join("  ·  ")}
-                        {g.meta.firstSeen != null &&
-                          nowMs != null &&
-                          `  ·  joined ${Math.max(0, Math.round((nowMs - g.meta.firstSeen) / 60000))}m ago`}
+            <div className="space-y-1.5 max-h-96 overflow-y-auto">
+              {viewerGroups.map(([viewerId, g]) => {
+                const expanded = expandedViewer === viewerId;
+                const geo = g.meta.ip ? viewerGeo[g.meta.ip] ?? ipInfoMap[g.meta.ip] : undefined;
+                return (
+                  <div key={viewerId} className="border border-white/20">
+                    <button
+                      type="button"
+                      onClick={() => toggleViewer(viewerId, g.meta.ip)}
+                      className="w-full flex items-center justify-between gap-3 px-2.5 py-1.5 text-left hover:bg-white/5"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-white text-sm font-bold">
+                          {g.nick ?? `viewer ${viewerId.slice(0, 8)}`}
+                        </span>
+                        <div className="text-xs text-gray-400 truncate">
+                          {g.matches.length > 0
+                            ? g.matches.map(viewerMatchLabel).join("  ·  ")
+                            : g.site
+                              ? "Navegando el sitio"
+                              : "—"}
+                        </div>
+                        {viewerMetaChips(g.meta).length > 0 && (
+                          <div className="text-[10px] text-gray-500 font-mono truncate">
+                            {viewerMetaChips(g.meta).join("  ·  ")}
+                            {g.meta.firstSeen != null &&
+                              nowMs != null &&
+                              `  ·  joined ${Math.max(0, Math.round((nowMs - g.meta.firstSeen) / 60000))}m ago`}
+                          </div>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-[10px] font-bold uppercase text-gray-500">
+                        {nowMs == null ? "—" : `${Math.max(0, Math.round((nowMs - g.lastSeen) / 1000))}s`}
+                        {" "}{expanded ? "▾" : "▸"}
+                      </span>
+                    </button>
+                    {expanded && (
+                      <div className="border-t border-white/10 px-3 py-2 space-y-1.5 text-xs">
+                        <div className="grid grid-cols-[90px_1fr] gap-x-3 gap-y-1">
+                          <span className="text-gray-500">ID</span>
+                          <span className="text-gray-300 font-mono break-all">{viewerId}</span>
+                          <span className="text-gray-500">Nick</span>
+                          <span className="text-gray-300">{g.nick ?? "—"}</span>
+                          <span className="text-gray-500">IP</span>
+                          <span className="text-gray-300 font-mono">{g.meta.ip ?? "—"}</span>
+                          {geo && (
+                            <>
+                              <span className="text-gray-500">Ubicación</span>
+                              <span className="text-gray-300">
+                                {[geo.city, geo.region, geo.country].filter(Boolean).join(", ") || "—"}
+                              </span>
+                              {geo.isp && (
+                                <>
+                                  <span className="text-gray-500">ISP</span>
+                                  <span className="text-gray-300">{geo.isp}</span>
+                                </>
+                              )}
+                            </>
+                          )}
+                          <span className="text-gray-500">Dispositivo</span>
+                          <span className="text-gray-300">{g.meta.device ?? "—"}</span>
+                          <span className="text-gray-500">Navegador</span>
+                          <span className="text-gray-300">{[g.meta.browser, g.meta.os].filter(Boolean).join(" · ") || "—"}</span>
+                          <span className="text-gray-500">Idioma</span>
+                          <span className="text-gray-300">{g.meta.lang ?? "—"}</span>
+                          <span className="text-gray-500">País (CF)</span>
+                          <span className="text-gray-300">{g.meta.country ?? "—"}</span>
+                          <span className="text-gray-500">Vino de</span>
+                          <span className="text-gray-300 font-mono break-all">{g.meta.referrer ?? "—"}</span>
+                          <span className="text-gray-500">Primera vez</span>
+                          <span className="text-gray-300">
+                            {g.meta.firstSeen != null && nowMs != null
+                              ? `${new Date(g.meta.firstSeen).toLocaleString()} (${Math.max(0, Math.round((nowMs - g.meta.firstSeen) / 60000))}m ago)`
+                              : "—"}
+                          </span>
+                          <span className="text-gray-500">Última vez</span>
+                          <span className="text-gray-300">
+                            {nowMs != null
+                              ? `${new Date(g.lastSeen).toLocaleString()} (hace ${Math.max(0, Math.round((nowMs - g.lastSeen) / 1000))}s)`
+                              : "—"}
+                          </span>
+                        </div>
+                        {g.matches.length > 0 && (
+                          <div className="pt-1 border-t border-white/10">
+                            <span className="text-gray-500">Partidos vistos: </span>
+                            <span className="text-gray-300">{g.matches.map(viewerMatchLabel).join("  ·  ")}</span>
+                          </div>
+                        )}
+                        {g.site && (
+                          <div className="pt-1 border-t border-white/10 text-gray-400">Navegando el sitio (sin partido abierto)</div>
+                        )}
                       </div>
                     )}
                   </div>
-                  <span className="shrink-0 text-[10px] font-bold uppercase text-gray-500">
-                    {nowMs == null ? "—" : `${Math.max(0, Math.round((nowMs - g.lastSeen) / 1000))}s`}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
