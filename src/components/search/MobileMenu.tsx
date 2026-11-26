@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Menu, X, Search, Trophy, Play, Volleyball } from "lucide-react";
+import { Menu, X, Search, Trophy, Play, Volleyball, Car } from "lucide-react";
 import TennisRacketIcon from "@/components/icons/TennisRacketIcon";
 import BoxingGloveIcon from "@/components/icons/BoxingGloveIcon";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -192,6 +192,17 @@ export default function MobileMenu() {
               >
                 <TennisRacketIcon size={16} strokeWidth={3} />
                 <span>{t.tennis?.nav || "TENIS"}</span>
+              </Link>
+              <Link
+                href="/motor"
+                onClick={() => setIsOpen(false)}
+                className={isActive("/motor")
+                  ? "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-[#22d3ee] bg-black text-[#22d3ee] shadow-[4px_4px_0px_0px_#22d3ee] font-black text-sm uppercase"
+                  : "flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:text-[#22d3ee] hover:border-[#22d3ee] hover:shadow-[4px_4px_0px_0px_#22d3ee] transition-colors"}
+                id="mobile-motor"
+              >
+                <Car size={16} strokeWidth={3} />
+                <span>{t.motor?.nav || "MOTOR"}</span>
               </Link>
             </div>
           </div>

@@ -9,6 +9,7 @@ const SPORT_TYPE = 1; // football
 const BASKETBALL_SPORT_TYPE = 2; // basketball
 const TENNIS_SPORT_TYPE = 3; // tennis/padel
 const FIGHTING_SPORT_TYPE = 14; // fighting events
+const MOTORSPORT_SPORT_TYPE = 7; // motorsport sessions (F1, MotoGP, Supercars...)
 const DIGIT = process.env.PLAYER_SIX_DIGIT || "";
 
 // The feed embeds crest URLs on a logo CDN whose domain rotates and dies;
@@ -376,6 +377,72 @@ export async function listFightingEvents(): Promise<FightingEvent[]> {
   events.sort((a, b) => a.matchDate - b.matchDate);
   await setCache(cacheKey, events, 30_000);
   return events;
+}
+
+// ---------- motorsport events ----------
+
+export interface MotorsportMatch {
+  matchId: number;
+  title: string;
+  league: string;
+  country: string;
+  kickoffMs: number;
+}
+
+/**
+ * Motorsport sessions are single-title events ("Qatar Grand Prix (Qatar) -
+ * Practice 1"), not team-vs-team fixtures: the f30 entry carries the title
+ * directly in f2, like fighting events. League and country sit in the same
+ * f10 block the team sports use.
+ */
+export async function listMotorsportMatches(): Promise<MotorsportMatch[]> {
+  if (!API || !REFERER) return [];
+  const cacheKey = "feed-motorsport-live";
+  const cached = await getCache<MotorsportMatch[]>(cacheKey);
+  if (cached) return cached;
+  const buf = await signedGet(
+    "match/live",
+    100,
+    { sportType: MOTORSPORT_SPORT_TYPE, stream: true },
+    {},
+    MOTORSPORT_SPORT_TYPE
+  );
+  const data = pbData(buf);
+  const matches: MotorsportMatch[] = [];
+  for (const m of pbSubMsgs(data, 1)) {
+    const matchId = pbVarint(m, 1);
+    if (!matchId) continue;
+
+    const leagueMsg = pbSubMsgs(m, 10)[0];
+    const leagueNameMsg = leagueMsg ? pbSubMsgs(leagueMsg, 3)[0] : undefined;
+    const countryMsg = leagueMsg ? pbSubMsgs(leagueMsg, 80)[0] : undefined;
+    const countryNameMsg = countryMsg ? pbSubMsgs(countryMsg, 3)[0] : undefined;
+
+    const titleEntry = pbSubMsgs(m, 30)[0];
+    const title = (titleEntry && pbFieldString(titleEntry, 2)) || "";
+    if (!title) continue;
+
+    matches.push({
+      matchId,
+      title,
+      league: (leagueNameMsg && pbFieldString(leagueNameMsg, 2)) || "Motorsport",
+      country: (countryNameMsg && pbFieldString(countryNameMsg, 2)) || "",
+      kickoffMs: pbVarint(m, 3) ?? 0,
+    });
+  }
+  matches.sort((a, b) => a.kickoffMs - b.kickoffMs);
+  await setCache(cacheKey, matches, 30_000);
+  return matches;
+}
+
+export async function findMotorsportStreams(matchId: number): Promise<Channel[]> {
+  if (!API || !REFERER || !DIGIT) return [];
+  try {
+    return await channelsForMatch(matchId, MOTORSPORT_SPORT_TYPE);
+  } catch (e) {
+    console.error("[feed] findMotorsportStreams failed:", e);
+    return [];
+  }
 }
 
 // ---------- basketball matches ----------

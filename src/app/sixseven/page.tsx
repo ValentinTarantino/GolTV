@@ -77,12 +77,13 @@ export default function AdminPage() {
       const pair = (home: unknown, away: unknown, comp: unknown) =>
         `${String(home ?? "")} vs ${String(away ?? "")}${comp ? ` · ${String(comp)}` : ""}`;
       try {
-        const [agenda, nba, tennis, combat, lpf] = await Promise.all([
+        const [agenda, nba, tennis, combat, lpf, motor] = await Promise.all([
           fetch("/api/matches").then((r) => (r.ok ? r.json() : null)),
           fetch("/api/nba/matches").then((r) => (r.ok ? r.json() : null)),
           fetch("/api/tennis/matches").then((r) => (r.ok ? r.json() : null)),
           fetch("/api/combat/matches").then((r) => (r.ok ? r.json() : null)),
           fetch("/api/lpf/matches").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/motor/matches").then((r) => (r.ok ? r.json() : null)),
         ]);
         put(agenda?.matches, (m) => {
           const ht = m.homeTeam as { name?: string } | undefined;
@@ -98,6 +99,9 @@ export default function AdminPage() {
           return h && a ? pair(h, a, m.sportName) : String(m.title ?? `#${m.id}`);
         });
         put(lpf?.matches, (m) => pair(m.home, m.away, m.competition));
+        put(motor?.matches, (m) =>
+          `${String(m.title ?? `#${m.id}`)}${m.sportName ? ` · ${String(m.sportName)}` : ""}`
+        );
       } catch {
         // labels are cosmetic — the raw ids still render
       }
