@@ -106,7 +106,7 @@ export default function AdminPage() {
         labels["nba"] = "Chat · NBA";
         labels["tennis"] = "Chat · Tenis";
         labels["combat"] = "Chat · Lucha";
-        labels["motor"] = "Chat · Motor";
+        labels["motor"] = "Chat · Carreras";
       } catch {
         // labels are cosmetic — the raw ids still render
       }

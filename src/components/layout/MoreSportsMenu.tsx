@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Medal, Volleyball, Car } from "lucide-react";
+import { ChevronDown, Medal, Volleyball } from "lucide-react";
 import TennisRacketIcon from "@/components/icons/TennisRacketIcon";
 import BoxingGloveIcon from "@/components/icons/BoxingGloveIcon";
+import RacingHelmetIcon from "@/components/icons/RacingHelmetIcon";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Dictionary } from "@/i18n/dictionaries";
 
@@ -13,7 +14,7 @@ const ITEMS = [
   { href: "/nba", icon: Volleyball, color: "#f97316", label: (t: Dictionary) => t.nba.nav },
   { href: "/boxeo", icon: BoxingGloveIcon, color: "#ef4444", label: (t: Dictionary) => t.combat.nav },
   { href: "/tennis", icon: TennisRacketIcon, color: "#eab308", label: (t: Dictionary) => t.tennis.nav },
-  { href: "/motor", icon: Car, color: "#22d3ee", label: (t: Dictionary) => t.motor.nav },
+  { href: "/motor", icon: RacingHelmetIcon, color: "#22d3ee", label: (t: Dictionary) => t.motor.nav },
 ] as const;
 
 /** NBA / LUCHA / TENIS grouped behind one navbar dropdown. */

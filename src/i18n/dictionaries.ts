@@ -536,7 +536,7 @@ export const dictionaries = {
       retry: "Reintentar",
     },
     motor: {
-      nav: "MOTOR",
+      nav: "CARRERAS",
       nowPlaying: "Sesión en curso",
       noEvent: "Sin sesión",
       sources: "Fuentes",
@@ -699,7 +699,7 @@ export const dictionaries = {
       retry: "Retry",
     },
     motor: {
-      nav: "MOTOR",
+      nav: "RACING",
       nowPlaying: "Session on",
       noEvent: "No session",
       sources: "Sources",
