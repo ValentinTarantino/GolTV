@@ -1,5 +1,6 @@
 import { getCache, setCache } from "./cache";
-import { listMotorsportMatches } from "./player-six-source";
+import { findMotorsportStreams, listMotorsportMatches } from "./player-six-source";
+import { matchSignalAlive } from "./signal-alive";
 
 /**
  * Motorsport agenda: the provider's motorsport section lists broadcast
@@ -14,6 +15,14 @@ const LIST_TTL = 60_000;
 // A session runs ~1-2h (practice/qualifying shorter, races longer). Past
 // this window the card is certainly done even if the provider keeps it.
 const LIVE_WINDOW_MS = 4 * 60 * 60 * 1000;
+
+// Kickoff time alone cannot tell a transmitting session from a dead feed:
+// the provider keeps listing events whose signal already ended. Events in
+// the live window get their playlists probed; only a live answer keeps the
+// "live" badge.
+function eventSignalAlive(matchId: number): Promise<boolean> {
+  return matchSignalAlive(`motor:alive:${matchId}`, () => findMotorsportStreams(matchId));
+}
 
 export interface MotorsportEvent {
   id: number;
@@ -49,6 +58,14 @@ export async function listMotorsportEvents(): Promise<MotorsportEvent[]> {
             ? "live"
             : "finished",
     }));
+    // Verify the live-window candidates actually transmit; dead feeds drop
+    // to "finished" and leave the list until the signal comes back.
+    await Promise.all(
+      matches.map(async (m) => {
+        if (m.status !== "live") return;
+        if (!(await eventSignalAlive(m.id))) m.status = "finished";
+      })
+    );
     await setCache(LIST_CACHE, matches, LIST_TTL);
     return matches;
   } catch (error) {

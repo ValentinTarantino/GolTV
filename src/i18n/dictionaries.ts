@@ -384,7 +384,7 @@ export const dictionaries = {
       noChannels: "No hay canales disponibles para este partido.",
       loadingStream: "Cargando stream...",
       externalLoadTimeout: "El proveedor no confirmó la carga. Podés reintentar o elegir otro canal o reproductor.",
-      errorLoading: "Señal no disponible",
+      errorLoading: "Señal temporalmente caída",
       tryAnotherChannel:
         "El proveedor bloqueó o cortó la señal. Probá con otro reproductor o canal, o reintentá en unos minutos.",
       retry: "Reintentar",
@@ -898,7 +898,7 @@ export const dictionaries = {
       noChannels: "No channels available for this match.",
       loadingStream: "Loading stream...",
       externalLoadTimeout: "The provider did not confirm loading. Retry or choose another channel or player.",
-      errorLoading: "Signal unavailable",
+      errorLoading: "Signal temporarily down",
       tryAnotherChannel:
         "The provider blocked or dropped the signal. Try another player or channel, or retry in a few minutes.",
       retry: "Retry",

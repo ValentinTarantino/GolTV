@@ -1,4 +1,5 @@
-import { listBasketballMatches } from "@/lib/player-six-source";
+import { findBasketballStreams, listBasketballMatches } from "@/lib/player-six-source";
+import { matchSignalAlive } from "@/lib/signal-alive";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { proxyImageUrl } from "@/lib/public-url";
 
@@ -63,6 +64,26 @@ export async function GET(): Promise<Response> {
     }
   }
 
+  // Kickoff time alone cannot tell a live game from a dead feed: the
+  // provider keeps cards up after the final whistle. Live-window matches
+  // get their playlists probed; dead signals drop to "finished".
+  const statuses = new Map<number, "live" | "upcoming" | "finished">();
+  await Promise.all(
+    matches.map(async (match) => {
+      const status =
+        match.kickoffMs > now
+          ? "upcoming"
+          : now - match.kickoffMs <= LIVE_WINDOW_MS
+            ? "live"
+            : "finished";
+      if (status === "live" && !(await matchSignalAlive(`nba:alive:${match.matchId}`, () => findBasketballStreams(match.matchId)))) {
+        statuses.set(match.matchId, "finished");
+        return;
+      }
+      statuses.set(match.matchId, status);
+    })
+  );
+
   const payload = matches.map((match) => ({
     id: match.matchId,
     competition: match.league,
@@ -72,12 +93,7 @@ export async function GET(): Promise<Response> {
     homeLogo: proxyImageUrl(match.homeLogo || logos.get(badgeKey(match.home, match.country)) || ""),
     awayLogo: proxyImageUrl(match.awayLogo || logos.get(badgeKey(match.away, match.country)) || ""),
     start: match.kickoffMs ? new Date(match.kickoffMs).toISOString() : "",
-    status:
-      match.kickoffMs > now
-        ? "upcoming"
-        : now - match.kickoffMs <= LIVE_WINDOW_MS
-          ? "live"
-          : "finished",
+    status: statuses.get(match.matchId) ?? "finished",
   }));
 
   return Response.json(

@@ -7,6 +7,7 @@ import { touchRequestPresence, viewerIdFromRequest } from "@/lib/presence";
 import { touchViewer, SITE_PRESENCE_ID } from "@/lib/viewers";
 import { extractViewerMeta } from "@/lib/viewer-meta";
 import { BANNED_HEADER } from "@/lib/viewer-id";
+import { isViewerKicked } from "@/lib/kicked-viewers";
 import { deleteSharedPlaylist, getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 
 function getClientIP(request: Request): string {
@@ -36,6 +37,14 @@ export async function GET(request: Request) {
       { error: "Access denied" },
       { status: 403, headers: { [BANNED_HEADER]: "1" } }
     );
+  }
+
+  // Kicked viewers get a flag instead of messages — the client answers by
+  // navigating the tab to about:blank (same effect as DevToolsGuard).
+  // Checked before the shared playlist cache so the flag is never stale.
+  const getViewerId = viewerIdFromRequest(request);
+  if (await isViewerKicked(getViewerId)) {
+    return Response.json({ kicked: true, messages: [], persistent: isMongoConfigured(), deleted: [] });
   }
 
   const validation = await validateQuery(request, chatGetSchema);
@@ -76,6 +85,11 @@ export async function POST(request: Request) {
       { error: "Access denied" },
       { status: 403, headers: { [BANNED_HEADER]: "1" } }
     );
+  }
+
+  const postViewerId = viewerIdFromRequest(request);
+  if (await isViewerKicked(postViewerId)) {
+    return Response.json({ kicked: true });
   }
 
   const validation = await validateBody(request, chatPostSchema);

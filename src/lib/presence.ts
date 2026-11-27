@@ -1,4 +1,5 @@
 import { touchViewer, SITE_PRESENCE_ID } from "./viewers";
+import { isViewerKicked } from "./kicked-viewers";
 import { isValidViewerId, VIEWER_ID_COOKIE } from "./viewer-id";
 import { extractViewerMeta } from "./viewer-meta";
 
@@ -31,8 +32,15 @@ export function touchRequestPresence(request: Request, matchId?: string | null):
   const viewerId = viewerIdFromRequest(request);
   if (!viewerId) return;
   const meta = extractViewerMeta(request);
-  void touchViewer(SITE_PRESENCE_ID, viewerId, undefined, meta).catch(() => {});
-  if (matchId && /^\d+$/.test(matchId)) {
-    void touchViewer(matchId, viewerId, undefined, meta).catch(() => {});
-  }
+  // Kicked viewers (admin "send to blank") must not re-register presence
+  // through ambient traffic — the chat poll is what blanks their tab.
+  void isViewerKicked(viewerId)
+    .then((kicked) => {
+      if (kicked) return;
+      void touchViewer(SITE_PRESENCE_ID, viewerId, undefined, meta).catch(() => {});
+      if (matchId && /^\d+$/.test(matchId)) {
+        void touchViewer(matchId, viewerId, undefined, meta).catch(() => {});
+      }
+    })
+    .catch(() => {});
 }
