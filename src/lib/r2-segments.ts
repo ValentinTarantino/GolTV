@@ -54,9 +54,14 @@ export function r2SegmentsEnabled(): boolean {
   return MEDIA_CDN_BASE.length > 0 && SEG_POPULATE_URL.length > 0;
 }
 
-/** Populate endpoints to try, primary first, deduplicated. */
-function populateUrls(kind: string, token: string): string[] {
-  const qs = `kind=${kind}&t=${encodeURIComponent(token)}`;
+/**
+ * Populate endpoints to try, primary first, deduplicated. Batched form:
+ * repeated `t` params let one worker invocation fill several segments —
+ * the worker counts requests per invocation, not per segment.
+ */
+function populateBatchUrls(kind: string, tokens: string[]): string[] {
+  const params = tokens.map((t) => `t=${encodeURIComponent(t)}`).join("&");
+  const qs = `kind=${kind}&${params}`;
   const urls = [
     SEG_POPULATE_URL ? `${SEG_POPULATE_URL}?${qs}` : "",
     `${SEG_POPULATE_FALLBACK_URL}?${qs}`,
@@ -158,6 +163,114 @@ const pendingPopulates = new Set<Promise<void>>();
 const pendingImagePopulates = new Set<Promise<void>>();
 
 /**
+ * Segment populates queue briefly so a playlist rewrite (which triggers
+ * several segments at once) collapses into one worker call per kind.
+ * The flush is a macrotask: everything queued by the same synchronous
+ * rewrite lands in the same batch, while `settleSegmentPopulates` drains
+ * the queue explicitly so awaited populates are never missed.
+ */
+const POPULATE_BATCH_MAX = 12;
+interface QueuedPopulate {
+  kind: string;
+  token: string;
+  dedupKey: string;
+}
+const populateQueue: QueuedPopulate[] = [];
+let populateFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function markPopulateTransient(dedupKey: string): void {
+  populateState.set(dedupKey, "failed");
+  const fails = (populateFailures.get(dedupKey) ?? 0) + 1;
+  populateFailures.set(dedupKey, fails);
+  const backoff = Math.min(RETRY_BASE_MS * 2 ** (fails - 1), TRIGGER_TTL_MS);
+  triggered.set(dedupKey, Date.now() - TRIGGER_TTL_MS + backoff);
+}
+
+function markPopulatePermanent(dedupKey: string): void {
+  // 4xx: bad token or disallowed host — keep the dedup entry so playlist
+  // polls do not spam the worker, and mark failed so playlists use the
+  // relay fallback.
+  populateState.set(dedupKey, "failed");
+}
+
+async function populateBatchJob(kind: string, items: QueuedPopulate[]): Promise<void> {
+  const tokens = items.map((i) => i.token);
+  let lastError: unknown = null;
+  for (const url of populateBatchUrls(kind, tokens)) {
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        cache: "no-store",
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          results?: Record<string, number>;
+        } | null;
+        if (data?.results) {
+          for (const item of items) {
+            const status = data.results[item.token];
+            if (status === undefined) {
+              markPopulateTransient(item.dedupKey);
+            } else if (status < 400) {
+              populateState.set(item.dedupKey, "stored");
+              populateFailures.delete(item.dedupKey);
+            } else if (status < 500) {
+              markPopulatePermanent(item.dedupKey);
+            } else {
+              markPopulateTransient(item.dedupKey);
+            }
+          }
+          return;
+        }
+        // Non-JSON 200 means an old worker that only understands single
+        // tokens — retry later once the new worker is live everywhere.
+        for (const item of items) markPopulateTransient(item.dedupKey);
+        return;
+      }
+      lastError = new Error(`populate ${res.status}`);
+      if (res.status < 500) {
+        for (const item of items) markPopulatePermanent(item.dedupKey);
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  console.warn(`[r2-segments] populate ${kind} batch failed:`, lastError);
+  for (const item of items) markPopulateTransient(item.dedupKey);
+}
+
+function enqueuePopulateJobs(): void {
+  if (populateQueue.length === 0) return;
+  const items = populateQueue.splice(0, populateQueue.length);
+  const byKind = new Map<string, QueuedPopulate[]>();
+  for (const item of items) {
+    const list = byKind.get(item.kind);
+    if (list) list.push(item);
+    else byKind.set(item.kind, [item]);
+  }
+  for (const [kind, list] of byKind) {
+    for (let i = 0; i < list.length; i += POPULATE_BATCH_MAX) {
+      const chunk = list.slice(i, i + POPULATE_BATCH_MAX);
+      const promise = populateBatchJob(kind, chunk);
+      const pending = kind === "img" ? pendingImagePopulates : pendingPopulates;
+      pending.add(promise);
+      promise.finally(() => pending.delete(promise));
+      scheduleAfter(promise);
+    }
+  }
+}
+
+function flushPopulateQueue(): void {
+  if (populateFlushTimer) {
+    clearTimeout(populateFlushTimer);
+    populateFlushTimer = null;
+  }
+  enqueuePopulateJobs();
+}
+
+/**
  * Asks the relay worker to fetch the segment upstream and store it in R2.
  * If R2 credentials are available, Render fetches and writes directly instead.
  * The returned promise resolves once the object is stored; playlist routes
@@ -180,60 +293,22 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
   triggered.set(dedupKey, now);
   populateState.set(dedupKey, "pending");
 
-  const job = async () => {
-    // Fallback: populate via worker (if URL configured)
-    if (!SEG_POPULATE_URL) {
-      triggered.delete(dedupKey);
-      populateState.delete(dedupKey);
-      return;
-    }
-
-    let lastError: unknown = null;
-    let permanentFail = false;
-    for (const url of populateUrls(kind, token)) {
-      try {
-        const res = await fetch(url, {
-          method: "GET",
-          cache: "no-store",
-          signal: AbortSignal.timeout(20_000),
-        });
-        if (res.ok) {
-          populateState.set(dedupKey, "stored");
-          populateFailures.delete(dedupKey);
-          return;
-        }
-        const detail = await res.text().catch(() => "");
-        console.warn(`[r2-segments] populate ${kind} -> ${res.status} ${detail}`.trim());
-        lastError = new Error(`populate ${res.status}`);
-        // A reached-but-failed worker will fail the same on both URLs; only
-        // transport errors and 5xx justify trying the next endpoint. A 4xx
-        // is permanent (bad token, disallowed host): keep the dedup entry so
-        // playlist polls do not spam the worker, and mark the segment failed
-        // so playlists fall back to the relay URL.
-        if (res.status < 500) {
-          permanentFail = true;
-          break;
-        }
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    console.warn(`[r2-segments] populate ${kind} failed:`, lastError);
-    populateState.set(dedupKey, "failed");
-    if (!permanentFail) {
-      // Exponential backoff: backdate the dedup entry so the key becomes
-      // eligible again after the delay instead of on the next poll.
-      const fails = (populateFailures.get(dedupKey) ?? 0) + 1;
-      populateFailures.set(dedupKey, fails);
-      const backoff = Math.min(RETRY_BASE_MS * 2 ** (fails - 1), TRIGGER_TTL_MS);
-      triggered.set(dedupKey, Date.now() - TRIGGER_TTL_MS + backoff);
-    }
-  };
-  const promise = job();
-  const pending = kind === "img" ? pendingImagePopulates : pendingPopulates;
-  pending.add(promise);
-  promise.finally(() => pending.delete(promise));
-  scheduleAfter(promise);
+  // Queue for the next batch flush instead of firing immediately: a
+  // playlist rewrite triggers several segments at once and they collapse
+  // into a single worker call. `settleSegmentPopulates` flushes the queue
+  // itself, so awaited populates are never stranded in the timer.
+  if (!SEG_POPULATE_URL) {
+    triggered.delete(dedupKey);
+    populateState.delete(dedupKey);
+    return;
+  }
+  populateQueue.push({ kind, token, dedupKey });
+  if (!populateFlushTimer) {
+    populateFlushTimer = setTimeout(() => {
+      populateFlushTimer = null;
+      enqueuePopulateJobs();
+    }, 0);
+  }
 }
 
 /**
@@ -242,6 +317,9 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
  * timeout the populate still finishes via `after()` and later polls retry.
  */
 export async function settleSegmentPopulates(timeoutMs = 8000): Promise<void> {
+  // Drain the queue first: populates triggered microseconds ago by the
+  // playlist rewrite must be awaited, not left sitting in the flush timer.
+  flushPopulateQueue();
   if (pendingPopulates.size === 0) return;
   const snapshot = [...pendingPopulates];
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -255,6 +333,7 @@ export async function settleSegmentPopulates(timeoutMs = 8000): Promise<void> {
 
 /** Same bounded wait, scoped to image populates only (badges are tiny). */
 export async function settleImagePopulates(timeoutMs = 5000): Promise<void> {
+  flushPopulateQueue();
   if (pendingImagePopulates.size === 0) return;
   const snapshot = [...pendingImagePopulates];
   let timer: ReturnType<typeof setTimeout> | undefined;
