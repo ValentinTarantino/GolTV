@@ -726,7 +726,15 @@ async function populateLpf(env: Env, url: URL, kind = "lpf"): Promise<PopulateRe
     return { status: 200, body: "exists" };
   }
 
-  const upstreamRes = await fetchWithMirrorFallback(upstream, null, env, POPULATE_TIMEOUT_MS);
+  let upstreamRes: Response;
+  try {
+    upstreamRes = await fetchWithMirrorFallback(upstream, null, env, POPULATE_TIMEOUT_MS);
+  } catch {
+    // Dead/blackhole hosts make fetch throw (DNS, reset, timeout) — report a
+    // clean 502 instead of an unhandled exception so the app sees the same
+    // transient signal as an upstream HTTP error.
+    return { status: 502, body: "upstream unreachable" };
+  }
   if (!upstreamRes.ok) return { status: 502, body: `upstream ${upstreamRes.status}` };
 
   const contentType = upstreamRes.headers.get("content-type") ?? "";
@@ -734,8 +742,23 @@ async function populateLpf(env: Env, url: URL, kind = "lpf"): Promise<PopulateRe
     upstream.pathname.toLowerCase().endsWith(".m3u8") || contentType.includes("mpegurl");
   if (isPlaylist) return { status: 200, body: "skip-playlist" };
 
-  const body = await upstreamRes.arrayBuffer();
-  await r2PutSegment(env, kind, tokenForKey, body, contentType);
+  let body: ArrayBuffer;
+  try {
+    body = await upstreamRes.arrayBuffer();
+  } catch {
+    return { status: 502, body: "upstream read failed" };
+  }
+  // Some CDNs answer dead segment paths with a 200 HTML error page. Storing
+  // it would poison the R2 object, so reject markup payloads outright.
+  const head = new TextDecoder().decode(body.slice(0, 64));
+  if (contentType.includes("text/html") || /^\s*</.test(head)) {
+    return { status: 502, body: "upstream html" };
+  }
+  try {
+    await r2PutSegment(env, kind, tokenForKey, body, contentType);
+  } catch {
+    return { status: 502, body: "store failed" };
+  }
   return { status: 200, body: "stored" };
 }
 

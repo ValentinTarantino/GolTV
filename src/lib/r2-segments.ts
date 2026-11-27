@@ -177,6 +177,51 @@ interface QueuedPopulate {
   kind: string;
   token: string;
   dedupKey: string;
+  host: string | null;
+}
+
+/**
+ * Per-upstream-host circuit breaker. Live playlists mint a new segment token
+ * every few seconds, so a dead/blackhole host would otherwise cost one
+ * populate call (and one 12s upstream timeout) per new token forever. After
+ * a few transient failures the host is skipped for a cooldown; segment URLs
+ * then resolve to the worker relay fallback, which has its own timeout.
+ */
+const hostPopulateHealth = new Map<string, { fails: number; blockedUntil: number }>();
+const HOST_FAIL_THRESHOLD = 3;
+const HOST_BLOCK_MS = 5 * 60 * 1000;
+const HOST_HEALTH_MAX = 500;
+
+/** Upstream hostname inside an lpf/embed segment token, if decodable. */
+function tokenHost(kind: string, token: string): string | null {
+  if (kind !== "lpf" && kind !== "embed") return null;
+  try {
+    const target = openLpfUrl(token);
+    return target ? new URL(target).hostname.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+function hostBlocked(host: string | null, now: number): boolean {
+  if (!host) return false;
+  const health = hostPopulateHealth.get(host);
+  return health !== undefined && health.blockedUntil > now;
+}
+
+function recordHostPopulateOk(host: string | null): void {
+  if (host) hostPopulateHealth.delete(host);
+}
+
+function recordHostPopulateFail(host: string | null): void {
+  if (!host) return;
+  if (hostPopulateHealth.size > HOST_HEALTH_MAX) hostPopulateHealth.clear();
+  const health = hostPopulateHealth.get(host) ?? { fails: 0, blockedUntil: 0 };
+  health.fails += 1;
+  if (health.fails >= HOST_FAIL_THRESHOLD) {
+    health.blockedUntil = Date.now() + HOST_BLOCK_MS;
+  }
+  hostPopulateHealth.set(host, health);
 }
 const populateQueue: QueuedPopulate[] = [];
 let populateFlushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -215,20 +260,26 @@ async function populateBatchJob(kind: string, items: QueuedPopulate[]): Promise<
             const status = data.results[item.token];
             if (status === undefined) {
               markPopulateTransient(item.dedupKey);
+              recordHostPopulateFail(item.host);
             } else if (status < 400) {
               populateState.set(item.dedupKey, "stored");
               populateFailures.delete(item.dedupKey);
+              recordHostPopulateOk(item.host);
             } else if (status < 500) {
               markPopulatePermanent(item.dedupKey);
             } else {
               markPopulateTransient(item.dedupKey);
+              recordHostPopulateFail(item.host);
             }
           }
           return;
         }
         // Non-JSON 200 means an old worker that only understands single
         // tokens — retry later once the new worker is live everywhere.
-        for (const item of items) markPopulateTransient(item.dedupKey);
+        for (const item of items) {
+          markPopulateTransient(item.dedupKey);
+          recordHostPopulateFail(item.host);
+        }
         return;
       }
       lastError = new Error(`populate ${res.status}`);
@@ -241,7 +292,10 @@ async function populateBatchJob(kind: string, items: QueuedPopulate[]): Promise<
     }
   }
   console.warn(`[r2-segments] populate ${kind} batch failed:`, lastError);
-  for (const item of items) markPopulateTransient(item.dedupKey);
+  for (const item of items) {
+    markPopulateTransient(item.dedupKey);
+    recordHostPopulateFail(item.host);
+  }
 }
 
 function enqueuePopulateJobs(): void {
@@ -305,7 +359,14 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
     populateState.delete(dedupKey);
     return;
   }
-  populateQueue.push({ kind, token, dedupKey });
+  const host = tokenHost(kind, token);
+  if (hostBlocked(host, now)) {
+    // Breaker open for this upstream: skip the worker call entirely and let
+    // the playlist emit the relay fallback URL for this segment.
+    populateState.set(dedupKey, "failed");
+    return;
+  }
+  populateQueue.push({ kind, token, dedupKey, host });
   if (!populateFlushTimer) {
     populateFlushTimer = setTimeout(() => {
       populateFlushTimer = null;
