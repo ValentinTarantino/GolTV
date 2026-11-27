@@ -12,7 +12,10 @@ import {
 } from "@/lib/r2-segments";
 import { isBlockedNetworkTarget } from "@/lib/url-guard";
 
-export const UPSTREAM_TIMEOUT_MS = 45_000;
+// Healthy upstreams answer in ~1-2s. 45s let dead signals hold the origin
+// for ~90s (two mirror candidates) and 504'd unrelated routes; 15s still
+// covers slow-but-alive providers while freeing the server ~3x faster.
+export const UPSTREAM_TIMEOUT_MS = 15_000;
 
 const PASSTHROUGH_HEADERS = [
   "content-type",
