@@ -1,4 +1,5 @@
 import { findTennisStreams, listTennisMatches } from "@/lib/player-six-source";
+import { channelsSignalAlive, matchSignalAlive } from "@/lib/signal-alive";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { proxyImageUrl } from "@/lib/public-url";
 
@@ -45,7 +46,9 @@ export async function GET(): Promise<Response> {
         Promise.allSettled(
           borderline.map(async (m) => {
             const channels = await findTennisStreams(m.matchId);
-            if (channels.length > 0) stillLive.add(m.matchId);
+            if (channels.length > 0 && (await channelsSignalAlive(channels))) {
+              stillLive.add(m.matchId);
+            }
           })
         ),
         new Promise((resolve) => {
@@ -55,6 +58,24 @@ export async function GET(): Promise<Response> {
     } finally {
       clearTimeout(probeTimeout);
     }
+  }
+
+  // Inside the live window the clock alone decides "live" — but a feed can
+  // die mid-match while the card stays up. Probe the playlists (90s cache
+  // per match); dead signals drop to "finished" until they revive.
+  const deadLive = new Set<number>();
+  const inWindow = matches.filter(
+    (m) => m.kickoffMs > 0 && m.kickoffMs <= now && now - m.kickoffMs <= LIVE_WINDOW_MS
+  );
+  if (inWindow.length > 0) {
+    await Promise.all(
+      inWindow.map(async (m) => {
+        const alive = await matchSignalAlive(`tennis:alive:${m.matchId}`, () =>
+          findTennisStreams(m.matchId)
+        );
+        if (!alive) deadLive.add(m.matchId);
+      })
+    );
   }
 
   // Resolve every crest up front; uncatalogued teams fall back to the
@@ -108,9 +129,11 @@ export async function GET(): Promise<Response> {
     status:
       match.kickoffMs > now
         ? "upcoming"
-        : now - match.kickoffMs <= LIVE_WINDOW_MS || stillLive.has(match.matchId)
-          ? "live"
-          : "finished",
+        : deadLive.has(match.matchId)
+          ? "finished"
+          : now - match.kickoffMs <= LIVE_WINDOW_MS || stillLive.has(match.matchId)
+            ? "live"
+            : "finished",
   }));
 
   return Response.json(

@@ -41,6 +41,28 @@ export async function channelsSignalAlive(channels: Channel[]): Promise<boolean>
 }
 
 /**
+ * Cached variant for probes that return a boolean directly (multi-source
+ * events like football, where each player mode resolves separately).
+ * Same contract: a probe/load failure returns true — never hide an event
+ * on our own error.
+ */
+export async function matchSignalCheck(
+  cacheKey: string,
+  probe: () => Promise<boolean>,
+  ttlMs = ALIVE_CACHE_TTL
+): Promise<boolean> {
+  const cached = await getCache<boolean>(cacheKey);
+  if (cached !== null) return cached;
+  try {
+    const alive = await probe();
+    await setCache(cacheKey, alive, ttlMs);
+    return alive;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Cached variant: resolves the event's channels and probes them, memoized
  * per `cacheKey` so repeated agenda polls do not hammer the provider.
  * A probe/load failure returns true — never hide an event on our own error.
@@ -50,13 +72,5 @@ export async function matchSignalAlive(
   loadChannels: () => Promise<Channel[]>,
   ttlMs = ALIVE_CACHE_TTL
 ): Promise<boolean> {
-  const cached = await getCache<boolean>(cacheKey);
-  if (cached !== null) return cached;
-  try {
-    const alive = await channelsSignalAlive(await loadChannels());
-    await setCache(cacheKey, alive, ttlMs);
-    return alive;
-  } catch {
-    return true;
-  }
+  return matchSignalCheck(cacheKey, async () => channelsSignalAlive(await loadChannels()), ttlMs);
 }

@@ -2,10 +2,15 @@ import { canonicalTeamForDedup, fixtureTeamPair, isPlaceholderTeam } from "@/lib
 import { cleanAgendaText, cleanAgendaTeamName } from "@/lib/agenda-text";
 import { NextRequest } from "next/server";
 import { fetchAgenda } from "@/lib/agenda-source";
-import { fetchSecondaryAgenda } from "@/lib/secondary-source";
+import { fetchSecondaryAgenda, findSecondaryStreams } from "@/lib/secondary-source";
 import { fetchEventAgenda } from "@/lib/event-source";
-import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
-import { getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub, FINISHED_STATUSES, SPORTS_MEDIA_BASE } from "@/lib/constants";
+import { fetchPlayerFiveAgenda, findPlayerFiveStreams } from "@/lib/player-five-source";
+import { findGridStreams } from "@/lib/grid-source";
+import { findLpfStreams } from "@/lib/lpf-source";
+import { findPlayerSixStreams } from "@/lib/player-six-source";
+import { findPrimaryStreams } from "@/lib/primary-player-source";
+import { channelsSignalAlive, matchSignalCheck } from "@/lib/signal-alive";
+import { getBroadcastChannels, LEAGUE_LOGOS, isMenFootballMatch, SUPPORTED_LEAGUES, hasParaguayanClub, FINISHED_STATUSES, LIVE_STATUSES, SPORTS_MEDIA_BASE } from "@/lib/constants";
 import { getTeamLogo, peekTeamLogo } from "@/lib/team-logos";
 import { leagueRanks, loadLeagueOrder } from "@/lib/league-order";
 import { espnSlugsForLeague, espnSlugsForLeagues, findEspnEvent, loadEspnScoreboards } from "@/lib/espn-scores";
@@ -19,7 +24,7 @@ import { isIPBanned } from "@/lib/chat";
 import { touchRequestPresence } from "@/lib/presence";
 import { BANNED_HEADER } from "@/lib/viewer-id";
 import { settleImagePopulates } from "@/lib/r2-segments";
-import type { Match } from "@/lib/types";
+import type { Channel, Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
 
 function getClientIP(request: Request): string {
@@ -508,6 +513,43 @@ export async function GET(request: NextRequest) {
   // leave the listing entirely — they are results, not watchable fixtures.
   for (let i = matches.length - 1; i >= 0; i--) {
     if (FINISHED_STATUSES.includes(matches[i].status.short)) matches.splice(i, 1);
+  }
+
+  // A live badge only proves the clock, not the feed: providers keep cards
+  // up after the signal dies, and viewers who click get a dead player.
+  // Live-status matches get their player signals probed (each player mode
+  // resolves separately); a fixture with no live HLS anywhere leaves the
+  // listing like a finished one. Cached 90s per match — a probe failure
+  // keeps the match rather than hiding it on our own error.
+  const liveFixtures = matches.filter((m) => LIVE_STATUSES.includes(m.status.short));
+  if (liveFixtures.length > 0) {
+    const dead = new Set<Match>();
+    await Promise.all(
+      liveFixtures.map(async (m) => {
+        const home = m.homeTeam.name;
+        const away = m.awayTeam.name;
+        const alive = await matchSignalCheck(`football:alive:${m.id}`, async () => {
+          const loaders = [
+            () => findPrimaryStreams(home, away),
+            () => findPlayerSixStreams(home, away),
+            () => findLpfStreams(home, away),
+            () => findPlayerFiveStreams(home, away),
+            () => findSecondaryStreams(home, away),
+            () => findGridStreams(home, away),
+          ];
+          for (const load of loaders) {
+            const channels: Channel[] = await load().catch(() => []);
+            if (channels.length === 0) continue;
+            if (await channelsSignalAlive(channels)) return true;
+          }
+          return false;
+        });
+        if (!alive) dead.add(m);
+      })
+    );
+    for (let i = matches.length - 1; i >= 0; i--) {
+      if (dead.has(matches[i])) matches.splice(i, 1);
+    }
   }
 
   const logoMap = await logoWork;
