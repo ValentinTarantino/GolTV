@@ -137,11 +137,14 @@ export function resolveDeferredSegmentUrls(
  * keeps browser and datacenter fetches on the normal pipeline; the worker
  * serves the segment from upstream or R2 with Cloudflare edge bandwidth.
  */
-export function workerSegFallbackUrl(token: string): string {
+export function workerSegFallbackUrl(token: string, kind = "lpf"): string {
   const base = (process.env.NEXT_PUBLIC_BASE_URL ?? "https://goltv.stream")
     .trim()
     .replace(/\/+$/, "");
-  return `${base}/api/hls/seg?t=${encodeURIComponent(token)}`;
+  // Non-lpf kinds (embed-playlist segments) tell the worker which R2 key
+  // namespace and host policy apply; lpf keeps the original URL shape.
+  const kindParam = kind === "lpf" ? "" : `&k=${encodeURIComponent(kind)}`;
+  return `${base}/api/hls/seg?t=${encodeURIComponent(token)}${kindParam}`;
 }
 
 /**

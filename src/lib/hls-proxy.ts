@@ -119,7 +119,8 @@ export function rewritePlaylistToAbsolute(body: string, upstream: URL): string {
 function toRelay(
   value: string,
   upstream: URL,
-  defer?: DeferredSegmentUrl[]
+  defer?: DeferredSegmentUrl[],
+  kind = "lpf"
 ): string {
   if (/^(data|blob):/i.test(value)) return value;
   try {
@@ -141,12 +142,17 @@ function toRelay(
         // Deferred fallback is the worker segment relay: it is the only path
         // that serves upstream bytes with Cloudflare edge bandwidth (no
         // Render egress), at the cost of one Worker request per segment.
-        const fallback = SEG_RELAY_BASE
-          ? `${SEG_RELAY_BASE}/seg?t=${token}`
-          : workerSegFallbackUrl(token);
-        if (defer) return deferSegmentUrl("lpf", token, fallback, defer);
-        triggerSegmentPopulate("lpf", token);
-        return r2SegmentUrl("lpf", token);
+        // Embed segments always use the zone route — their rotating CDN
+        // hosts are only allowed there under the "embed" kind.
+        const fallback =
+          kind !== "lpf"
+            ? workerSegFallbackUrl(token, kind)
+            : SEG_RELAY_BASE
+              ? `${SEG_RELAY_BASE}/seg?t=${token}`
+              : workerSegFallbackUrl(token);
+        if (defer) return deferSegmentUrl(kind, token, fallback, defer);
+        triggerSegmentPopulate(kind, token);
+        return r2SegmentUrl(kind, token);
       }
       return SEG_RELAY_BASE
         ? `${SEG_RELAY_BASE}/seg?t=${token}`
@@ -164,12 +170,14 @@ function toRelay(
 /**
  * Rewrites a HLS playlist so segments (and key/map URIs) load through the
  * relay. Relative lines are resolved against the upstream playlist URL first,
- * mirroring how browsers resolve them.
+ * mirroring how browsers resolve them. `kind` selects the R2 namespace and
+ * the worker populate policy ("lpf" allowlist vs "embed" sealed-token).
  */
 export function rewriteHlsPlaylist(
   body: string,
   upstream: URL,
-  defer?: DeferredSegmentUrl[]
+  defer?: DeferredSegmentUrl[],
+  kind = "lpf"
 ): string {
   return body
     .split("\n")
@@ -178,9 +186,9 @@ export function rewriteHlsPlaylist(
       if (trimmed === "") return line;
       if (trimmed.startsWith("#")) {
         // EXT-X-KEY / EXT-X-MAP / EXT-X-I-FRAME-STREAM-INF carry URI="…" attrs.
-        return line.replace(URI_ATTR_RE, (_match, uri: string) => `URI="${toRelay(uri, upstream, defer)}"`);
+        return line.replace(URI_ATTR_RE, (_match, uri: string) => `URI="${toRelay(uri, upstream, defer, kind)}"`);
       }
-      return toRelay(trimmed, upstream, defer);
+      return toRelay(trimmed, upstream, defer, kind);
     })
     .join("\n");
 }

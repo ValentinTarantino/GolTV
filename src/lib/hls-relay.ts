@@ -4,6 +4,7 @@ import {
   resolveEmbedPlaylist,
 } from "@/lib/embed-resolver";
 import { isAllowedStreamUrl, rewriteHlsPlaylist, rewritePlaylistToAbsolute } from "@/lib/hls-proxy";
+import { getCache, setCache } from "@/lib/cache";
 import { getSharedPlaylist, setSharedPlaylist } from "@/lib/playlist-cache";
 import {
   resolveDeferredSegmentUrls,
@@ -242,6 +243,61 @@ export async function relaySegment(
   }
 }
 
+/**
+ * Some embed providers serve segments from a CDN with
+ * `access-control-allow-origin: *` (safe to hand the browser directly);
+ * others do not, and an absolutized URL leaves hls.js with a black screen.
+ * Probe one byte range per host and memoise the answer — the check costs a
+ * single upstream request per host per ~10 minutes, not per viewer.
+ */
+const SEG_CORS_TTL = 10 * 60 * 1000;
+
+async function segmentHostAllowsCors(segmentUrl: string): Promise<boolean> {
+  let host: string;
+  try {
+    host = new URL(segmentUrl).hostname;
+  } catch {
+    return false;
+ }
+  const key = `embed-seg-cors:${host}`;
+  const cached = await getCache<boolean>(key).catch(() => null);
+  if (cached !== null) return cached;
+  let allowed = false;
+  try {
+    const res = await fetch(segmentUrl, {
+      headers: {
+        "User-Agent": EMBED_USER_AGENT,
+        Range: "bytes=0-0",
+        Accept: "*/*",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(8_000),
+      cache: "no-store",
+    });
+    const acao = res.headers.get("access-control-allow-origin");
+    allowed = Boolean(acao && acao !== "null");
+    await res.body?.cancel().catch(() => {});
+  } catch {
+    allowed = false;
+  }
+  await setCache(key, allowed, SEG_CORS_TTL).catch(() => {});
+  return allowed;
+}
+
+/** First media-segment URL in a playlist body, resolved against the playlist. */
+function firstSegmentUrl(body: string, playlist: URL): string | null {
+  for (const line of body.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    try {
+      return new URL(trimmed, playlist).href;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export async function relayEmbedPage(rawPage: string): Promise<Response> {
   let page: URL;
   try {
@@ -270,7 +326,23 @@ export async function relayEmbedPage(rawPage: string): Promise<Response> {
     }
     const body = await upstreamRes.text();
     const finalUrl = upstreamRes.url ? new URL(upstreamRes.url) : playlist;
-    return new Response(rewritePlaylistToAbsolute(body, finalUrl), {
+    // CORS-free segment CDNs can be absolutized (saves relay bandwidth);
+    // anything else must go through /api/hls/seg so hls.js never hits a
+    // cross-origin fetch the provider did not opt into.
+    const firstSegment = firstSegmentUrl(body, finalUrl);
+    const directOk = firstSegment ? await segmentHostAllowsCors(firstSegment) : false;
+    if (directOk) {
+      return new Response(rewritePlaylistToAbsolute(body, finalUrl), {
+        status: 200,
+        headers: PLAYLIST_HEADERS,
+      });
+    }
+    // Segments go through R2 under the "embed" kind: populate settles before
+    // the playlist is emitted so viewers never hit an unpopulated object.
+    const deferred: DeferredSegmentUrl[] = [];
+    const rewritten = rewriteHlsPlaylist(body, finalUrl, deferred, "embed");
+    await settleSegmentPopulates();
+    return new Response(resolveDeferredSegmentUrls(rewritten, deferred), {
       status: 200,
       headers: PLAYLIST_HEADERS,
     });

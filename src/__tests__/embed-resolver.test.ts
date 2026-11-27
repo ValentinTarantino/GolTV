@@ -220,6 +220,10 @@ describe("/api/hls embed entry point", () => {
       if (url.includes("_json=1")) {
         return new Response(JSON.stringify({ url: "/playlist-latin/n11-abc/index/caxi?token=p", exp: Math.floor(Date.now() / 1000) + 600, ready: true }), { status: 200 });
       }
+      // Segment hosts that opt into CORS keep their absolute URLs.
+      if (url.includes("/seg/")) {
+        return new Response(null, { status: 200, headers: { "access-control-allow-origin": "*" } });
+      }
       return new Response(playlist, { status: 200, headers: { "Content-Type": "application/vnd.apple.mpegurl" } });
     }) as unknown as typeof fetch;
 

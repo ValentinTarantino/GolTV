@@ -309,7 +309,14 @@ async function handleLpfSeg(request: Request, env: Env, url: URL): Promise<Respo
   if (isEmbedPlayerPage(upstream, env)) {
     return new Response("Player pages are not segments", { status: 400 });
   }
-  if (!isAllowedStreamUrl(upstream, env)) {
+  // Embed-playlist segments carry ?k=embed: their CDNs rotate hosts, so they
+  // skip the stream allowlist and rely on the sealed token + SSRF guard.
+  const segKind = url.searchParams.get("k") === "embed" ? "embed" : "lpf";
+  if (segKind === "embed") {
+    if (isBlockedNetworkTarget(upstream)) {
+      return new Response(`Blocked segment host: ${upstream.hostname}`, { status: 403 });
+    }
+  } else if (!isAllowedStreamUrl(upstream, env)) {
     return new Response("Stream host not allowed", { status: 403 });
   }
 
@@ -319,7 +326,7 @@ async function handleLpfSeg(request: Request, env: Env, url: URL): Promise<Respo
   // Populate-on-miss: try R2 first, populate if missing (no Range requests)
   if (bucket && !range) {
     const tokenForKey = rawToken ?? upstream.toString();
-    const key = r2SegmentKey("lpf", tokenForKey);
+    const key = r2SegmentKey(segKind, tokenForKey);
     const fromR2 = await r2ServeSegment(bucket, key);
     if (fromR2) return fromR2;
 
@@ -340,7 +347,7 @@ async function handleLpfSeg(request: Request, env: Env, url: URL): Promise<Respo
       }
 
       const body = await upstreamRes.arrayBuffer();
-      await r2PutSegment(env, "lpf", tokenForKey, body, contentType || "video/mp2t");
+      await r2PutSegment(env, segKind, tokenForKey, body, contentType || "video/mp2t");
       return new Response(body, {
         status: 200,
         headers: { ...SEGMENT_HEADERS, "Content-Type": contentType || "video/mp2t" },
@@ -677,8 +684,12 @@ interface PopulateResult {
   body: string;
 }
 
-/** Fetches one LPF segment upstream and stores it in R2. */
-async function populateLpf(env: Env, url: URL): Promise<PopulateResult> {
+/** Fetches one HLS segment upstream and stores it in R2.
+ *  kind "embed" covers segments discovered inside allowlisted embed player
+ *  pages: their CDNs rotate hosts, so instead of the stream-host allowlist
+ *  they rely on the sealed token (only the app can mint it) plus the SSRF
+ *  guard. */
+async function populateLpf(env: Env, url: URL, kind = "lpf"): Promise<PopulateResult> {
   const rawToken = url.searchParams.get("t");
   const rawPlain = url.searchParams.get("u");
 
@@ -702,12 +713,16 @@ async function populateLpf(env: Env, url: URL): Promise<PopulateResult> {
   }
   if (upstream.protocol !== "https:") return { status: 403, body: "Segment URL not allowed" };
   if (isEmbedPlayerPage(upstream, env)) return { status: 400, body: "Player pages are not segments" };
-  if (!isAllowedStreamUrl(upstream, env) && !isLpfStreamHostAllowed(upstream, env)) {
+  if (kind === "embed") {
+    if (isBlockedNetworkTarget(upstream)) {
+      return { status: 403, body: `Blocked segment host: ${upstream.hostname}` };
+    }
+  } else if (!isAllowedStreamUrl(upstream, env) && !isLpfStreamHostAllowed(upstream, env)) {
     return { status: 403, body: `Stream host not allowed: ${upstream.hostname}` };
   }
 
   const tokenForKey = rawToken ?? upstream.toString();
-  if (await r2HasSegment(env, "lpf", tokenForKey)) {
+  if (await r2HasSegment(env, kind, tokenForKey)) {
     return { status: 200, body: "exists" };
   }
 
@@ -720,7 +735,7 @@ async function populateLpf(env: Env, url: URL): Promise<PopulateResult> {
   if (isPlaylist) return { status: 200, body: "skip-playlist" };
 
   const body = await upstreamRes.arrayBuffer();
-  await r2PutSegment(env, "lpf", tokenForKey, body, contentType);
+  await r2PutSegment(env, kind, tokenForKey, body, contentType);
   return { status: 200, body: "stored" };
 }
 
@@ -856,18 +871,53 @@ async function populateImg(env: Env, url: URL): Promise<PopulateResult> {
   return { status: 200, body: "stored" };
 }
 
+/** Max tokens per batched populate invocation (bounds subrequests per call). */
+const POPULATE_BATCH_MAX = 12;
+/** Concurrent upstream fetches inside one batched invocation. */
+const POPULATE_BATCH_CONCURRENCY = 4;
+
 async function handlePopulate(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method !== "GET" && request.method !== "POST") {
     return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, POST" } });
   }
   const kind = url.searchParams.get("kind");
+
+  // Batched mode: repeated ?t= params populate several segments inside a
+  // single worker invocation — one counted request instead of one per
+  // segment. Each token gets its own synthetic URL so the per-kind
+  // handlers (token open, allowlists, R2 keys) run unchanged.
+  const tokens = url.searchParams.getAll("t").filter(Boolean);
+  if (tokens.length > 1) {
+    const results: Record<string, number> = {};
+    for (let i = 0; i < Math.min(tokens.length, POPULATE_BATCH_MAX); i += POPULATE_BATCH_CONCURRENCY) {
+      await Promise.all(
+        tokens.slice(i, i + POPULATE_BATCH_CONCURRENCY).map(async (token) => {
+          const perToken = new URL(url.toString());
+          perToken.searchParams.set("t", token);
+          try {
+            const result =
+              kind === "canal"
+                ? await populateCanal(env, perToken)
+                : kind === "img"
+                  ? await populateImg(env, perToken)
+                  : await populateLpf(env, perToken, kind === "embed" ? "embed" : "lpf");
+            results[token] = result.status;
+          } catch {
+            results[token] = 502;
+          }
+        })
+      );
+    }
+    return Response.json({ results }, { headers: { ...CORS_HEADERS } });
+  }
+
   try {
     const result =
       kind === "canal"
         ? await populateCanal(env, url)
         : kind === "img"
           ? await populateImg(env, url)
-          : await populateLpf(env, url);
+          : await populateLpf(env, url, kind === "embed" ? "embed" : "lpf");
     return new Response(result.body, {
       status: result.status,
       headers: { "Content-Type": "text/plain", ...CORS_HEADERS },

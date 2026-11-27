@@ -20,7 +20,7 @@ export const EMBED_USER_AGENT =
 
 /** Player-family domains, all from `EMBED_PLAYER_DOMAINS` (comma-separated). */
 
-const WRAPPER_PATH_RE = /\/streamlat\.html$/i;
+const WRAPPER_PATH_RE = /\/(?:streamlat|streameast)\.html$/i;
 /**
  * Player pages of the same family: `framelatin.php?ch=` (football feeds) and
  * `framestream.php?id=` (the boxing/MMA wrapper). Both answer `?_json=1` with a
@@ -38,6 +38,10 @@ const REQUEST_TIMEOUT_MS = 6000;
 export interface WrapperConfig {
   domain: string;
   edges: string[];
+  /** Player page the wrapper frames: framelatin.php?ch= or framestream.php?id=. */
+  playerPath?: "framelatin" | "framestream";
+  /** Query param carrying the channel id on the player page. */
+  channelParam?: "ch" | "id";
 }
 
 function httpsUrl(value: string): URL | null {
@@ -83,13 +87,20 @@ export function isPlayerWrapperPage(url: URL): boolean {
 
 /** Extract the player domain and edge list from the wrapper's inline script. */
 export function parseWrapperConfig(html: string): WrapperConfig | null {
-  const domain = html.match(/edgeDomain\s*=\s*[^;]*?\|\|\s*['"]([^'"]+)['"]/i)?.[1]?.trim().toLowerCase();
+  // streamlat.html declares `edgeDomain = ... || 'domain'`; streameast.html
+  // hardcodes the domain inside the frame URL template instead.
+  const domain =
+    html.match(/edgeDomain\s*=\s*[^;]*?\|\|\s*['"]([^'"]+)['"]/i)?.[1]?.trim().toLowerCase() ??
+    html.match(/\$\{\s*edge\s*\}\.([a-z0-9][a-z0-9.-]*)/i)?.[1]?.trim().toLowerCase();
   const rawEdges = html.match(/const\s+edges\s*=\s*\[([^\]]+)\]/i)?.[1] ?? "";
   const edges = rawEdges
     .split(",")
     .map((entry) => entry.trim().replace(/^['"]|['"]$/g, ""))
     .filter((entry) => EDGE_RE.test(entry));
   if (!domain || !DOMAIN_RE.test(domain) || edges.length === 0) return null;
+  if (/framestream\.php/i.test(html)) {
+    return { domain, edges, playerPath: "framestream", channelParam: "id" };
+  }
   return { domain, edges };
 }
 
@@ -118,7 +129,11 @@ export function embedPageFromWrapper(wrapper: URL, config: WrapperConfig): URL |
       : "");
   if (!CHANNEL_PARAM_RE.test(channel)) return null;
   const edge = config.edges[stableIndex(channel, config.edges.length)];
-  const page = httpsUrl(`https://${edge}.${domain}/framelatin.php?ch=${encodeURIComponent(channel)}`);
+  const playerPath = config.playerPath ?? "framelatin";
+  const channelParam = config.channelParam ?? "ch";
+  const page = httpsUrl(
+    `https://${edge}.${domain}/${playerPath}.php?${channelParam}=${encodeURIComponent(channel)}`
+  );
   return page && isPlayerHost(page.hostname) ? page : null;
 }
 

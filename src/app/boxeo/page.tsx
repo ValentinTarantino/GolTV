@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTimeZone } from "@/contexts/TimeZoneContext";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import ChatBox from "@/components/chat/ChatBox";
 import ViewerBadge from "@/components/matches/ViewerBadge";
@@ -35,17 +36,18 @@ function pickInitialMatch(list: CombatMatch[]): number | null {
   return list[0]?.id ?? null;
 }
 
-/** Kickoff arrives in UTC; render it in Argentina time like the LPF page. */
-function formatTime(start: string): string {
+/** Kickoff arrives in UTC; render it in the zone picked in the navbar. */
+function formatTime(start: string, lang: string, timeZone: string): string {
   if (!start) return "";
   const date = new Date(start);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("es-AR", {
+  return date.toLocaleString(lang === "es" ? "es-AR" : "en-US", {
     day: "2-digit",
     month: "2-digit",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
+    hour12: true,
+    timeZone,
   });
 }
 
@@ -55,7 +57,8 @@ function matchLabel(match: CombatMatch): string {
 }
 
 export default function BoxeoPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { timeZone } = useTimeZone();
   const copy = t.combat;
 
   const [matches, setMatches] = useState<CombatMatch[]>([]);
@@ -333,7 +336,7 @@ export default function BoxeoPage() {
                       {matchLabel(match)}
                     </span>
                     <span className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-bold uppercase sm:text-xs">{formatTime(match.startsAt)}</span>
+                      <span className="text-[10px] font-bold uppercase sm:text-xs">{formatTime(match.startsAt, language, timeZone)}</span>
                       {match.live ? (
                         <span className="flex shrink-0 items-center gap-1 text-[10px] font-black uppercase sm:text-xs">
                           <span className="h-1.5 w-1.5 rounded-full bg-accent-red animate-pulse" />
