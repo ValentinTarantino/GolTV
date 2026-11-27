@@ -146,6 +146,10 @@ export function workerSegFallbackUrl(token: string): string {
 const triggered = new Map<string, number>();
 const TRIGGER_TTL_MS = 10 * 60 * 1000;
 const TRIGGER_MAP_MAX = 5000;
+/** Consecutive transient populate failures per key — drives the retry backoff. */
+const populateFailures = new Map<string, number>();
+/** First retry delay after a transient failure; doubles per failure, capped at TRIGGER_TTL_MS. */
+const RETRY_BASE_MS = 30 * 1000;
 
 /** Populate calls in flight — playlist routes await them before responding. */
 const pendingPopulates = new Set<Promise<void>>();
@@ -158,8 +162,9 @@ const pendingImagePopulates = new Set<Promise<void>>();
  * If R2 credentials are available, Render fetches and writes directly instead.
  * The returned promise resolves once the object is stored; playlist routes
  * await `settleSegmentPopulates` so viewers never receive an R2 URL for an
- * object that is not stored yet. Failures clear the dedup entry so the next
- * playlist poll retries the populate.
+ * object that is not stored yet. Transient failures retry with exponential
+ * backoff (30s → 10min cap) so a dead upstream is not hammered by every
+ * playlist poll; permanent 4xx failures keep the normal dedup window.
  */
 export function triggerSegmentPopulate(kind: string, token: string): void {
   if (!MEDIA_CDN_BASE) return;
@@ -170,6 +175,7 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
   if (triggered.size > TRIGGER_MAP_MAX) {
     triggered.clear();
     populateState.clear();
+    populateFailures.clear();
   }
   triggered.set(dedupKey, now);
   populateState.set(dedupKey, "pending");
@@ -193,6 +199,7 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
         });
         if (res.ok) {
           populateState.set(dedupKey, "stored");
+          populateFailures.delete(dedupKey);
           return;
         }
         const detail = await res.text().catch(() => "");
@@ -213,7 +220,14 @@ export function triggerSegmentPopulate(kind: string, token: string): void {
     }
     console.warn(`[r2-segments] populate ${kind} failed:`, lastError);
     populateState.set(dedupKey, "failed");
-    if (!permanentFail) triggered.delete(dedupKey);
+    if (!permanentFail) {
+      // Exponential backoff: backdate the dedup entry so the key becomes
+      // eligible again after the delay instead of on the next poll.
+      const fails = (populateFailures.get(dedupKey) ?? 0) + 1;
+      populateFailures.set(dedupKey, fails);
+      const backoff = Math.min(RETRY_BASE_MS * 2 ** (fails - 1), TRIGGER_TTL_MS);
+      triggered.set(dedupKey, Date.now() - TRIGGER_TTL_MS + backoff);
+    }
   };
   const promise = job();
   const pending = kind === "img" ? pendingImagePopulates : pendingPopulates;
