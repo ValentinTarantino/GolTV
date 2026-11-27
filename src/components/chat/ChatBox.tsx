@@ -125,11 +125,6 @@ function ChatSession({ matchId }: ChatBoxProps) {
     try {
       const res = await fetch(`/api/chat?matchId=${matchId}&offset=${offsetRef.current}`, { cache: "no-store" });
       const data = await res.json();
-      // Admin kicked this viewer: same blank-tab effect as DevToolsGuard.
-      if (data.kicked) {
-        window.location.href = "about:blank";
-        return;
-      }
       if (!res.ok) {
         setError(res.status === 503 ? t.chat.storageUnavailable : t.chat.loadError);
         return;
@@ -328,10 +323,6 @@ function ChatSession({ matchId }: ChatBoxProps) {
         }),
       });
       const data = await res.json();
-      if (data.kicked) {
-        window.location.href = "about:blank";
-        return;
-      }
       if (!res.ok) {
         setError(data.error === "Rate limited" ? t.chat.rateLimit
           : res.status === 503 ? t.chat.storageUnavailable : t.chat.sendError);

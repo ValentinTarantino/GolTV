@@ -294,31 +294,3 @@ export async function removeViewer(matchId: string, viewerId: string): Promise<n
     return memoryCount(matchId);
   }
 }
-
-/**
- * Drops every presence doc for a viewer across all matches (admin kick).
- * Ambient traffic will not re-add them: touchRequestPresence skips kicked
- * ids. Memory fallback removes all keys ending in `:${viewerId}`.
- */
-export async function removeViewerEverywhere(viewerId: string): Promise<void> {
-  const collection = await getViewersCollection();
-  const suffix = `:${viewerId}`;
-
-  if (!collection) {
-    for (const key of [...memoryViewers.keys()]) {
-      if (key.endsWith(suffix)) {
-        memoryViewers.delete(key);
-        memoryNicks.delete(key);
-        memoryMeta.delete(key);
-        lastTouchWrite.delete(key);
-      }
-    }
-    return;
-  }
-
-  try {
-    await collection.deleteMany({ viewerId });
-  } catch {
-    // best effort — presence docs expire on their own within ACTIVE_WINDOW_MS
-  }
-}

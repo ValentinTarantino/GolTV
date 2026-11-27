@@ -33,7 +33,6 @@ export default function AdminPage() {
   const [liveViewers, setLiveViewers] = useState<LiveViewer[] | null>(null);
   const [matchLabels, setMatchLabels] = useState<Record<string, string>>({});
   const [expandedViewer, setExpandedViewer] = useState<string | null>(null);
-  const [kickedIds, setKickedIds] = useState<Set<string>>(new Set());
   const [viewerGeo, setViewerGeo] = useState<Record<string, { country?: string; city?: string; region?: string; isp?: string }>>({});
   // Wall clock for the "joined / last seen" counters. Reading Date.now() while
   // rendering is impure, so the value comes from state refreshed by a timer.
@@ -132,9 +131,6 @@ export default function AdminPage() {
         if (res.ok) {
           const data = await res.json();
           if (!cancelled && Array.isArray(data.viewers)) setLiveViewers(data.viewers);
-          if (!cancelled && Array.isArray(data.kickedViewerIds)) {
-            setKickedIds(new Set(data.kickedViewerIds));
-          }
         }
       } catch {
         // transient error — keep the last list
@@ -262,24 +258,6 @@ export default function AdminPage() {
       })
       .catch(() => {});
   }, []);
-
-  const handleKickViewer = async (viewerId: string) => {
-    try {
-      const res = await fetch("/api/admin/viewers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ viewerId, action: "kick" }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setKickedIds((prev) => new Set(prev).add(viewerId));
-        setLiveViewers((prev) => prev?.filter((v) => v.viewerId !== viewerId) ?? prev);
-        setExpandedViewer((cur) => (cur === viewerId ? null : cur));
-      }
-    } catch {
-      // Ignore errors
-    }
-  };
 
   const handleBanViewerIP = async (ip: string) => {
     try {
@@ -502,17 +480,6 @@ export default function AdminPage() {
                                 Banear IP
                               </button>
                             ))}
-                          {kickedIds.has(viewerId) ? (
-                            <span className="text-[10px] font-bold uppercase text-orange-400">Kickeado</span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleKickViewer(viewerId)}
-                              className="px-2 py-1 text-[10px] font-bold uppercase bg-orange-600 text-white border border-white/40 hover:bg-orange-700"
-                            >
-                              Mandar a blank
-                            </button>
-                          )}
                         </div>
                       </div>
                     )}
