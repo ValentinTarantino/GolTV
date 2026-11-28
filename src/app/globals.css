@@ -102,7 +102,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     position: relative;
+    /* clip (not hidden): overflow:hidden on body makes it the scroll container
+       and silently breaks position:sticky descendants like the navbar. */
     overflow-x: hidden;
+    overflow-x: clip;
     background-image: repeating-linear-gradient(
       to bottom,
       #0a0a0a,

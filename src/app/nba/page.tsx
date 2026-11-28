@@ -274,8 +274,8 @@ export default function NbaPage() {
                 <div className="relative flex aspect-video w-full items-center justify-center border-3 border-white bg-black sm:border-4">
                   {streamState === "loading" ? (
                     <div className="flex flex-col items-center gap-3 px-6 text-center">
-                      <RefreshCw size={26} strokeWidth={3} className="animate-spin text-accent-primary" />
-                      <span className="text-xs font-black uppercase tracking-widest text-white sm:text-sm">
+                      <RefreshCw size={26} strokeWidth={3} className="animate-spin text-[#f97316]" />
+                      <span className="text-xs font-black uppercase tracking-widest text-[#f97316] sm:text-sm">
                         {copy.loadingStream}
                       </span>
                     </div>
@@ -451,8 +451,8 @@ export default function NbaPage() {
 
       {listState === "loading" && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/90 backdrop-blur-sm">
-          <RefreshCw size={36} strokeWidth={3} className="animate-spin text-accent-primary" />
-          <span className="text-xs font-black uppercase tracking-widest text-white sm:text-sm">
+          <RefreshCw size={36} strokeWidth={3} className="animate-spin text-[#f97316]" />
+          <span className="text-xs font-black uppercase tracking-widest text-[#f97316] sm:text-sm">
             {copy.loadingMatches}
           </span>
         </div>

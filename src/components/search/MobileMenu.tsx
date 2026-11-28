@@ -10,6 +10,13 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import type { Match } from "@/lib/types";
 import TimeZoneSelect from "@/components/layout/TimeZoneSelect";
+import DiscordIcon from "@/components/icons/DiscordIcon";
+import XIcon from "@/components/icons/XIcon";
+
+const SOCIAL_LINKS = [
+  { href: "https://discord.gg/WWSkcyBrx", label: "Discord", Icon: DiscordIcon },
+  { href: "https://x.com/GOLTVLIBRE", label: "X", Icon: XIcon },
+] as const;
 
 function formatDateISO(date: Date): string {
   return date.toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).slice(0, 10);
@@ -126,6 +133,23 @@ export default function MobileMenu() {
 
           <div className="px-4 py-3 border-b-2 border-white">
             <TimeZoneSelect mobile />
+          </div>
+
+          <div className="px-4 py-3 border-b-2 border-white">
+            <div className="grid grid-cols-2 gap-2">
+              {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+                <a
+                  key={href}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 border-2 border-white bg-black text-white shadow-[4px_4px_0px_0px_#a3e635] font-black text-sm uppercase hover:bg-white hover:text-black hover:shadow-[4px_4px_0px_0px_#000] transition-colors"
+                >
+                  <Icon size={16} />
+                  <span>{label}</span>
+                </a>
+              ))}
+            </div>
           </div>
 
           <div className="px-4 py-3 border-b-2 border-white">
