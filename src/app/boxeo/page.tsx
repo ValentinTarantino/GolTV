@@ -36,7 +36,7 @@ function pickInitialMatch(list: CombatMatch[]): number | null {
   return list[0]?.id ?? null;
 }
 
-/** Kickoff arrives in UTC; render it in the zone picked in the navbar. */
+/** Kickoff arrives in UTC; render the day only, in the zone picked in the navbar. */
 function formatTime(start: string, lang: string, timeZone: string): string {
   if (!start) return "";
   const date = new Date(start);
@@ -44,9 +44,6 @@ function formatTime(start: string, lang: string, timeZone: string): string {
   return date.toLocaleString(lang === "es" ? "es-AR" : "en-US", {
     day: "2-digit",
     month: "2-digit",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
     timeZone,
   });
 }
