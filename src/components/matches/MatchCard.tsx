@@ -71,15 +71,17 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
   }, [match.homeTeam.logo, match.awayTeam.logo, match.league.logo]);
 
   const cardId = `match-card-${match._eventSlug ?? match._streamId ?? match.id}`;
-  // Finished fixtures are results, not destinations: no link, no hover, no
-  // watch CTA — clicking one used to open a dead player and confuse users.
-  const cardClass = finished
-    ? "block py-3 pl-2 pr-3 bg-bg-card border-4 border-white opacity-60 sm:py-4 sm:pl-3 sm:pr-4"
-    : `group block py-3 pl-2 pr-3 transition-all duration-200 sm:py-4 sm:pl-3 sm:pr-4 ${
-        live
-          ? "bg-black border-4 border-accent-primary shadow-brutal hover:-translate-y-1 hover:-translate-x-1"
-          : "bg-bg-card border-4 border-white transition-all relative hover:-translate-y-1 hover:-translate-x-1 hover:shadow-brutal hover:border-accent-primary"
-      }`;
+  // Finished fixtures stay clickable for the celebration window: the card
+  // dims slightly and keeps its FT badge, but still opens the watch page —
+  // celebrations and post-match coverage keep the signal up after the
+  // whistle. If no signal survives, the player shows its no-stream state.
+  const cardClass = `group block py-3 pl-2 pr-3 transition-all duration-200 sm:py-4 sm:pl-3 sm:pr-4 ${
+    finished
+      ? "bg-bg-card border-4 border-white opacity-80 hover:opacity-100 hover:-translate-y-1 hover:-translate-x-1 hover:shadow-brutal"
+      : live
+        ? "bg-black border-4 border-accent-primary shadow-brutal hover:-translate-y-1 hover:-translate-x-1"
+        : "bg-bg-card border-4 border-white transition-all relative hover:-translate-y-1 hover:-translate-x-1 hover:shadow-brutal hover:border-accent-primary"
+  }`;
 
   const content = (
     <>
@@ -196,7 +198,7 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
       </div>
 
       {/* Watch CTA */}
-      {(live || upcoming) && (
+      {(live || upcoming || finished) && (
         <div className={`mt-3 sm:mt-4 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-3 border-4 font-black uppercase tracking-wider transition-all duration-200 text-xs sm:text-sm ${
           live || viewable
             ? "bg-accent-primary border-black text-black group-hover:shadow-brutal-white"
@@ -208,14 +210,6 @@ export default function MatchCard({ match, prioritizeLogos = false }: MatchCardP
       )}
     </>
   );
-
-  if (finished) {
-    return (
-      <div className={cardClass} id={cardId}>
-        {content}
-      </div>
-    );
-  }
 
   return (
     <Link href={watchUrl} onClick={saveScroll} className={cardClass} id={cardId}>

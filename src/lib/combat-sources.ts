@@ -1,5 +1,5 @@
 import { getCache, setCache } from "./cache";
-import type { CombatMatch } from "./combat-source";
+import { COMBAT_RECENT_GRACE_MS, type CombatMatch } from "./combat-source";
 import { findPrimaryEventStreams } from "./primary-player-source";
 import { publicFrameUrl } from "./public-url";
 
@@ -40,4 +40,20 @@ export async function resolveCombatSources(match: CombatMatch): Promise<CombatSo
 
   await setCache(cacheKey, sources, SOURCE_CACHE_TTL);
   return sources;
+}
+
+/**
+ * Last resolved sources per event, kept for the recent-finished grace
+ * window. When the provider feed drops the card, stream resolution has no
+ * event to work from — the stored `/api/hls` relay URLs keep playing as
+ * long as the signal itself is alive (the relay re-resolves the signed
+ * playlist on every poll).
+ */
+export async function getRecentCombatSources(id: number): Promise<CombatSource[]> {
+  return (await getCache<CombatSource[]>(`combat:recent-src:${id}`)) ?? [];
+}
+
+export async function rememberCombatSources(id: number, sources: CombatSource[]): Promise<void> {
+  if (sources.length === 0) return;
+  await setCache(`combat:recent-src:${id}`, sources, COMBAT_RECENT_GRACE_MS + 60_000);
 }

@@ -50,7 +50,7 @@ import { fetchPlayerFiveAgenda } from "@/lib/player-five-source";
 import { loadLeagueOrder } from "@/lib/league-order";
 import { loadEspnScoreboards } from "@/lib/espn-scores";
 import { peekTeamLogo } from "@/lib/team-logos";
-import { setCache } from "@/lib/cache";
+import { setCache, deleteCache } from "@/lib/cache";
 
 function makeRequest(date?: string) {
   const url = date
@@ -230,7 +230,7 @@ describe("/api/matches", () => {
         const response = await GET(makeRequest("2026-10-30"));
         const data = await response.json();
         expect(data.matches.map((match: { homeTeam: { name: string } }) => match.homeTeam.name))
-          .toEqual(["Racing", "Talleres"]);
+          .toEqual(["Boca Juniors", "Racing", "Talleres"]);
         expect(response.headers.get("Cache-Control")).toContain("no-store");
       }
     } finally {
@@ -278,7 +278,7 @@ describe("/api/matches", () => {
     expect((await (await GET(makeRequest())).json()).matches).toEqual([]);
   });
 
-  it.each([false, true])("drops Miami's confirmed final from the daily fixture, including primary duplicate: %s", async (primaryAvailable) => {
+  it.each([false, true])("keeps Miami's confirmed final listed for the celebration window, including primary duplicate: %s", async (primaryAvailable) => {
     jest.setSystemTime(new Date("2026-11-01T23:20:00-03:00"));
     const entry = {
       homeTeam: "New England Revolution", awayTeam: "Inter Miami CF", league: "MLS",
@@ -289,19 +289,27 @@ describe("/api/matches", () => {
     if (primaryAvailable) (fetchAgenda as jest.Mock).mockResolvedValue([flMatch({
       homeTeam: "New England", awayTeam: "Inter Miami", league: "MLS", dateISO: entry.dateISO,
     })]);
-    expect((await (await GET(makeRequest())).json()).matches).toEqual([]);
-    // It stays gone for the rest of the day — finished games are not listings.
+    const first = (await (await GET(makeRequest())).json()).matches;
+    expect(first).toHaveLength(1);
+    expect(first[0].status.short).toBe("FT");
+    // Still listed later the same night — finished fixtures stay for the
+    // celebration grace window instead of vanishing at the whistle.
     jest.setSystemTime(new Date("2026-11-01T23:59:00-03:00"));
-    expect((await (await GET(makeRequest())).json()).matches).toEqual([]);
+    const second = (await (await GET(makeRequest())).json()).matches;
+    expect(second).toHaveLength(1);
+    expect(second[0].status.short).toBe("FT");
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Fixed kickoff examples must not expire when this suite runs at night.
     jest.useFakeTimers({
       now: new Date("2026-11-01T12:00:00-03:00"),
       doNotFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate", "nextTick", "performance", "queueMicrotask", "hrtime"],
     });
     jest.clearAllMocks();
+    // The finished-fixture store is real shared state: without clearing it,
+    // FT cards saved by one test leak into every later response.
+    await deleteCache("matches:finished-recent:v1");
     (fetchAgenda as jest.Mock).mockResolvedValue([]);
     (fetchSecondaryAgenda as jest.Mock).mockResolvedValue([]);
     (fetchEventAgenda as jest.Mock).mockResolvedValue([]);
@@ -827,8 +835,10 @@ describe("/api/matches", () => {
     (fetchPlayerFiveAgenda as jest.Mock).mockResolvedValue([]);
     (loadEspnScoreboards as jest.Mock).mockResolvedValue(new Map());
 
-    // Confirmed final: filtered before enrichment even runs.
-    expect((await (await GET(makeRequest(day))).json()).matches).toEqual([]);
+    // Confirmed final: stays listed as FT for the celebration window.
+    const { matches } = await (await GET(makeRequest(day))).json();
+    expect(matches).toHaveLength(1);
+    expect(matches[0].status.short).toBe("FT");
   });
 
   it("returns empty array when agenda is empty", async () => {
@@ -1126,7 +1136,7 @@ describe("/api/matches", () => {
     expect(data.matches).toHaveLength(2);
   });
 
-  it("excludes matches that already finished", async () => {
+  it("keeps matches that already finished listed as FT", async () => {
     const date = todayISO();
     const now = Date.now();
     const argISO = (d: Date) => d.toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires", hour12: false }).replace(" ", "T") + "-03:00";
@@ -1155,12 +1165,15 @@ describe("/api/matches", () => {
     const data = await res.json();
 
     const pairs = data.matches.map((m: { homeTeam: { name: string }; awayTeam: { name: string } }) => `${m.homeTeam.name} vs ${m.awayTeam.name}`);
-    expect(pairs).not.toContain("Racing Club vs Independiente");
-    expect(pairs).not.toContain("Talleres vs Belgrano");
-    expect(pairs).not.toContain("Newell's Old Boys vs Rosario Central");
-    // Live and upcoming fixtures stay.
+    // Finished fixtures stay listed as FT for the celebration window.
+    expect(pairs).toContain("Racing Club vs Independiente");
+    expect(pairs).toContain("Talleres vs Belgrano");
+    expect(pairs).toContain("Newell's Old Boys vs Rosario Central");
+    // Live and upcoming fixtures stay too.
     expect(pairs).toContain("San Lorenzo vs Huracán");
     expect(pairs).toContain("Vélez vs Lanús");
+    const ft = data.matches.find((m: { homeTeam: { name: string } }) => m.homeTeam.name === "Racing Club");
+    expect(ft.status.short).toBe("FT");
   });
 
   it("includes MLS and ignores the same fixture from the secondary agenda", async () => {
@@ -1487,7 +1500,7 @@ describe("/api/matches", () => {
     expect(matches).toHaveLength(2);
   });
 
-  it("drops a recently finished fixture even without a score source", async () => {
+  it("keeps a recently finished fixture listed even without a score source", async () => {
     jest.setSystemTime(new Date("2026-11-01T14:35:00-03:00"));
     (fetchAgenda as jest.Mock).mockResolvedValue([
       flMatch({
@@ -1496,7 +1509,8 @@ describe("/api/matches", () => {
       }),
     ]);
     const { matches } = await (await GET(makeRequest("2026-11-01"))).json();
-    expect(matches).toHaveLength(0);
+    expect(matches).toHaveLength(1);
+    expect(matches[0].status.short).toBe("FT");
   });
 
   it("reuses the last Sportplus score when the match leaves the live board", async () => {
@@ -1530,8 +1544,10 @@ describe("/api/matches", () => {
     const ongoing = matches.find((m: { homeTeam: { name: string } }) => m.homeTeam.name === "Deportes Limache");
 
     // The remembered score pushed the 10:00 fixture past its window → FT →
-    // it leaves the listing; the still-live one keeps its remembered score.
-    expect(ft).toBeUndefined();
+    // it stays listed as finished; the live one keeps its remembered score.
+    expect(ft).toBeDefined();
+    expect(ft.score).toEqual({ home: 1, away: 0 });
+    expect(ft.status.short).toBe("FT");
     expect(ongoing.score).toEqual({ home: 0, away: 1 });
     expect(ongoing.status.short).toBe("1H");
     expect(ongoing.status.elapsed).toBe(28);

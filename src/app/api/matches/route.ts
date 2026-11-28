@@ -24,6 +24,7 @@ import { isIPBanned } from "@/lib/chat";
 import { touchRequestPresence } from "@/lib/presence";
 import { BANNED_HEADER } from "@/lib/viewer-id";
 import { settleImagePopulates } from "@/lib/r2-segments";
+import { FINISHED_GRACE_MS, FINISHED_STORE_KEY, type FinishedStoreEntry } from "@/lib/finished-matches";
 import type { Channel, Match } from "@/lib/types";
 import { validateQuery, matchesQuerySchema } from "@/lib/validators";
 
@@ -322,10 +323,12 @@ export async function GET(request: NextRequest) {
     const preferredPlayer =
       league.id === 129 ? ("5" as const) : "preferredPlayer" in entry ? entry.preferredPlayer : undefined;
     const status = entry.fixtureStatus ?? inferStatus(entry.dateISO);
-    // Finished fixtures are results, not listings: once a match is over it
-    // leaves the agenda so users never click a dead player. Postponed and
-    // cancelled entries are dropped the same way.
-    if (FINISHED_STATUSES.includes(status) || status === "PST" || status === "CANC") continue;
+    // Postponed and cancelled entries are dropped outright. Finished
+    // fixtures stay listed: the final whistle does not end the broadcast —
+    // celebrations and post-match coverage continue, and the
+    // recent-finished store below keeps the card visible even after the
+    // providers drop it from their agenda.
+    if (status === "PST" || status === "CANC") continue;
 
     const id = hashSlug(entry.slug);
     const duplicateIndex = findDuplicateFixture(seenMatches, kickoffFixtures, entry.dateISO, league.id, entry.homeTeam, entry.awayTeam, id, matches.length);
@@ -510,10 +513,8 @@ export async function GET(request: NextRequest) {
 
   // Enrichment can flip a fixture to a finished state after it passed the
   // entry filter (ESPN final whistle, Sportplus board drop). Finished games
-  // leave the listing entirely — they are results, not watchable fixtures.
-  for (let i = matches.length - 1; i >= 0; i--) {
-    if (FINISHED_STATUSES.includes(matches[i].status.short)) matches.splice(i, 1);
-  }
+  // stay in the listing — the recent-finished store below decides how long
+  // they remain once providers stop carrying them.
 
   // A live badge only proves the clock, not the feed: providers keep cards
   // up after the signal dies, and viewers who click get a dead player.
@@ -557,6 +558,43 @@ export async function GET(request: NextRequest) {
     m.homeTeam.logo = proxyImageUrl(logoMap.get(badgeKey(m.homeTeam.name, m.league.country)) ?? "");
     m.awayTeam.logo = proxyImageUrl(logoMap.get(badgeKey(m.awayTeam.name, m.league.country)) ?? "");
   }
+
+  // Finished fixtures stay listed for a grace window: providers drop the
+  // card minutes after the whistle while celebrations keep streaming. The
+  // last-seen match (logos and sources included) is kept in the shared
+  // cache and re-added as FT until the window expires. Stored entries
+  // already carry proxied logos, so they join after the logo pass.
+  const finishedStore =
+    (await getCache<Record<string, FinishedStoreEntry>>(FINISHED_STORE_KEY)) ?? {};
+  const finishedNow = Date.now();
+  const activeIds = new Set(matches.map((m) => String(m.id)));
+  const nextFinished: Record<string, FinishedStoreEntry> = {};
+  // The grace window counts from the first sighting as FT, so a card the
+  // provider keeps listing as a result still expires instead of lingering
+  // all day.
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const m = matches[i];
+    if (!FINISHED_STATUSES.includes(m.status.short)) continue;
+    const key = String(m.id);
+    const finishedAt = finishedStore[key]?.finishedAt ?? finishedNow;
+    if (finishedNow - finishedAt > FINISHED_GRACE_MS) {
+      matches.splice(i, 1);
+      activeIds.delete(key);
+      continue;
+    }
+    nextFinished[key] = { match: m, finishedAt };
+  }
+  let revivedFinished = 0;
+  for (const [id, entry] of Object.entries(finishedStore)) {
+    if (activeIds.has(id) || finishedNow - entry.finishedAt > FINISHED_GRACE_MS) continue;
+    matches.push({ ...entry.match, status: { short: "FT", long: "Finalizado", elapsed: null } });
+    nextFinished[id] = entry;
+    revivedFinished += 1;
+  }
+  if (revivedFinished > 0) {
+    matches.sort((a, b) => rankOf(a.league.id) - rankOf(b.league.id) || a.timestamp - b.timestamp);
+  }
+  await setCache(FINISHED_STORE_KEY, nextFinished, FINISHED_GRACE_MS + 60_000);
 
   // Warm every sealed badge (league + team crests) into the shared image
   // cache before responding, so the browser's /api/img requests — fired the

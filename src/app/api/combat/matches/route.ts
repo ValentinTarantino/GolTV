@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listCombatMatches, type CombatMatch } from "@/lib/combat-source";
+import { listCombatMatches, mergeRecentCombatMatches, type CombatMatch } from "@/lib/combat-source";
 import { findPrimaryEventStreams } from "@/lib/primary-player-source";
 import { matchSignalAlive } from "@/lib/signal-alive";
 
@@ -43,7 +43,9 @@ export async function GET() {
         return { ...m, live: alive, finished: false };
       })
     );
-    return NextResponse.json({ matches: enriched });
+    // Feed-dropped events stay listed as finished for the grace window —
+    // celebrations keep streaming after the provider removes the card.
+    return NextResponse.json({ matches: await mergeRecentCombatMatches(enriched) });
   } catch (error) {
     console.error("[api/combat/matches]", error);
     return NextResponse.json({ matches: [] }, { status: 502 });

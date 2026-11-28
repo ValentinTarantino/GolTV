@@ -11,6 +11,7 @@ import { proxyImageUrl, publicChannels } from "@/lib/public-url";
 /** League badge URLs go through the image proxy so CDN hosts stay hidden. */
 const getLeagueLogo = (leagueId: number): string => proxyImageUrl(rawLeagueLogo(leagueId));
 import { findAgendaFixtureById } from "@/lib/agenda-fixture";
+import { findFinishedMatch } from "@/lib/finished-matches";
 import { isIPBanned } from "@/lib/chat";
 import { touchRequestPresence } from "@/lib/presence";
 import { BANNED_HEADER } from "@/lib/viewer-id";
@@ -91,6 +92,15 @@ export async function GET(
     ? Math.floor(new Date(fixtureDateISO).getTime() / 1000)
     : Math.floor(Date.now() / 1000);
 
+  // Recently finished fixtures resolve their real status/score from the
+  // store: the watch page only blocks the player when no channel survives,
+  // so a celebration signal keeps playing under an FT badge.
+  const finishedFixture = !isNaN(id) ? await findFinishedMatch(id).catch(() => null) : null;
+  const displayStatus = finishedFixture
+    ? { short: finishedFixture.status.short, long: "Finalizado", elapsed: null }
+    : { short: "LIVE" as const, long: "En Juego", elapsed: null };
+  const displayScore = finishedFixture?.score ?? { home: 0, away: 0 };
+
   const homeTeam = home || "Home";
   const awayTeam = away || "Away";
   const leagueName = league || "Internacional";
@@ -114,8 +124,8 @@ export async function GET(
       awayTeam: { id: 0, name: awayTeam, logo: "" },
       date: fixtureDateISO ?? new Date().toISOString(),
       timestamp: fixtureTimestamp,
-      status: { short: "LIVE", long: "En Juego", elapsed: null },
-      score: { home: 0, away: 0 },
+      status: displayStatus,
+      score: displayScore,
       channels,
     };
 
@@ -139,8 +149,8 @@ export async function GET(
       awayTeam: { id: 0, name: awayTeam, logo: "" },
       date: fixtureDateISO ?? new Date().toISOString(),
       timestamp: fixtureTimestamp,
-      status: { short: "LIVE", long: "En Juego", elapsed: null },
-      score: { home: 0, away: 0 },
+      status: displayStatus,
+      score: displayScore,
       channels,
     };
 
@@ -164,8 +174,8 @@ export async function GET(
       awayTeam: { id: 0, name: awayTeam, logo: "" },
       date: fixtureDateISO ?? new Date().toISOString(),
       timestamp: fixtureTimestamp,
-      status: { short: "LIVE", long: "En Juego", elapsed: null },
-      score: { home: 0, away: 0 },
+      status: displayStatus,
+      score: displayScore,
       channels,
     };
 
@@ -189,8 +199,8 @@ export async function GET(
       awayTeam: { id: 0, name: awayTeam, logo: "" },
       date: fixtureDateISO ?? new Date().toISOString(),
       timestamp: fixtureTimestamp,
-      status: { short: "LIVE", long: "En Juego", elapsed: null },
-      score: { home: 0, away: 0 },
+      status: displayStatus,
+      score: displayScore,
       channels,
     };
 
@@ -217,8 +227,8 @@ export async function GET(
       awayTeam: { id: 0, name: awayTeam, logo: "" },
       date: fixtureDateISO ?? new Date().toISOString(),
       timestamp: fixtureTimestamp,
-      status: { short: "LIVE", long: "En Juego", elapsed: null },
-      score: { home: 0, away: 0 },
+      status: displayStatus,
+      score: displayScore,
       channels,
     };
 

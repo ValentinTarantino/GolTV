@@ -4,6 +4,7 @@ import { fetchEventAgenda } from "./event-source";
 import { fetchPlayerFiveAgenda } from "./player-five-source";
 import { cleanAgendaTeamName, cleanAgendaText } from "./agenda-text";
 import { matchPlLeague, isItalianSerieATeam, SUPPORTED_LEAGUES } from "./constants";
+import { findFinishedMatchContext } from "./finished-matches";
 
 export function hashSlug(slug: string): number {
   let hash = 0;
@@ -122,5 +123,7 @@ export async function findAgendaFixtureById(id: number): Promise<AgendaFixtureCo
     };
   }
 
-  return null;
+  // Finished fixtures the providers already dropped still resolve through
+  // the recent-finished store, so celebrations remain watchable.
+  return findFinishedMatchContext(id);
 }
