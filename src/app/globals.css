@@ -106,6 +106,10 @@
        and silently breaks position:sticky descendants like the navbar. */
     overflow-x: hidden;
     overflow-x: clip;
+    /* The collapsing navbar ticker changes layout height on scroll; without
+       this the browser's scroll anchoring fights the collapse and the ticker
+       oscillates forever on mobile. */
+    overflow-anchor: none;
     background-image: repeating-linear-gradient(
       to bottom,
       #0a0a0a,

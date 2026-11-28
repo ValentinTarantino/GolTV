@@ -31,11 +31,14 @@ export default function Header() {
     let lastY = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
+      const delta = y - lastY;
+      // Require a real direction change (8px) — tiny deltas from URL-bar
+      // collapse / scroll anchoring must not flip the ticker back and forth.
       if (y < 60) {
         setTickerHidden(false);
-      } else if (y > lastY + 4) {
+      } else if (delta > 8) {
         setTickerHidden(true);
-      } else if (y < lastY - 4) {
+      } else if (delta < -8) {
         setTickerHidden(false);
       }
       lastY = y;
